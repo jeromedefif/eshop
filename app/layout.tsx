@@ -14,7 +14,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "VINARIA s.r.o.",
+  title: "Testování preview",
   description: "VINARIA, objednávky, B2B",
 };
 
