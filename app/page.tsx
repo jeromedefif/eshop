@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client';
 import Header from './components/Header';
 import ProductList from './components/ProductList';
 import OrderForm from './components/OrderForm';
 import AdminProducts from './components/AdminProducts';
-import LoginDialog from './components/LoginDialog';
+import AuthDialog from './components/AuthDialog';
+
 
 
 interface Product {
@@ -230,11 +231,10 @@ export default function Home() {
         )}
       </main>
 
-      <LoginDialog
-        isOpen={isLoginDialogOpen}
-        onClose={() => setIsLoginDialogOpen(false)}
-        onLogin={handleLogin}
-      />
-    </div>
-  );
-}
+      <AuthDialog
+          isOpen={isLoginDialogOpen}
+          onClose={() => setIsLoginDialogOpen(false)}
+        />
+      </div>
+    );
+  }

@@ -1,5 +1,8 @@
+'use client'
+
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import Providers from './providers'
 import "./globals.css";
 
 const geistSans = localFont({
@@ -7,28 +10,28 @@ const geistSans = localFont({
   variable: "--font-geist-sans",
   weight: "100 900",
 });
+
 const geistMono = localFont({
   src: "./fonts/GeistMonoVF.woff",
   variable: "--font-geist-mono",
   weight: "100 900",
 });
 
-export const metadata: Metadata = {
-  title: "Testování preview",
-  description: "VINARIA, objednávky, B2B",
-};
-
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en">
+    <html lang="cs">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}
       >
-        {children}
+        <Providers>
+          <div className="min-h-screen bg-white">
+            {children}
+          </div>
+        </Providers>
       </body>
     </html>
   );

@@ -37,7 +37,7 @@ const LoginDialog = ({ isOpen, onClose, onLogin }: LoginDialogProps) => {
                 </button>
 
                 <h2 className="text-xl font-bold text-gray-900 mb-4">Přihlášení do správy</h2>
-                
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
