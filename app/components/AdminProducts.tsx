@@ -33,7 +33,7 @@ const EditForm = ({
     const [formData, setFormData] = useState({
         name: product.name,
         category: product.category,
-        in_Stock: product.in_stock
+        in_stock: product.in_stock
     });
 
     const categories = ["Víno", "Nápoje", "Ovocné víno", "Dusík", "PET"];
@@ -74,13 +74,13 @@ const EditForm = ({
                 <div className="flex items-center">
                     <input
                         type="checkbox"
-                        id={`in_Stock-${product.id}`}
-                        checked={formData.in_Stock}
-                        onChange={(e) => setFormData({ ...formData, in_Stock: e.target.checked })}
+                        id={`in_stock-${product.id}`}
+                        checked={formData.in_stock}
+                        onChange={(e) => setFormData({ ...formData, in_stock: e.target.checked })}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         disabled={isLoading}
                     />
-                    <label htmlFor={`in_Stock-${product.id}`} className="ml-2 block text-sm font-medium text-gray-900">
+                    <label htmlFor={`in_stock-${product.id}`} className="ml-2 block text-sm font-medium text-gray-900">
                         Skladem
                     </label>
                 </div>
@@ -121,7 +121,7 @@ const AddProductForm = ({
     const [formData, setFormData] = useState({
         name: '',
         category: 'Víno',
-        in_Stock: true
+        in_stock: true
     });
 
     const categories = ["Víno", "Nápoje", "Ovocné víno", "Dusík", "PET"];
@@ -165,8 +165,8 @@ const AddProductForm = ({
                     <input
                         type="checkbox"
                         id="newProductInStock"
-                        checked={formData.in_Stock}
-                        onChange={(e) => setFormData({ ...formData, in_Stock: e.target.checked })}
+                        checked={formData.in_stock}
+                        onChange={(e) => setFormData({ ...formData, in_stock: e.target.checked })}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         disabled={isLoading}
                     />
@@ -236,7 +236,7 @@ const AdminProducts = ({
                 id: productId,
                 name: formData.name,
                 category: formData.category,
-                in_Stock: formData.in_Stock
+                in_stock: formData.in_stock
             });
             await onProductsChange();
             setEditingInline(null);
