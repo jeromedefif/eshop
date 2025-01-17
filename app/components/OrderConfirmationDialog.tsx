@@ -10,7 +10,7 @@ type OrderConfirmationProps = {
     orderData: {
         items: Array<{
             productName: string;
-            volume: string;
+            volume: string | number;
             quantity: number;
             display: string;
         }>;
