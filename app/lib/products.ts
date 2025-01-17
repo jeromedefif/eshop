@@ -15,10 +15,10 @@ export async function fetchProducts(): Promise<Product[]> {
   return data || [];
 }
 
-export async function updateProductStock(id: number, inStock: boolean) {
+export async function updateProductStock(id: number, in_stock: boolean) {
   const { error } = await supabase
     .from('products')
-    .update({ in_stock: inStock })
+    .update({ in_stock: in_stock })
     .eq('id', id);
 
   if (error) {
