@@ -18,7 +18,7 @@ type HeaderProps = {
     onViewChange: (view: 'catalog' | 'order' | 'admin') => void;
     currentView: 'catalog' | 'order' | 'admin';
     totalVolume: number;
-    onRemoveFromCart: (productId: number, volume: number) => void;
+    onRemoveFromCart: (productId: number, volume: string | number) => void;
     onClearCart: () => void;
 };
 
