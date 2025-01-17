@@ -185,7 +185,7 @@ export default function Home() {
                     .insert([{
                       name: product.name,
                       category: product.category,
-                      in_stock: product.inStock
+                      in_stock: product.in_stock
                     }]);
 
                   if (error) {
@@ -201,7 +201,7 @@ export default function Home() {
                     .update({
                       name: product.name,
                       category: product.category,
-                      in_stock: product.inStock
+                      in_stock: product.in_stock
                     })
                     .eq('id', product.id);
 
