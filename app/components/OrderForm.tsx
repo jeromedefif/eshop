@@ -104,7 +104,7 @@ const OrderForm = ({
 
             return {
                 productName: product.name,
-                volume: volume,
+                volume: volume as string | number,
                 quantity,
                 display: product.category === 'PET'
                     ? `${quantity}× balení`
@@ -112,7 +112,7 @@ const OrderForm = ({
                         ? `${quantity}× ${volume === 'maly' ? 'malý' : 'velký'}`
                         : `${volume}L × ${quantity}`
             };
-        }).filter(Boolean);
+        }).filter((item): item is NonNullable<typeof item> => item !== null);
 
         return {
             items,
