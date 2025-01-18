@@ -1,17 +1,10 @@
 import React, { useState } from 'react';
 import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, Layout, LayoutList } from 'lucide-react';
-
-type Product = {
-    id: number;
-    name: string;
-    category: string;
-    in_stock: boolean;
-    created_at?: string;
-};
+import { Product } from '@/types/database';
 
 type ProductListProps = {
-    onAddToCart: (productId: number, volume: number | string) => void;
-    onRemoveFromCart: (productId: number, volume: number | string) => void;
+    onAddToCart: (productId: number, volume: string | number) => void;
+    onRemoveFromCart: (productId: number, volume: string | number) => void;
     cartItems: {[key: string]: number};
     products: Product[];
 };
@@ -89,7 +82,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
             return acc;
         }, {} as Record<string, Product[]>) : null;
 
-        const ProductItem = ({ product }: { product: Product }) => {
+    const ProductItem = ({ product }: { product: Product }) => {
         const productButtons = getVolumeButtons(product);
 
         return (
@@ -116,105 +109,105 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                 </div>
 
                 <div className="flex items-center gap-1 pl-2">
-                {productButtons.map(({ label, value }) => {
-                    const count = getCartCount(product.id, value);
-                    const isInCart = count > 0;
-                    return (
-                        <div key={`${product.id}-${value}`} className="relative">
-                            <button
-                                onClick={() => product.in_stock && onAddToCart(product.id, value)}
-                                disabled={!product.in_stock}
-                                className={`min-w-[52px] px-2 py-1 text-xs border rounded-md
-                                         transition-colors duration-150 ${
-                                    isInCart
-                                        ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100'
-                                        : product.in_stock
-                                            ? 'bg-white text-gray-900 border-gray-300 hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100'
-                                            : 'opacity-50 cursor-not-allowed text-gray-500'
-                                }`}
-                            >
-                                {label}
-                            </button>
-                            {isInCart && (
+                    {productButtons.map(({ label, value }) => {
+                        const count = getCartCount(product.id, value);
+                        const isInCart = count > 0;
+                        return (
+                            <div key={`${product.id}-${value}`} className="relative">
                                 <button
-                                    onClick={() => onRemoveFromCart(product.id, value)}
-                                    className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600
+                                    onClick={() => product.in_stock && onAddToCart(product.id, value)}
+                                    disabled={!product.in_stock}
+                                    className={`min-w-[52px] px-2 py-1 text-xs border rounded-md
+                                         transition-colors duration-150 ${
+                                        isInCart
+                                            ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100'
+                                            : product.in_stock
+                                                ? 'bg-white text-gray-900 border-gray-300 hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100'
+                                                : 'opacity-50 cursor-not-allowed text-gray-500'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                                {isInCart && (
+                                    <button
+                                        onClick={() => onRemoveFromCart(product.id, value)}
+                                        className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600
                                              text-white text-[10px] rounded-full w-4 h-4
                                              flex items-center justify-center font-medium shadow-sm
                                              transition-colors duration-150 cursor-pointer"
-                                    title="Kliknutím snížíte počet o 1"
-                                >
-                                    {count}
-                                </button>
-                            )}
-                        </div>
-                    );
-                })}
+                                        title="Kliknutím snížíte počet o 1"
+                                    >
+                                        {count}
+                                    </button>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
-        </div>
-    );
-};
+        );
+    };
 
     return (
         <div className="max-w-6xl mx-auto px-4">
             {/* Sticky header section */}
-                <div className="sticky top-16 bg-white z-40 pb-3 pt-3 shadow-sm">
-                    <h1 className="text-lg font-bold text-gray-900 mb-3">Katalog vín a nápojů</h1>
+            <div className="sticky top-16 bg-white z-40 pb-3 pt-3 shadow-sm">
+                <h1 className="text-lg font-bold text-gray-900 mb-3">Katalog vín a nápojů</h1>
 
-                    {/* Search bar */}
-                    <div className="mb-3">
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Search className="h-4 w-4 text-gray-400" />
-                            </div>
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Vyhledat produkt..."
-                                className="block w-full pl-9 pr-4 py-1.5 text-sm border border-gray-300 rounded-lg
-                                         focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-                            />
-                            {searchQuery && (
-                                <button
-                                    onClick={() => setSearchQuery('')}
-                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                                >
-                                    <X className="h-4 w-4" />
-                                </button>
-                            )}
+                {/* Search bar */}
+                <div className="mb-3">
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Search className="h-4 w-4 text-gray-400" />
                         </div>
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Vyhledat produkt..."
+                            className="block w-full pl-9 pr-4 py-1.5 text-sm border border-gray-300 rounded-lg
+                                         focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                        />
                         {searchQuery && (
-                            <div className="mt-1 text-xs text-gray-600">
-                                Nalezeno {filteredProducts.length} produktů
-                            </div>
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
                         )}
                     </div>
-
-                    {/* Category buttons and view toggle */}
-                    <div className="flex justify-between items-center">
-                        <div className="flex space-x-1 overflow-x-auto">
-                            {categoryButtons.map((cat) => (
-                                <button
-                                    key={cat.id}
-                                    onClick={() => setSelectedCategory(cat.id)}
-                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors ${
-                                        selectedCategory === cat.id
-                                            ? 'bg-blue-100 text-blue-700'
-                                            : 'bg-white text-gray-700 hover:bg-gray-100'
-                                    } whitespace-nowrap`}
-                                    title={cat.id}
-                                >
-                                    {React.cloneElement(cat.icon, { className: 'h-4 w-4' })}
-                                    <span className="text-xs font-medium">{cat.label}</span>
-                                </button>
-                            ))}
+                    {searchQuery && (
+                        <div className="mt-1 text-xs text-gray-600">
+                            Nalezeno {filteredProducts.length} produktů
                         </div>
+                    )}
+                </div>
 
-                        {/* View toggle button */}
-                        <button
-                            onClick={() => setIsGrouped(!isGrouped)}
-                            className={`
+                {/* Category buttons and view toggle */}
+                <div className="flex justify-between items-center">
+                    <div className="flex space-x-1 overflow-x-auto">
+                        {categoryButtons.map((cat) => (
+                            <button
+                                key={cat.id}
+                                onClick={() => setSelectedCategory(cat.id)}
+                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors ${
+                                    selectedCategory === cat.id
+                                        ? 'bg-blue-100 text-blue-700'
+                                        : 'bg-white text-gray-700 hover:bg-gray-100'
+                                } whitespace-nowrap`}
+                                title={cat.id}
+                            >
+                                {React.cloneElement(cat.icon, { className: 'h-4 w-4' })}
+                                <span className="text-xs font-medium">{cat.label}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* View toggle button */}
+                    <button
+                        onClick={() => setIsGrouped(!isGrouped)}
+                        className={`
                                 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ml-2
                                 font-medium transition-all duration-200 text-xs
                                 ${isGrouped
@@ -222,73 +215,73 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}
                                 min-w-[40px] justify-center
                             `}
-                            title={isGrouped ? "Zobrazit jako seznam" : "Seskupit podle kategorií"}
-                        >
-                            {isGrouped ? (
-                                <>
-                                    <LayoutList className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Seznam</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Layout className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Skupiny</span>
-                                </>
-                            )}
-                        </button>
-                    </div>
+                        title={isGrouped ? "Zobrazit jako seznam" : "Seskupit podle kategorií"}
+                    >
+                        {isGrouped ? (
+                            <>
+                                <LayoutList className="h-4 w-4" />
+                                <span className="hidden sm:inline">Seznam</span>
+                            </>
+                        ) : (
+                            <>
+                                <Layout className="h-4 w-4" />
+                                <span className="hidden sm:inline">Skupiny</span>
+                            </>
+                        )}
+                    </button>
                 </div>
+            </div>
 
-                {/* Products list */}
-                <div className="mt-3">
-                    {filteredProducts.length === 0 ? (
-                        <div className="text-center py-6">
-                            <Search className="h-10 w-10 text-gray-400 mx-auto mb-2" />
-                            <p className="text-gray-600 text-base">
-                                {searchQuery
-                                    ? "Nenalezeny žádné produkty odpovídající vašemu hledání"
-                                    : "V této kategorii nejsou žádné produkty"}
-                            </p>
-                            {searchQuery && (
-                                <button
-                                    onClick={() => setSearchQuery('')}
-                                    className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
-                                >
-                                    Zobrazit všechny produkty
-                                </button>
-                            )}
-                        </div>
-                    ) : isGrouped ? (
-                      // Grouped view
-                  <div className="space-y-4 bg-white rounded-lg border">
-                      {Object.entries(groupedProducts!).map(([category, categoryProducts]) => (
-                          <div key={category} className="border-t first:border-t-0">
-                              <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2 px-3 py-2">
-                                  {getProductIcon(category)}
-                                  {category}
-                                  <span className="text-xs font-normal text-gray-500">
-                                      ({categoryProducts.length})
-                                  </span>
-                              </h2>
-                              <div>
-                                  {categoryProducts.map(product => (
-                                      <ProductItem key={product.id} product={product} />
-                                  ))}
-                              </div>
-                          </div>
-                      ))}
-                  </div>
-              ) : (
-                  // List view
-                  <div className="bg-white rounded-lg border">
-                      {filteredProducts.map(product => (
-                          <ProductItem key={product.id} product={product} />
-                      ))}
-                  </div>
-              )}
-          </div>
-      </div>
-  );
+            {/* Products list */}
+            <div className="mt-3">
+                {filteredProducts.length === 0 ? (
+                    <div className="text-center py-6">
+                        <Search className="h-10 w-10 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-600 text-base">
+                            {searchQuery
+                                ? "Nenalezeny žádné produkty odpovídající vašemu hledání"
+                                : "V této kategorii nejsou žádné produkty"}
+                        </p>
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
+                            >
+                                Zobrazit všechny produkty
+                            </button>
+                        )}
+                    </div>
+                ) : isGrouped ? (
+                    // Grouped view
+                    <div className="space-y-4 bg-white rounded-lg border">
+                        {Object.entries(groupedProducts!).map(([category, categoryProducts]) => (
+                            <div key={category} className="border-t first:border-t-0">
+                                <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2 px-3 py-2">
+                                    {getProductIcon(category)}
+                                    {category}
+                                    <span className="text-xs font-normal text-gray-500">
+                                        ({categoryProducts.length})
+                                    </span>
+                                </h2>
+                                <div>
+                                    {categoryProducts.map(product => (
+                                        <ProductItem key={product.id} product={product} />
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    // List view
+                    <div className="bg-white rounded-lg border">
+                        {filteredProducts.map(product => (
+                            <ProductItem key={product.id} product={product} />
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 };
 
 export default ProductList;
