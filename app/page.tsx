@@ -7,6 +7,7 @@ import ProductList from './components/ProductList';
 import OrderForm from './components/OrderForm';
 import AdminProducts from './components/AdminProducts';
 import AuthDialog from './components/AuthDialog';
+import { Product } from '@/types/database';
 
 
 
