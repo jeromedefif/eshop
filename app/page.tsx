@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import Header from './components/Header';
 import ProductList from './components/ProductList';
 import OrderForm from './components/OrderForm';
@@ -9,10 +10,10 @@ import AdminProducts from './components/AdminProducts';
 import AuthDialog from './components/AuthDialog';
 import { Product } from '@/types/database';
 
-// Definujeme výchozí hodnoty pro cart
 const defaultCartItems: {[key: string]: number} = {};
 
 export default function Home() {
+  const { user, profile } = useAuth();
   const [currentView, setCurrentView] = useState<'catalog' | 'order' | 'admin'>('catalog');
   const [cartItems, setCartItems] = useState<{[key: string]: number}>(defaultCartItems);
   const [products, setProducts] = useState<Product[]>([]);
@@ -20,7 +21,6 @@ export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Načtení produktů
   const loadProducts = async () => {
     try {
       setIsLoading(true);
@@ -41,12 +41,10 @@ export default function Home() {
     }
   };
 
-  // Načtení dat při prvním renderu
   useEffect(() => {
     loadProducts();
   }, []);
 
-  // Načtení košíku z localStorage
   useEffect(() => {
     try {
       const savedCart = localStorage.getItem('cart');
@@ -59,7 +57,6 @@ export default function Home() {
     }
   }, []);
 
-  // Ukládání košíku do localStorage
   useEffect(() => {
     try {
       localStorage.setItem('cart', JSON.stringify(cartItems));
@@ -99,13 +96,11 @@ export default function Home() {
       const key = `${productId}-${volume}`;
       const currentCount = prev[key] || 0;
 
-      // Pokud je to poslední položka, odstraníme celý klíč
       if (currentCount <= 1) {
         const { [key]: _, ...rest } = prev;
         return rest;
       }
 
-      // Jinak snížíme počet o 1
       return {
         ...prev,
         [key]: currentCount - 1
@@ -164,6 +159,8 @@ export default function Home() {
                 onAddToCart={handleAddToCart}
                 onClearCart={handleClearCart}
                 totalVolume={getTotalVolume()}
+                user={user}
+                profile={profile}
               />
             )}
             {currentView === 'admin' && isAuthenticated && (
@@ -225,6 +222,7 @@ export default function Home() {
       <AuthDialog
         isOpen={isLoginDialogOpen}
         onClose={() => setIsLoginDialogOpen(false)}
+        onLogin={handleLogin}
       />
     </div>
   );
