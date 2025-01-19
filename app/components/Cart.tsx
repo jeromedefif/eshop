@@ -2,19 +2,13 @@
 
 import React from 'react';
 import { X, ShoppingBag, Trash2 } from 'lucide-react';
-
-type Product = {
-    id: number;
-    name: string;
-    category: string;
-    inStock: boolean;
-};
+import { Product } from '@/types/database';  // Přidáme import typu Product
 
 type CartProps = {
     isOpen: boolean;
     onClose: () => void;
     cartItems: {[key: string]: number};
-    products: Array<Product>;
+    products: Array<Product>;  // Použijeme importovaný typ Product
     onRemoveFromCart: (productId: number, volume: string | number) => void;
     onClearCart: () => void;
     onGoToOrder: () => void;
@@ -66,12 +60,12 @@ const Cart = ({
     };
 
     return (
-        <>
-            {/* Overlay */}
-            <div
-                className="fixed inset-0 bg-black bg-opacity-50 transition-opacity z-40"
-                onClick={onClose}
-            />
+       <>
+           {/* Overlay */}
+           <div
+               className="fixed inset-0 bg-black bg-opacity-50 transition-opacity z-40"
+               onClick={onClose}
+           />
 
             {/* Panel */}
             <div className="fixed inset-y-0 right-0 max-w-xl w-full bg-white shadow-xl z-50 flex flex-col">

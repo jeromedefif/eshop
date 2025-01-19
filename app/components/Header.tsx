@@ -6,15 +6,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import Cart from './Cart';
 import AuthDialog from './AuthDialog';
 import RegistrationDialog from './RegistrationDialog';
+import { Product } from '@/types/database';  // Přidáme import typu Product
 
 type HeaderProps = {
     cartItems: {[key: string]: number};
-    products: Array<{
-        id: number;
-        name: string;
-        category: string;
-        inStock: boolean;
-    }>;
+    products: Product[];  // Použijeme importovaný typ Product
     onViewChange: (view: 'catalog' | 'order' | 'admin') => void;
     currentView: 'catalog' | 'order' | 'admin';
     totalVolume: number;

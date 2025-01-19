@@ -5,18 +5,13 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
 import OrderConfirmationDialog from './OrderConfirmationDialog';
 import OrderSummary from './OrderSummary';
+import { Product } from '@/types/database';  // Přidáme import typu Product
 
-type Product = {
-    id: number;
-    name: string;
-    category: string;
-    in_stock: boolean;
-    created_at?: string;
-};
+// Odstraníme lokální definici typu Product, protože ji importujeme
 
 type OrderFormProps = {
     cartItems: {[key: string]: number};
-    products: Array<Product>;
+    products: Array<Product>;  // Použijeme importovaný typ
     onRemoveFromCart: (productId: number, volume: string | number) => void;
     onAddToCart: (productId: number, volume: string | number) => void;
     onClearCart: () => void;
