@@ -18,7 +18,6 @@ export default function Home() {
   const [cartItems, setCartItems] = useState<{[key: string]: number}>(defaultCartItems);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadProducts = async () => {
@@ -66,18 +65,10 @@ export default function Home() {
   }, [cartItems]);
 
   const handleViewChange = (view: 'catalog' | 'order' | 'admin') => {
-    if (view === 'admin' && !isAuthenticated) {
+    if (view === 'admin' && !profile?.is_admin) {
       setIsLoginDialogOpen(true);
     } else {
       setCurrentView(view);
-    }
-  };
-
-  const handleLogin = (password: string) => {
-    if (password === 'jeromedefif') {
-      setIsAuthenticated(true);
-      setIsLoginDialogOpen(false);
-      setCurrentView('admin');
     }
   };
 
@@ -122,6 +113,14 @@ export default function Home() {
     }, 0);
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex justify-center items-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="sticky top-0 z-50">
@@ -137,92 +136,85 @@ export default function Home() {
       </div>
 
       <main className="container mx-auto px-4 py-6">
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        ) : (
-          <>
-            {currentView === 'catalog' && (
-              <ProductList
-                onAddToCart={handleAddToCart}
-                onRemoveFromCart={handleRemoveFromCart}
-                cartItems={cartItems}
-                products={products}
-              />
-            )}
-            {currentView === 'order' && (
-              <OrderForm
-                cartItems={cartItems}
-                products={products}
-                onRemoveFromCart={handleRemoveFromCart}
-                onAddToCart={handleAddToCart}
-                onClearCart={handleClearCart}
-                totalVolume={getTotalVolume()}
-                user={user}
-                profile={profile}
-              />
-            )}
-            {currentView === 'admin' && isAuthenticated && (
-              <AdminProducts
-                products={products}
-                onProductsChange={loadProducts}
-                onAddProduct={async (product) => {
-                  const { error } = await supabase
-                    .from('products')
-                    .insert([{
-                      name: product.name,
-                      category: product.category,
-                      in_stock: product.in_stock
-                    }]);
+        {currentView === 'catalog' && (
+          <ProductList
+            onAddToCart={handleAddToCart}
+            onRemoveFromCart={handleRemoveFromCart}
+            cartItems={cartItems}
+            products={products}
+          />
+        )}
 
-                  if (error) {
-                    console.error('Error adding product:', error);
-                    return;
-                  }
+        {currentView === 'order' && (
+          <OrderForm
+            cartItems={cartItems}
+            products={products}
+            onRemoveFromCart={handleRemoveFromCart}
+            onAddToCart={handleAddToCart}
+            onClearCart={handleClearCart}
+            totalVolume={getTotalVolume()}
+            user={user}
+            profile={profile}
+          />
+        )}
 
-                  await loadProducts();
-                }}
-                onUpdateProduct={async (product) => {
-                  const { error } = await supabase
-                    .from('products')
-                    .update({
-                      name: product.name,
-                      category: product.category,
-                      in_stock: product.in_stock
-                    })
-                    .eq('id', product.id);
+        {currentView === 'admin' && profile?.is_admin && (
+          <AdminProducts
+            products={products}
+            onProductsChange={loadProducts}
+            onAddProduct={async (product) => {
+              const { error } = await supabase
+                .from('products')
+                .insert([{
+                  name: product.name,
+                  category: product.category,
+                  in_stock: product.in_stock
+                }]);
 
-                  if (error) {
-                    console.error('Error updating product:', error);
-                    return;
-                  }
+              if (error) {
+                console.error('Error adding product:', error);
+                return;
+              }
 
-                  await loadProducts();
-                }}
-                onDeleteProduct={async (id) => {
-                  const { error } = await supabase
-                    .from('products')
-                    .delete()
-                    .eq('id', id);
+              await loadProducts();
+            }}
+            onUpdateProduct={async (product) => {
+              const { error } = await supabase
+                .from('products')
+                .update({
+                  name: product.name,
+                  category: product.category,
+                  in_stock: product.in_stock
+                })
+                .eq('id', product.id);
 
-                  if (error) {
-                    console.error('Error deleting product:', error);
-                    return;
-                  }
+              if (error) {
+                console.error('Error updating product:', error);
+                return;
+              }
 
-                  await loadProducts();
-                }}
-              />
-            )}
-          </>
+              await loadProducts();
+            }}
+            onDeleteProduct={async (id) => {
+              const { error } = await supabase
+                .from('products')
+                .delete()
+                .eq('id', id);
+
+              if (error) {
+                console.error('Error deleting product:', error);
+                return;
+              }
+
+              await loadProducts();
+            }}
+          />
         )}
       </main>
 
       <AuthDialog
         isOpen={isLoginDialogOpen}
         onClose={() => setIsLoginDialogOpen(false)}
-        onLogin={handleLogin}
       />
     </div>
   );
