@@ -9,16 +9,6 @@ import AdminProducts from './components/AdminProducts';
 import AuthDialog from './components/AuthDialog';
 import { Product } from '@/types/database';
 
-
-
-interface Product {
-  id: number;
-  name: string;
-  category: string;
-  in_stock: boolean;
-  created_at?: string;
-}
-
 // Definujeme výchozí hodnoty pro cart
 const defaultCartItems: {[key: string]: number} = {};
 
@@ -233,9 +223,9 @@ export default function Home() {
       </main>
 
       <AuthDialog
-          isOpen={isLoginDialogOpen}
-          onClose={() => setIsLoginDialogOpen(false)}
-        />
-      </div>
-    );
-  }
+        isOpen={isLoginDialogOpen}
+        onClose={() => setIsLoginDialogOpen(false)}
+      />
+    </div>
+  );
+}
