@@ -10,7 +10,12 @@ interface UserProfile {
     full_name: string | null;
     company: string | null;
     phone: string | null;
+    address: string | null;
+    city: string | null;
+    postal_code: string | null;
     is_admin: boolean;
+    created_at: string;
+    updated_at: string;
 }
 
 interface SignUpData {
@@ -20,7 +25,19 @@ interface SignUpData {
         full_name: string;
         company: string;
         phone: string;
+        address: string;
+        city: string;
+        postal_code?: string;
     };
+}
+
+interface UpdateProfileData {
+    full_name?: string;
+    company?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    postal_code?: string;
 }
 
 interface AuthContextType {
@@ -31,6 +48,7 @@ interface AuthContextType {
     signIn: (email: string, password: string) => Promise<void>;
     signUp: (data: SignUpData) => Promise<void>;
     signOut: () => Promise<void>;
+    updateProfile: (data: UpdateProfileData) => Promise<void>;
     refreshProfile: () => Promise<void>;
 }
 
@@ -43,20 +61,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isInitialized, setIsInitialized] = useState(false);
 
     const fetchProfile = async (userId: string) => {
-        try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single();
+    if (!userId) return null;
 
-            if (error) throw error;
-            return data;
-        } catch (error) {
-            console.error('Error fetching profile:', error);
-            return null;
-        }
-    };
+    try {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error fetching profile:', error);
+        return null;
+    }
+};
 
     const resetAuthState = async () => {
         setUser(null);
@@ -74,44 +94,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const initializeAuth = async () => {
-        let retryCount = 0;
-        const maxRetries = 3;
+    let retryCount = 0;
+    const maxRetries = 3;
 
-        const tryInitialize = async () => {
-            try {
-                setIsLoading(true);
-                const { data: { session }, error } = await supabase.auth.getSession();
+    const tryInitialize = async () => {
+        try {
+            setIsLoading(true);
+            const { data: { session }, error } = await supabase.auth.getSession();
 
-                if (error) throw error;
+            if (error) throw error;
 
-                setIsInitialized(true);
+            setIsInitialized(true);
 
-                if (session?.user) {
+            if (session?.user) {
+                try {
                     const profileData = await fetchProfile(session.user.id);
                     if (profileData) {
                         setUser(session.user);
                         setProfile(profileData);
-                    } else {
-                        await resetAuthState();
                     }
+                } catch (profileError) {
+                    console.error('Error fetching profile during initialization:', profileError);
                 }
-            } catch (error) {
-                console.error('Auth initialization error:', error);
-                if (retryCount < maxRetries) {
-                    retryCount++;
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    return tryInitialize();
-                } else {
-                    await resetAuthState();
-                    setIsInitialized(true);
-                }
-            } finally {
-                setIsLoading(false);
+            } else {
+                // Pokud není uživatel přihlášen, pouze nastavíme initialized stav
+                setUser(null);
+                setProfile(null);
             }
-        };
-
-        await tryInitialize();
+        } catch (error) {
+            console.error('Auth initialization error:', error);
+            if (retryCount < maxRetries) {
+                retryCount++;
+                await new Promise(resolve => setTimeout(resolve, 500));
+                return tryInitialize();
+            }
+            // V případě trvalého selhání resetujeme stav
+            await resetAuthState();
+            setIsInitialized(true);
+        } finally {
+            setIsLoading(false);
+        }
     };
+
+    await tryInitialize();
+};
 
     useEffect(() => {
         let mounted = true;
@@ -122,8 +148,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 const { data: { subscription } } = supabase.auth.onAuthStateChange(
                     async (event, session) => {
-                        console.log('Auth state changed:', event);
-
                         if (!mounted) return;
 
                         if (session?.user) {
@@ -161,7 +185,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 password,
             });
 
-            if (error) throw error;
+            if (error) {
+                if (error.message.includes('Invalid login credentials')) {
+                    throw new Error('Nesprávné přihlašovací údaje');
+                }
+                throw error;
+            }
 
             if (!data.user) {
                 throw new Error('Přihlášení se nezdařilo');
@@ -183,53 +212,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const signUp = async (data: SignUpData) => {
-        setIsLoading(true);
-        try {
-            const { email, password, metadata } = data;
 
-            const { data: authData, error: signUpError } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: metadata
-                }
+
+    const signUp = async (data: SignUpData) => {
+    setIsLoading(true);
+    try {
+        const { email, password, metadata } = data;
+        const normalizedEmail = email.toLowerCase().trim();
+
+        // Nejprve vytvoříme auth uživatele
+        const { data: authData, error: signUpError } = await supabase.auth.signUp({
+            email: normalizedEmail,
+            password
+        });
+
+        if (signUpError) throw signUpError;
+        if (!authData?.user) throw new Error('Registrace se nezdařila');
+
+        // Vyčkáme krátce na dokončení auth procesu
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Vytvoříme profil s minimálním množstvím dat
+        const profileData = {
+            id: authData.user.id,
+            email: normalizedEmail,
+            full_name: metadata.full_name,
+            company: metadata.company,
+            phone: metadata.phone,
+            address: metadata.address,
+            city: metadata.city,
+            postal_code: metadata.postal_code || null,
+            is_admin: false
+        };
+
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert(profileData, {
+                onConflict: 'id',
+                ignoreDuplicates: false
             });
 
-            if (signUpError) throw signUpError;
-
-            if (!authData.user) {
-                throw new Error('Registrace se nezdařila');
-            }
-
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .insert([{
-                    id: authData.user.id,
-                    email: email,
-                    full_name: metadata.full_name,
-                    company: metadata.company,
-                    phone: metadata.phone,
-                    is_admin: false
-                }]);
-
-            if (profileError) throw profileError;
-
-            setUser(authData.user);
-            await fetchProfile(authData.user.id);
-        } catch (error) {
-            console.error('Error in signUp:', error);
-            await resetAuthState();
-            throw error;
-        } finally {
-            setIsLoading(false);
+        if (profileError) {
+            console.error('Chyba při vytváření profilu:', profileError);
+            await supabase.auth.signOut();
+            throw new Error('Chyba při vytváření profilu');
         }
-    };
+
+        setUser(authData.user);
+        setProfile(profileData);
+
+    } catch (error: any) {
+        console.error('Chyba při registraci:', error);
+        await resetAuthState();
+
+        if (error.message.includes('unique constraint')) {
+            throw new Error('Uživatel s tímto emailem již existuje');
+        }
+
+        throw error;
+    } finally {
+        setIsLoading(false);
+    }
+};
 
     const signOut = async () => {
         setIsLoading(true);
         try {
-            await supabase.auth.signOut();
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+
             await resetAuthState();
             window.location.href = '/';
         } catch (error) {
@@ -240,12 +291,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const updateProfile = async (data: UpdateProfileData) => {
+        if (!user) {
+            throw new Error('Uživatel není přihlášen');
+        }
+
+        setIsLoading(true);
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({
+                    ...data,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', user.id);
+
+            if (error) throw error;
+
+            const updatedProfile = await fetchProfile(user.id);
+            if (!updatedProfile) {
+                throw new Error('Nepodařilo se načíst aktualizovaný profil');
+            }
+
+            setProfile(updatedProfile);
+        } catch (error: any) {
+            console.error('Error updating profile:', error);
+            throw new Error(error.message || 'Chyba při aktualizaci profilu');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const refreshProfile = async () => {
-        if (user) {
+        if (!user) return;
+
+        try {
             const profileData = await fetchProfile(user.id);
             if (profileData) {
                 setProfile(profileData);
+            } else {
+                throw new Error('Nepodařilo se obnovit profil');
             }
+        } catch (error) {
+            console.error('Error refreshing profile:', error);
         }
     };
 
@@ -254,7 +342,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4 inline-block"></div>
-                    <p className="text-gray-600">Načítání aplikace...</p>
+                    <p className="text-gray-900">Načítání aplikace...</p>
                 </div>
             </div>
         );
@@ -268,6 +356,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signUp,
         signOut,
+        updateProfile,
         refreshProfile
     };
 

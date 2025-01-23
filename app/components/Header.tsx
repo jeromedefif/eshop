@@ -1,16 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ShoppingCart, List, Settings, User, LogOut } from 'lucide-react';
+import { ShoppingCart, List, Settings, User, LogOut, UserCog } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Cart from './Cart';
 import AuthDialog from './AuthDialog';
 import RegistrationDialog from './RegistrationDialog';
-import { Product } from '@/types/database';  // Přidáme import typu Product
+import ProfileDialog from './ProfileDialog';
+import { Product } from '@/types/database';
 
 type HeaderProps = {
     cartItems: {[key: string]: number};
-    products: Product[];  // Použijeme importovaný typ Product
+    products: Product[];
     onViewChange: (view: 'catalog' | 'order' | 'admin') => void;
     currentView: 'catalog' | 'order' | 'admin';
     totalVolume: number;
@@ -30,13 +31,14 @@ const Header = ({
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
     const [isRegistrationDialogOpen, setIsRegistrationDialogOpen] = useState(false);
+    const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
     const [isSigningOut, setIsSigningOut] = useState(false);
     const { user, profile, signOut } = useAuth();
 
     const cartItemsCount = Object.values(cartItems).reduce((sum, count) => sum + count, 0);
 
     const handleSignOut = async () => {
-        if (isSigningOut) return; // Prevent multiple clicks
+        if (isSigningOut) return;
 
         setIsSigningOut(true);
         try {
@@ -46,10 +48,13 @@ const Header = ({
             }
         } catch (error) {
             console.error('Error signing out:', error);
-            // Optionally show error message to user
         } finally {
             setIsSigningOut(false);
         }
+    };
+
+    const handleProfileClick = () => {
+        setIsProfileDialogOpen(true);
     };
 
     return (
@@ -101,12 +106,13 @@ const Header = ({
 
                             {user ? (
                                 <div className="flex items-center space-x-4">
-                                    <div className="flex items-center space-x-2">
-                                        <User className="h-5 w-5 text-gray-600" />
-                                        <span className="text-sm font-medium text-gray-700">
-                                            {profile?.full_name || user.email}
-                                        </span>
-                                    </div>
+                                    <button
+                                        onClick={handleProfileClick}
+                                        className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                                    >
+                                        <UserCog className="h-5 w-5 text-gray-600" />
+                                        <span>{profile?.full_name || user.email}</span>
+                                    </button>
                                     <button
                                         onClick={handleSignOut}
                                         disabled={isSigningOut}
@@ -161,6 +167,11 @@ const Header = ({
             <RegistrationDialog
                 isOpen={isRegistrationDialogOpen}
                 onClose={() => setIsRegistrationDialogOpen(false)}
+            />
+
+            <ProfileDialog
+                isOpen={isProfileDialogOpen}
+                onClose={() => setIsProfileDialogOpen(false)}
             />
 
             <Cart
