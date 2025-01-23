@@ -10,17 +10,27 @@ type RegistrationDialogProps = {
 };
 
 const RegistrationDialog = ({ isOpen, onClose }: RegistrationDialogProps) => {
-    const [formData, setFormData] = useState({
-        email: '',
-        password: '',
-        confirmPassword: '',
-        full_name: '',
-        company: '',
-        phone: '',
-        address: '',
-        city: '',
-        postal_code: ''
-    });
+  const [formData, setFormData] = useState<{
+  email: string;
+  password: string;
+  confirmPassword: string;
+  full_name: string;
+  company: string;
+  phone: string;
+  address: string;
+  city: string;
+  postal_code: string;
+}>({
+  email: '',
+  password: '',
+  confirmPassword: '',
+  full_name: '',
+  company: '',
+  phone: '',
+  address: '',
+  city: '',
+  postal_code: ''
+});
 
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -75,18 +85,18 @@ const RegistrationDialog = ({ isOpen, onClose }: RegistrationDialogProps) => {
     setIsLoading(true);
 
     try {
-        await signUp({
-            email: formData.email,
-            password: formData.password,
-            metadata: {
-                full_name: formData.full_name,
-                company: formData.company,
-                phone: formData.phone,
-                address: formData.address,
-                city: formData.city,
-                postal_code: formData.postal_code || null
-            }
-        });
+      await signUp({
+  email: formData.email,
+  password: formData.password,
+  metadata: {
+      full_name: formData.full_name,
+      company: formData.company,
+      phone: formData.phone,
+      address: formData.address,
+      city: formData.city,
+      postal_code: formData.postal_code || ''
+  }
+});
 
         setFormData({
             email: '',
