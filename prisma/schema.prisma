@@ -1,0 +1,71 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas   = ["public", "auth"]
+}
+
+model Product {
+  id          BigInt      @id @default(autoincrement())
+  name        String      @db.Text
+  category    String      @db.Text
+  in_stock    Boolean     @default(true)
+  order_items OrderItem[]
+
+  @@map("products")
+  @@schema("public")
+}
+
+model Order {
+  id               String      @id @default(uuid()) @db.Uuid
+  created_at       DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime    @default(now()) @db.Timestamptz(6)
+  user_id          String?     @db.Uuid
+  customer_name    String      @db.Text
+  customer_email   String      @db.Text
+  customer_phone   String?     @db.Text
+  customer_company String?     @db.Text
+  total_volume     Decimal     @db.Decimal
+  status          String      @default("pending") @db.Text
+  note            String?     @db.Text
+  order_items     OrderItem[]
+  user            User?       @relation(fields: [user_id], references: [id], map: "orders_user_id_fkey")
+
+  @@map("orders")
+  @@schema("public")
+}
+
+model OrderItem {
+  id         String   @id @default(uuid()) @db.Uuid
+  order_id   String   @db.Uuid
+  product_id BigInt
+  quantity   Int
+  order      Order    @relation(fields: [order_id], references: [id], map: "order_items_order_id_fkey")
+  product    Product  @relation(fields: [product_id], references: [id], map: "order_items_product_id_fkey")
+
+  @@map("order_items")
+  @@schema("public")
+}
+
+model Profile {
+  id            String    @id @db.Uuid
+  email         String?   @unique @db.Text
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@map("profiles")
+  @@schema("public")
+}
+
+model User {
+  id      String   @id @db.Uuid
+  orders  Order[]
+
+  @@map("users")
+  @@schema("auth")
+}

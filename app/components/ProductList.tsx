@@ -82,42 +82,47 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
             return acc;
         }, {} as Record<string, Product[]>) : null;
 
+        // Upravte ProductItem komponentu v ProductList.tsx:
+
     const ProductItem = ({ product }: { product: Product }) => {
         const productButtons = getVolumeButtons(product);
 
         return (
-            <div className="flex items-center py-1.5 px-3 bg-white hover:bg-blue-50/80 transition-all duration-150
+            <div className="flex flex-col sm:flex-row items-start sm:items-center py-2 px-3 bg-white
+                        hover:bg-blue-50/80 transition-all duration-150
                         border-b last:border-b-0 hover:shadow-md min-h-[40px] first:pt-1.5">
-                <div className="mr-2 opacity-75">
-                    {getProductIcon(product.category)}
-                </div>
+                <div className="flex items-center flex-grow min-w-0 gap-2">
+                    <div className="opacity-75">
+                        {getProductIcon(product.category)}
+                    </div>
 
-                <div className="flex-grow min-w-0 flex items-center gap-2">
-                    <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
-                    <span className={`px-1.5 py-0.5 rounded-full text-[11px] leading-none font-medium shrink-0 ${
-                        product.in_stock
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-50 text-red-800'
-                    }`}>
-                        {product.in_stock ? "Skladem" : "Není skladem"}
-                    </span>
-                    {!isGrouped && (
-                        <span className="text-xs text-gray-500 truncate">
-                            {product.category}
+                    <div className="flex-grow min-w-0 flex items-center gap-2">
+                        <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
+                        <span className={`px-1.5 py-0.5 rounded-full text-[11px] leading-none font-medium shrink-0 ${
+                            product.in_stock
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-50 text-red-800'
+                        }`}>
+                            {product.in_stock ? "Skladem" : "Není skladem"}
                         </span>
-                    )}
+                        {!isGrouped && (
+                            <span className="text-xs text-gray-500 truncate">
+                                {product.category}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
-                <div className="flex items-center gap-1 pl-2">
+                <div className="flex items-center gap-1 mt-2 sm:mt-0 sm:pl-2 w-full sm:w-auto">
                     {productButtons.map(({ label, value }) => {
                         const count = getCartCount(product.id, value);
                         const isInCart = count > 0;
                         return (
-                            <div key={`${product.id}-${value}`} className="relative">
+                            <div key={`${product.id}-${value}`} className="relative flex-1 sm:flex-none">
                                 <button
                                     onClick={() => product.in_stock && onAddToCart(product.id, value)}
                                     disabled={!product.in_stock}
-                                    className={`min-w-[52px] px-2 py-1 text-xs border rounded-md
+                                    className={`w-full sm:w-auto min-w-[52px] px-2 py-1 text-xs border rounded-md
                                          transition-colors duration-150 ${
                                         isInCart
                                             ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100'

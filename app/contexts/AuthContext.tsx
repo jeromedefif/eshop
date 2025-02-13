@@ -13,7 +13,7 @@ interface UserProfile {
     address: string | null;
     city: string | null;
     postal_code: string | null;
-    is_admin: boolean;
+    is_admin: boolean;  // Přidáno pole is_admin
     created_at: string;
     updated_at: string;
 }
@@ -45,6 +45,7 @@ interface AuthContextType {
     profile: UserProfile | null;
     isLoading: boolean;
     isInitialized: boolean;
+    isAdmin: boolean;  // Přidáno pole isAdmin
     signIn: (email: string, password: string) => Promise<void>;
     signUp: (data: SignUpData) => Promise<void>;
     signOut: () => Promise<void>;
@@ -59,28 +60,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isInitialized, setIsInitialized] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);  // Přidán stav pro admin roli
 
     const fetchProfile = async (userId: string) => {
-    if (!userId) return null;
+        if (!userId) return null;
 
-    try {
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .single();
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single();
 
-        if (error) throw error;
-        return data;
-    } catch (error) {
-        console.error('Error fetching profile:', error);
-        return null;
-    }
-};
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error fetching profile:', error);
+            return null;
+        }
+    };
 
     const resetAuthState = async () => {
         setUser(null);
         setProfile(null);
+        setIsAdmin(false);  // Reset admin stavu
         try {
             for (const key of Object.keys(localStorage)) {
                 if (key.startsWith('sb-') || key.includes('supabase')) {
@@ -94,50 +97,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const initializeAuth = async () => {
-    let retryCount = 0;
-    const maxRetries = 3;
+        let retryCount = 0;
+        const maxRetries = 3;
 
-    const tryInitialize = async () => {
-        try {
-            setIsLoading(true);
-            const { data: { session }, error } = await supabase.auth.getSession();
+        const tryInitialize = async () => {
+            try {
+                setIsLoading(true);
+                const { data: { session }, error } = await supabase.auth.getSession();
 
-            if (error) throw error;
+                if (error) throw error;
 
-            setIsInitialized(true);
+                setIsInitialized(true);
 
-            if (session?.user) {
-                try {
-                    const profileData = await fetchProfile(session.user.id);
-                    if (profileData) {
-                        setUser(session.user);
-                        setProfile(profileData);
+                if (session?.user) {
+                    try {
+                        const profileData = await fetchProfile(session.user.id);
+                        if (profileData) {
+                            setUser(session.user);
+                            setProfile(profileData);
+                            setIsAdmin(profileData.is_admin);  // Nastavení admin stavu
+                        }
+                    } catch (profileError) {
+                        console.error('Error fetching profile during initialization:', profileError);
                     }
-                } catch (profileError) {
-                    console.error('Error fetching profile during initialization:', profileError);
+                } else {
+                    setUser(null);
+                    setProfile(null);
+                    setIsAdmin(false);
                 }
-            } else {
-                // Pokud není uživatel přihlášen, pouze nastavíme initialized stav
-                setUser(null);
-                setProfile(null);
+            } catch (error) {
+                console.error('Auth initialization error:', error);
+                if (retryCount < maxRetries) {
+                    retryCount++;
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    return tryInitialize();
+                }
+                await resetAuthState();
+                setIsInitialized(true);
+            } finally {
+                setIsLoading(false);
             }
-        } catch (error) {
-            console.error('Auth initialization error:', error);
-            if (retryCount < maxRetries) {
-                retryCount++;
-                await new Promise(resolve => setTimeout(resolve, 500));
-                return tryInitialize();
-            }
-            // V případě trvalého selhání resetujeme stav
-            await resetAuthState();
-            setIsInitialized(true);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+        };
 
-    await tryInitialize();
-};
+        await tryInitialize();
+    };
 
     useEffect(() => {
         let mounted = true;
@@ -155,6 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             if (mounted && profileData) {
                                 setUser(session.user);
                                 setProfile(profileData);
+                                setIsAdmin(profileData.is_admin);  // Aktualizace admin stavu
                             } else {
                                 await resetAuthState();
                             }
@@ -203,6 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             setUser(data.user);
             setProfile(profileData);
+            setIsAdmin(profileData.is_admin);  // Nastavení admin stavu při přihlášení
         } catch (error) {
             console.error('Error in signIn:', error);
             await resetAuthState();
@@ -212,68 +217,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-
+    // In AuthContext.tsx, update the signUp function:
 
     const signUp = async (data: SignUpData) => {
-    setIsLoading(true);
-    try {
-        const { email, password, metadata } = data;
-        const normalizedEmail = email.toLowerCase().trim();
+        setIsLoading(true);
+        try {
+            const { email, password, metadata } = data;
+            const normalizedEmail = email.toLowerCase().trim();
 
-        // Nejprve vytvoříme auth uživatele
-        const { data: authData, error: signUpError } = await supabase.auth.signUp({
-            email: normalizedEmail,
-            password
-        });
-
-        if (signUpError) throw signUpError;
-        if (!authData?.user) throw new Error('Registrace se nezdařila');
-
-        // Vyčkáme krátce na dokončení auth procesu
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Vytvoříme profil s minimálním množstvím dat
-        const profileData = {
-            id: authData.user.id,
-            email: normalizedEmail,
-            full_name: metadata.full_name,
-            company: metadata.company,
-            phone: metadata.phone,
-            address: metadata.address,
-            city: metadata.city,
-            postal_code: metadata.postal_code || null,
-            is_admin: false
-        };
-
-        const { error: profileError } = await supabase
-            .from('profiles')
-            .upsert(profileData, {
-                onConflict: 'id',
-                ignoreDuplicates: false
+            // Nejprve vytvoříme auth uživatele
+            const { data: authData, error: signUpError } = await supabase.auth.signUp({
+                email: normalizedEmail,
+                password
             });
 
-        if (profileError) {
-            console.error('Chyba při vytváření profilu:', profileError);
-            await supabase.auth.signOut();
-            throw new Error('Chyba při vytváření profilu');
+            if (signUpError) throw signUpError;
+            if (!authData?.user) throw new Error('Registrace se nezdařila');
+
+            // Vyčkáme krátce na dokončení auth procesu
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // Vytvoříme profil s minimálním množstvím dat
+            const profileData = {
+                id: authData.user.id,
+                email: normalizedEmail,
+                full_name: metadata.full_name,
+                company: metadata.company,
+                phone: metadata.phone,
+                address: metadata.address,
+                city: metadata.city,
+                postal_code: metadata.postal_code || null,
+                is_admin: false
+            };
+
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .upsert(profileData, {
+                    onConflict: 'id',
+                    ignoreDuplicates: false
+                });
+
+            if (profileError) {
+                console.error('Chyba při vytváření profilu:', profileError);
+                await supabase.auth.signOut();
+                throw new Error('Chyba při vytváření profilu');
+            }
+
+            setUser(authData.user);
+            setProfile(profileData);
+
+        } catch (error: any) {
+            console.error('Chyba při registraci:', error);
+            await resetAuthState();
+
+            if (error.message.includes('unique constraint')) {
+                throw new Error('Uživatel s tímto emailem již existuje');
+            }
+
+            throw error;
+        } finally {
+            setIsLoading(false);
         }
-
-        setUser(authData.user);
-        setProfile(profileData);
-
-    } catch (error: any) {
-        console.error('Chyba při registraci:', error);
-        await resetAuthState();
-
-        if (error.message.includes('unique constraint')) {
-            throw new Error('Uživatel s tímto emailem již existuje');
-        }
-
-        throw error;
-    } finally {
-        setIsLoading(false);
-    }
-};
+    };
 
     const signOut = async () => {
         setIsLoading(true);
@@ -353,12 +358,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profile,
         isLoading,
         isInitialized,
+        isAdmin,  // Přidáno do kontextu
         signIn,
         signUp,
         signOut,
         updateProfile,
         refreshProfile
     };
+
+    if (!isInitialized) {
+        return (
+            <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4 inline-block"></div>
+                    <p className="text-gray-900">Načítání aplikace...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <AuthContext.Provider value={value}>

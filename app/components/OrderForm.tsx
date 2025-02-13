@@ -5,13 +5,11 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
 import OrderConfirmationDialog from './OrderConfirmationDialog';
 import OrderSummary from './OrderSummary';
-import { Product } from '@/types/database';  // Přidáme import typu Product
-
-// Odstraníme lokální definici typu Product, protože ji importujeme
+import { Product } from '@/types/database';
 
 type OrderFormProps = {
     cartItems: {[key: string]: number};
-    products: Array<Product>;  // Použijeme importovaný typ
+    products: Array<Product>;
     onRemoveFromCart: (productId: number, volume: string | number) => void;
     onAddToCart: (productId: number, volume: string | number) => void;
     onClearCart: () => void;
@@ -48,21 +46,37 @@ const OrderForm = ({
     const handleConfirmOrder = async () => {
         setOrderStatus('processing');
         try {
+            if (!user || !profile) throw new Error('User not authenticated');
+
+            // Připravíme data pro objednávku
             const orderData = {
-                user_id: user?.id,
+                user_id: user.id,
                 total_volume: totalVolume,
+                customer_name: profile.full_name,
+                customer_email: profile.email,
+                customer_phone: profile.phone,
+                customer_company: profile.company,
                 note: note,
                 status: 'pending'
             };
 
+            console.log('Creating order with data:', orderData);
+
+            // Vytvoření objednávky
             const { data: order, error: orderError } = await supabase
                 .from('orders')
                 .insert([orderData])
                 .select()
                 .single();
 
-            if (orderError) throw orderError;
+            if (orderError) {
+                console.error('Order creation error:', orderError);
+                throw orderError;
+            }
 
+            console.log('Order created:', order);
+
+            // Připravíme položky objednávky
             const orderItems = Object.entries(cartItems).map(([key, quantity]) => {
                 const [productId, volume] = key.split('-');
                 return {
@@ -73,11 +87,36 @@ const OrderForm = ({
                 };
             });
 
-            const { error: itemsError } = await supabase
-                .from('order_items')
-                .insert(orderItems);
+            console.log('Creating order items:', orderItems);
 
-            if (itemsError) throw itemsError;
+            // Vytvoření položek objednávky
+            const { data: items, error: itemsError } = await supabase
+                .from('order_items')
+                .insert(orderItems)
+                .select();
+
+            if (itemsError) {
+                console.error('Order items creation error:', itemsError);
+                await supabase.from('orders').delete().eq('id', order.id);
+                throw itemsError;
+            }
+
+            console.log('Order items created:', items);
+
+            // Odeslání potvrzovacího emailu
+            try {
+                const { error: emailError } = await supabase
+                    .functions
+                    .invoke('send-order-confirmation', {
+                        body: { orderId: order.id }
+                    });
+
+                if (emailError) {
+                    console.error('Email sending error:', emailError);
+                }
+            } catch (emailError) {
+                console.error('Email function error:', emailError);
+            }
 
             setOrderStatus('completed');
             setTimeout(() => {
@@ -86,7 +125,7 @@ const OrderForm = ({
                 setNote('');
             }, 2000);
         } catch (error) {
-            console.error('Error creating order:', error);
+            console.error('Error:', error);
             setOrderStatus('error');
         }
     };
