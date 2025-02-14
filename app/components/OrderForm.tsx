@@ -1,28 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
-import { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
 import OrderConfirmationDialog from './OrderConfirmationDialog';
 import OrderSummary from './OrderSummary';
-import { Product } from '@/types/database';
-
-type OrderFormProps = {
-    cartItems: {[key: string]: number};
-    products: Array<Product>;
-    onRemoveFromCart: (productId: number, volume: string | number) => void;
-    onAddToCart: (productId: number, volume: string | number) => void;
-    onClearCart: () => void;
-    totalVolume: number;
-    user: User | null;
-    profile: {
-        id: string;
-        email: string;
-        full_name: string | null;
-        company: string | null;
-        phone: string | null;
-    } | null;
-};
+import type {
+    OrderFormProps,
+    OrderStatus,
+    OrderCreateData,
+    OrderConfirmationData
+} from '@/types/orders';
 
 const OrderForm = ({
     cartItems,
@@ -35,7 +22,7 @@ const OrderForm = ({
     profile
 }: OrderFormProps) => {
     const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
-    const [orderStatus, setOrderStatus] = useState<'pending' | 'processing' | 'completed' | 'error'>('pending');
+    const [orderStatus, setOrderStatus] = useState<OrderStatus>('pending');
     const [note, setNote] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {

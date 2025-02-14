@@ -2,29 +2,7 @@
 
 import React from 'react';
 import { X, Check, AlertCircle } from 'lucide-react';
-
-type OrderConfirmationProps = {
-    isOpen: boolean;
-    onClose: () => void;
-    onConfirm: () => void;
-    orderData: {
-        items: Array<{
-            productName: string;
-            volume: string | number;
-            quantity: number;
-            display: string;
-        }>;
-        totalVolume: number;
-        customer: {
-            name: string;
-            email: string;
-            phone: string;
-            company?: string;
-            note?: string;
-        };
-    };
-    orderStatus: 'pending' | 'processing' | 'completed' | 'error';
-};
+import type { OrderConfirmationProps } from '../types/orders';
 
 const OrderConfirmationDialog = ({
     isOpen,

@@ -3,46 +3,10 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
-
-interface OrderDetailProps {
-    order: {
-        id: string;
-        created_at: string;
-        customer_name: string;
-        customer_email: string;
-        customer_phone: string | null;
-        customer_company: string | null;
-        total_volume: string;
-        status: string;
-        note: string | null;
-        order_items: Array<{
-            id: string;
-            quantity: number;
-            volume: string;
-            product: {
-                id: string;
-                name: string;
-                category: string;
-            }
-        }>;
-    };
-    onClose: () => void;
-}
+import type { OrderDetailProps } from '../types/orders';
+import { formatOrderDisplay } from '../lib/formatters';
 
 const OrderDetail = ({ order, onClose }: OrderDetailProps) => {
-    const formatDisplay = (item: OrderDetailProps['order']['order_items'][0]) => {
-        const { category } = item.product;
-        const { quantity, volume } = item;
-
-        if (category === 'PET') {
-            return `${quantity}x, balení`;
-        }
-        if (category === 'Dusík') {
-            return `${quantity}x, ${volume === 'maly' ? 'malý' : 'velký'}`;
-        }
-        return `${quantity}x, ${volume}L`;
-    };
-
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl w-[80vw] max-w-5xl max-h-[85vh] overflow-y-auto">
@@ -137,7 +101,7 @@ const OrderDetail = ({ order, onClose }: OrderDetailProps) => {
                                                 {item.product.category}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                                                {formatDisplay(item)}
+                                                {formatOrderDisplay(item)}
                                             </td>
                                         </tr>
                                     ))}

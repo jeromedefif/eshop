@@ -45,6 +45,7 @@ model OrderItem {
   order_id   String   @db.Uuid
   product_id BigInt
   quantity   Int
+  volume     String   @db.Text
   order      Order    @relation(fields: [order_id], references: [id], map: "order_items_order_id_fkey")
   product    Product  @relation(fields: [product_id], references: [id], map: "order_items_product_id_fkey")
 
