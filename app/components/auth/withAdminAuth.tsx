@@ -2,22 +2,27 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export function withAdminAuth<P extends object>(
     WrappedComponent: React.ComponentType<P>
 ): React.FC<P> {
     return function WithAdminAuthComponent(props: P) {
-        const { isAdmin, isLoading } = useAuth();
+        const { isAdmin, isLoading, isInitialized } = useAuth();
         const router = useRouter();
+        const [shouldRender, setShouldRender] = useState(false);
 
         useEffect(() => {
+            if (!isInitialized) return;
+
             if (!isLoading && !isAdmin) {
                 router.push('/');
+            } else if (!isLoading && isAdmin) {
+                setShouldRender(true);
             }
-        }, [isAdmin, isLoading, router]);
+        }, [isAdmin, isLoading, router, isInitialized]);
 
-        if (isLoading) {
+        if (!shouldRender) {
             return (
                 <div className="min-h-screen flex items-center justify-center bg-gray-100">
                     <div className="text-center">
@@ -26,10 +31,6 @@ export function withAdminAuth<P extends object>(
                     </div>
                 </div>
             );
-        }
-
-        if (!isAdmin) {
-            return null;
         }
 
         return <WrappedComponent {...props} />;

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
+import { AuthError } from '@/types/auth';
 
 type AuthDialogProps = {
     isOpen: boolean;
@@ -35,14 +36,14 @@ const AuthDialog = ({ isOpen, onClose }: AuthDialogProps) => {
                 setPassword('');
                 onClose();
             }
-        } catch (error: any) {
+        } catch (error) {
             console.error('Sign in error:', error);
-            setError(error.message || 'Chyba při přihlašování');
+            setError(error instanceof Error ? error.message : 'Chyba při přihlašování');
         } finally {
             setIsLoading(false);
         }
     };
-
+    
     return (
         <>
             <div

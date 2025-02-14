@@ -5,7 +5,7 @@ import { Search, X, Eye, Download } from 'lucide-react';
 import OrderDetail from './OrderDetail';
 import type { Order, AdminOrdersProps } from '../types/orders';
 
-export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: AdminOrdersProps) {
+export default function AdminOrders({ orders, onExportOrders }: AdminOrdersProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
