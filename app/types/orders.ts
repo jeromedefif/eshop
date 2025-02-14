@@ -109,3 +109,23 @@ export interface OrderCreateData {
     note: string;
     status: 'pending';
 }
+
+// Product form typy
+export interface ProductFormData {
+    name: string;
+    category: string;
+    in_stock: boolean;
+}
+
+export interface EditFormProps {
+    product: Product;
+    onSave: (formData: ProductFormData) => void;
+    onCancel: () => void;
+    isLoading: boolean;
+}
+
+export interface AddProductFormProps {
+    onSave: (formData: ProductFormData) => void;
+    onCancel: () => void;
+    isLoading: boolean;
+}

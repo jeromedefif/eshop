@@ -3,36 +3,26 @@
 import React, { useState, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-
-type RegistrationDialogProps = {
-    isOpen: boolean;
-    onClose: () => void;
-};
+import type {
+    RegistrationDialogProps,
+    RegistrationFormData,
+    SignUpData
+} from '@/types/auth';
 
 const RegistrationDialog = ({ isOpen, onClose }: RegistrationDialogProps) => {
-  const [formData, setFormData] = useState<{
-  email: string;
-  password: string;
-  confirmPassword: string;
-  full_name: string;
-  company: string;
-  phone: string;
-  address: string;
-  city: string;
-  postal_code: string;
-}>({
-  email: '',
-  password: '',
-  confirmPassword: '',
-  full_name: '',
-  company: '',
-  phone: '',
-  address: '',
-  city: '',
-  postal_code: ''
-});
+    const [formData, setFormData] = useState<RegistrationFormData>({
+        email: '',
+        password: '',
+        confirmPassword: '',
+        full_name: '',
+        company: '',
+        phone: '',
+        address: '',
+        city: '',
+        postal_code: ''
+    });
 
-    const [error, setError] = useState('');
+    const [error, setError] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
     const { signUp } = useAuth();
 
@@ -44,7 +34,7 @@ const RegistrationDialog = ({ isOpen, onClose }: RegistrationDialogProps) => {
         }));
     }, []);
 
-    const validateForm = useCallback(() => {
+    const validateForm = useCallback((): string | null => {
         if (!formData.email || !formData.password || !formData.confirmPassword ||
             !formData.full_name || !formData.company || !formData.phone ||
             !formData.address || !formData.city) {
@@ -73,51 +63,53 @@ const RegistrationDialog = ({ isOpen, onClose }: RegistrationDialogProps) => {
     }, [formData]);
 
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
+        e.preventDefault();
 
-    const validationError = validateForm();
-    if (validationError) {
-        setError(validationError);
-        return;
-    }
+        const validationError = validateForm();
+        if (validationError) {
+            setError(validationError);
+            return;
+        }
 
-    setError('');
-    setIsLoading(true);
+        setError('');
+        setIsLoading(true);
 
-    try {
-      await signUp({
-  email: formData.email,
-  password: formData.password,
-  metadata: {
-      full_name: formData.full_name,
-      company: formData.company,
-      phone: formData.phone,
-      address: formData.address,
-      city: formData.city,
-      postal_code: formData.postal_code || ''
-  }
-});
+        try {
+            const signUpData: SignUpData = {
+                email: formData.email,
+                password: formData.password,
+                metadata: {
+                    full_name: formData.full_name,
+                    company: formData.company,
+                    phone: formData.phone,
+                    address: formData.address,
+                    city: formData.city,
+                    postal_code: formData.postal_code
+                }
+            };
 
-        setFormData({
-            email: '',
-            password: '',
-            confirmPassword: '',
-            full_name: '',
-            company: '',
-            phone: '',
-            address: '',
-            city: '',
-            postal_code: ''
-        });
+            await signUp(signUpData);
 
-        onClose();
-    } catch (error: any) {
-        setError(error.message || 'Chyba při registraci. Zkontrolujte zadané údaje.');
-        console.error('Registration error:', error);
-    } finally {
-        setIsLoading(false);
-    }
-}, [formData, onClose, signUp, validateForm]);
+            setFormData({
+                email: '',
+                password: '',
+                confirmPassword: '',
+                full_name: '',
+                company: '',
+                phone: '',
+                address: '',
+                city: '',
+                postal_code: ''
+            });
+
+            onClose();
+        } catch (error) {
+            setError(error instanceof Error ? error.message : 'Chyba při registraci. Zkontrolujte zadané údaje.');
+            console.error('Registration error:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [formData, onClose, signUp, validateForm]);
 
     const handleBackdropClick = useCallback((e: React.MouseEvent) => {
         if (!isLoading && e.target === e.currentTarget) {

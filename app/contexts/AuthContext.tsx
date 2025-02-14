@@ -3,55 +3,13 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
-
-interface UserProfile {
-    id: string;
-    email: string;
-    full_name: string | null;
-    company: string | null;
-    phone: string | null;
-    address: string | null;
-    city: string | null;
-    postal_code: string | null;
-    is_admin: boolean;  // Přidáno pole is_admin
-    created_at: string;
-    updated_at: string;
-}
-
-interface SignUpData {
-    email: string;
-    password: string;
-    metadata: {
-        full_name: string;
-        company: string;
-        phone: string;
-        address: string;
-        city: string;
-        postal_code?: string;
-    };
-}
-
-interface UpdateProfileData {
-    full_name?: string;
-    company?: string;
-    phone?: string;
-    address?: string;
-    city?: string;
-    postal_code?: string;
-}
-
-interface AuthContextType {
-    user: User | null;
-    profile: UserProfile | null;
-    isLoading: boolean;
-    isInitialized: boolean;
-    isAdmin: boolean;  // Přidáno pole isAdmin
-    signIn: (email: string, password: string) => Promise<void>;
-    signUp: (data: SignUpData) => Promise<void>;
-    signOut: () => Promise<void>;
-    updateProfile: (data: UpdateProfileData) => Promise<void>;
-    refreshProfile: () => Promise<void>;
-}
+import type {
+    AuthContextType,
+    UserProfile,
+    SignUpData,
+    UpdateProfileData,
+    AuthError
+} from '@/types/auth'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -225,7 +183,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const { email, password, metadata } = data;
             const normalizedEmail = email.toLowerCase().trim();
 
-            // Nejprve vytvoříme auth uživatele
             const { data: authData, error: signUpError } = await supabase.auth.signUp({
                 email: normalizedEmail,
                 password
@@ -234,11 +191,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (signUpError) throw signUpError;
             if (!authData?.user) throw new Error('Registrace se nezdařila');
 
-            // Vyčkáme krátce na dokončení auth procesu
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // Vytvoříme profil s minimálním množstvím dat
-            const profileData = {
+            const profileData: Omit<UserProfile, 'created_at' | 'updated_at'> = {
                 id: authData.user.id,
                 email: normalizedEmail,
                 full_name: metadata.full_name,
@@ -264,17 +219,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             setUser(authData.user);
-            setProfile(profileData);
+            setProfile(profileData as UserProfile);
 
-        } catch (error: any) {
+        } catch (error) {
             console.error('Chyba při registraci:', error);
             await resetAuthState();
 
-            if (error.message.includes('unique constraint')) {
-                throw new Error('Uživatel s tímto emailem již existuje');
+            if (error instanceof Error) {
+                if (error.message.includes('unique constraint')) {
+                    throw new Error('Uživatel s tímto emailem již existuje');
+                }
+                throw error;
             }
-
-            throw error;
+            throw new Error('Neočekávaná chyba při registraci');
         } finally {
             setIsLoading(false);
         }
@@ -319,9 +276,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             setProfile(updatedProfile);
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error updating profile:', error);
-            throw new Error(error.message || 'Chyba při aktualizaci profilu');
+            if (error instanceof Error) {
+                throw new Error(error.message);
+            }
+            throw new Error('Chyba při aktualizaci profilu');
         } finally {
             setIsLoading(false);
         }

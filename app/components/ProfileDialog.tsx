@@ -3,18 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-
-type ProfileDialogProps = {
-    isOpen: boolean;
-    onClose: () => void;
-};
+import type { ProfileDialogProps, ProfileFormData } from '@/types/auth';
 
 const ProfileDialog = ({ isOpen, onClose }: ProfileDialogProps) => {
     const { profile, updateProfile } = useAuth();
-    const [error, setError] = useState('');
-    const [successMessage, setSuccessMessage] = useState('');
+    const [error, setError] = useState<string>('');
+    const [successMessage, setSuccessMessage] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<ProfileFormData>({
         full_name: '',
         company: '',
         phone: '',
@@ -43,30 +39,24 @@ const ProfileDialog = ({ isOpen, onClose }: ProfileDialogProps) => {
         setIsLoading(true);
 
         try {
-            await updateProfile({
-                full_name: formData.full_name,
-                company: formData.company,
-                phone: formData.phone,
-                address: formData.address,
-                city: formData.city
-            });
-
+            await updateProfile(formData);
             setSuccessMessage('Profil byl úspěšně aktualizován');
             setTimeout(() => {
                 setSuccessMessage('');
             }, 3000);
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error updating profile:', error);
-            setError(error.message || 'Chyba při aktualizaci profilu');
+            setError(error instanceof Error ? error.message : 'Chyba při aktualizaci profilu');
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
-            [e.target.name]: e.target.value
+            [name]: value
         }));
     };
 
