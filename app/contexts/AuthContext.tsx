@@ -101,43 +101,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     useEffect(() => {
-        let mounted = true;
+    let mounted = true;
 
-        const setupAuth = async () => {
-            if (mounted) {
-                await initializeAuth();
+    const setupAuth = async () => {
+        if (mounted) {
+            await initializeAuth();
 
-                const { data: { subscription } } = supabase.auth.onAuthStateChange(
-                    async (event, session) => {
-                        if (!mounted) return;
+            const { data: { subscription } } = supabase.auth.onAuthStateChange(
+                async (event, session) => {
+                    if (!mounted) return;
 
-                        if (session?.user) {
-                            const profileData = await fetchProfile(session.user.id);
-                            if (mounted && profileData) {
-                                setUser(session.user);
-                                setProfile(profileData);
-                                setIsAdmin(profileData.is_admin);  // Aktualizace admin stavu
-                            } else {
-                                await resetAuthState();
-                            }
+                    if (session?.user) {
+                        const profileData = await fetchProfile(session.user.id);
+                        if (mounted && profileData) {
+                            setUser(session.user);
+                            setProfile(profileData);
+                            setIsAdmin(profileData.is_admin);
                         } else {
                             await resetAuthState();
                         }
+                    } else {
+                        await resetAuthState();
                     }
-                );
+                }
+            );
 
-                return () => {
-                    subscription.unsubscribe();
-                };
-            }
-        };
+            return () => {
+                subscription.unsubscribe();
+            };
+        }
+    };
 
-        setupAuth();
+    setupAuth();
 
-        return () => {
-            mounted = false;
-        };
-    }, []);
+    return () => {
+        mounted = false;
+    };
+}, [initializeAuth]);
 
     const signIn = async (email: string, password: string) => {
         setIsLoading(true);
