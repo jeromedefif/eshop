@@ -8,7 +8,6 @@ import type {
     UserProfile,
     SignUpData,
     UpdateProfileData,
-    AuthError
 } from '@/types/auth'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -301,17 +300,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error('Error refreshing profile:', error);
         }
     };
-
-    if (!isInitialized) {
-        return (
-            <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4 inline-block"></div>
-                    <p className="text-gray-900">Načítání aplikace...</p>
-                </div>
-            </div>
-        );
-    }
 
     const value = {
         user,
