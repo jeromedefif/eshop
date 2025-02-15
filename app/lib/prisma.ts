@@ -1,14 +1,16 @@
 import { PrismaClient } from '@prisma/client'
 
+// Deklarace pro globální prostor
 declare global {
-
-  let prisma: PrismaClient | undefined
+  var prisma: PrismaClient | undefined
 }
 
-const prisma = global.prisma || new PrismaClient({
+// Vytvoření instance Prisma klienta
+const prisma = globalThis.prisma || new PrismaClient({
   log: ['query', 'error', 'warn'],
 })
 
-if (process.env.NODE_ENV === 'development') global.prisma = prisma
+// Nastavení globální instance v development módu
+if (process.env.NODE_ENV === 'development') globalThis.prisma = prisma
 
 export default prisma
