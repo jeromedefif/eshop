@@ -1,3 +1,4 @@
+// app/api/orders/export/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import type { Order } from '@/types/orders';
@@ -5,14 +6,21 @@ import type { Order } from '@/types/orders';
 export async function GET() {
     try {
         const orders = await prisma.order.findMany({
-            orderBy: { created_at: 'desc' }
+            orderBy: { created_at: 'desc' },
+            include: {
+                order_items: {
+                    include: {
+                        product: true
+                    }
+                }
+            }
         });
 
         const csvRows = [
             // Header
             ['ID', 'Datum vytvoření', 'Jméno zákazníka', 'Email zákazníka', 'Celkový objem', 'Status'],
             // Data rows
-            ...orders.map((order: Order) => [
+            ...orders.map((order) => [
                 order.id,
                 new Date(order.created_at).toLocaleDateString('cs'),
                 order.customer_name,
@@ -23,7 +31,7 @@ export async function GET() {
         ];
 
         const csvContent = csvRows
-            .map((row: (string | number)[]) => row.map((cell: string | number) => `"${cell}"`).join(','))
+            .map(row => row.map(cell => `"${cell}"`).join(','))
             .join('\n');
 
         return new NextResponse(csvContent, {
