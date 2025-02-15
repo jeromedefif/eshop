@@ -106,14 +106,14 @@ export default function Home() {
  };
 
  const getTotalVolume = () => {
-   return Object.entries(cartItems).reduce((total, [keyString, count]) => {
-     const [productId, volume] = keyString.split('-');
-     if (volume === 'maly' || volume === 'velky' || volume === 'baleni') {
-       return total;
-     }
-     return total + (parseInt(volume as string) * count);
-   }, 0);
- };
+    return Object.entries(cartItems).reduce((total, [keyString, count]) => {
+      const [, volume] = keyString.split('-');
+      if (volume === 'maly' || volume === 'velky' || volume === 'baleni') {
+        return total;
+      }
+      return total + (parseInt(volume as string) * count);
+    }, 0);
+};
 
  if (isLoading) {
    return (
