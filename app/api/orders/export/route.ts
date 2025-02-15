@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import type { Order } from '@/types/orders';
 
 export async function GET() {
     try {
@@ -11,7 +12,7 @@ export async function GET() {
             // Header
             ['ID', 'Datum vytvoření', 'Jméno zákazníka', 'Email zákazníka', 'Celkový objem', 'Status'],
             // Data rows
-            ...orders.map(order => [
+            ...orders.map((order: Order) => [
                 order.id,
                 new Date(order.created_at).toLocaleDateString('cs'),
                 order.customer_name,
