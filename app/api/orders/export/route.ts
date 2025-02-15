@@ -23,7 +23,7 @@ export async function GET() {
         ];
 
         const csvContent = csvRows
-            .map(row => row.map(cell => `"${cell}"`).join(','))
+            .map((row: (string | number)[]) => row.map((cell: string | number) => `"${cell}"`).join(','))
             .join('\n');
 
         return new NextResponse(csvContent, {
