@@ -82,6 +82,7 @@ export interface OrderDetailProps {
 
 export interface AdminOrdersProps {
     orders: Order[];
+    onOrdersChange: () => Promise<void>;
     onExportOrders: () => Promise<void>;
 }
 

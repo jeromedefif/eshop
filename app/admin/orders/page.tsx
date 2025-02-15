@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import AdminOrders from '@/components/AdminOrders';
 import { Loader2 } from 'lucide-react';
+import type { Order } from '@/types/orders';
 
 export default function OrdersPage() {
-    const [orders, setOrders] = useState([]);
+    const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
 
     const fetchOrders = async () => {
