@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import type { Product } from '@prisma/client';
 
 export async function GET() {
     try {
@@ -9,7 +10,7 @@ export async function GET() {
             }
         });
 
-        const serializedProducts = products.map(product => ({
+        const serializedProducts = products.map((product: Product) => ({
             ...product,
             id: product.id.toString()
         }));
