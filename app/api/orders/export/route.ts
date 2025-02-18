@@ -1,33 +1,17 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import type { Order } from '@/types/orders';
 
 export async function GET() {
     try {
-        const prismaOrders = await prisma.order.findMany({
-            orderBy: { created_at: 'desc' },
-            include: {
-                order_items: {
-                    include: {
-                        product: true
-                    }
-                }
-            }
+        const orders = await prisma.order.findMany({
+            orderBy: { created_at: 'desc' }
         });
-
-        // Převedeme Prisma data na náš Order typ
-        const orders: Order[] = prismaOrders.map(order => ({
-            ...order,
-            created_at: order.created_at.toISOString(),
-            updated_at: order.updated_at.toISOString(),
-            total_volume: order.total_volume.toString()
-        }));
 
         const csvRows = [
             // Header
             ['ID', 'Datum vytvoření', 'Jméno zákazníka', 'Email zákazníka', 'Celkový objem', 'Status'],
             // Data rows
-            ...orders.map((order) => [
+            ...orders.map(order => [
                 order.id,
                 new Date(order.created_at).toLocaleDateString('cs'),
                 order.customer_name,
