@@ -4,7 +4,7 @@ import type { Order } from '@/types/orders';
 
 export async function GET() {
     try {
-        const orders: Order[] = await prisma.order.findMany({
+        const prismaOrders = await prisma.order.findMany({
             orderBy: { created_at: 'desc' },
             include: {
                 order_items: {
@@ -14,6 +14,14 @@ export async function GET() {
                 }
             }
         });
+
+        // Převedeme Prisma data na náš Order typ
+        const orders: Order[] = prismaOrders.map(order => ({
+            ...order,
+            created_at: order.created_at.toISOString(),
+            updated_at: order.updated_at.toISOString(),
+            total_volume: order.total_volume.toString()
+        }));
 
         const csvRows = [
             // Header
