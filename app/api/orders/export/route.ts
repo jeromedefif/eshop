@@ -1,11 +1,10 @@
-// app/api/orders/export/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import type { Order } from '@/types/orders';
 
 export async function GET() {
     try {
-        const orders = await prisma.order.findMany({
+        const orders: Order[] = await prisma.order.findMany({
             orderBy: { created_at: 'desc' },
             include: {
                 order_items: {
