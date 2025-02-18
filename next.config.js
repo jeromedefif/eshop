@@ -6,10 +6,18 @@ const nextConfig = {
     ignoreDuringBuilds: true  // Dočasně ignorovat ESLint chyby během buildu
   },
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+    // Zachování původního aliasu
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname, './app')
     }
+
+    // Přidání ignore pravidla pro Supabase funkce
+    config.module.rules.push({
+      test: /supabase\/functions/,
+      loader: 'ignore-loader',
+    });
+
     return config
   },
   async headers() {
@@ -29,3 +37,5 @@ const nextConfig = {
     serverActions: true
   }
 }
+
+module.exports = nextConfig
