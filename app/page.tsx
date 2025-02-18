@@ -64,13 +64,13 @@ export default function Home() {
    }
  }, [cartItems]);
 
- const handleViewChange = (view: 'catalog' | 'order' | 'admin') => {
-   if (view === 'admin' && !profile?.is_admin) {
-     setIsLoginDialogOpen(true);
-   } else {
-     setCurrentView(view);
-   }
- };
+ const handleViewChange = (view: 'catalog' | 'order') => {
+    if (profile?.is_admin) {
+        setCurrentView('catalog');
+    } else {
+        setCurrentView(view);
+    }
+};
 
  const handleAddToCart = (productId: number, volume: number | string) => {
    setCartItems(prev => {
@@ -124,18 +124,18 @@ export default function Home() {
  }
 
  return (
-   <div className="min-h-screen bg-gray-50">
-     <div className="sticky top-0 z-50">
-       <Header
-         cartItems={cartItems}
-         products={products}
-         onViewChange={handleViewChange}
-         currentView={currentView}
-         totalVolume={getTotalVolume()}
-         onRemoveFromCart={handleRemoveFromCart}
-         onClearCart={handleClearCart}
-       />
-     </div>
+     <div className="min-h-screen bg-gray-50">
+         <div className="sticky top-0 z-50">
+             <Header
+                 cartItems={cartItems}
+                 products={products}
+                 onViewChange={handleViewChange}
+                 currentView={currentView === 'admin' ? 'catalog' : currentView}
+                 totalVolume={getTotalVolume()}
+                 onRemoveFromCart={handleRemoveFromCart}
+                 onClearCart={handleClearCart}
+             />
+         </div>
 
      <main className="container mx-auto px-4 py-6">
        {currentView === 'catalog' && (
