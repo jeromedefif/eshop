@@ -12,10 +12,10 @@ const nextConfig = {
       '@': path.resolve(__dirname, './app')
     }
 
-    // Přidání ignore pravidla pro Supabase funkce
+    // Ignorování Supabase funkcí
     config.module.rules.push({
       test: /supabase\/functions/,
-      loader: 'ignore-loader',
+      use: 'ignore-loader'
     });
 
     return config
@@ -32,10 +32,8 @@ const nextConfig = {
         ]
       }
     ]
-  },
-  experimental: {
-    serverActions: true
   }
+  // Odstranili jsme experimental.serverActions, protože už není potřeba
 }
 
 module.exports = nextConfig
