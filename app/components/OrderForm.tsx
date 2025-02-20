@@ -104,18 +104,24 @@ const OrderForm = ({
            console.log('Order items created:', items);
 
            try {
-               const { error: emailError } = await supabase
-                   .functions
-                   .invoke('send-order-confirmation', {
-                       body: { orderId: order.id }
-                   });
+    console.log('Sending confirmation email for order:', order.id);
 
-               if (emailError) {
-                   console.error('Email sending error:', emailError);
-               }
-           } catch (emailError) {
-               console.error('Email function error:', emailError);
-           }
+    const { error: emailError } = await supabase
+        .functions
+        .invoke('send-order-confirmation', {
+            method: 'POST',  // přidáme metodu
+            headers: {      // přidáme headers
+                'Content-Type': 'application/json',
+            },
+            body: { orderId: order.id }  // odstraníme JSON.stringify
+        });
+
+    if (emailError) {
+        console.error('Email sending error:', emailError);
+    }
+} catch (emailError) {
+    console.error('Email function error:', emailError);
+}
 
            setOrderStatus('completed');
            setTimeout(() => {
