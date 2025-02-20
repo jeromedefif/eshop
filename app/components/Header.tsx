@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 import { ShoppingCart, List, Settings, UserCog, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Cart from './Cart';
@@ -13,8 +14,6 @@ import { Product } from '@/types/database';
 type HeaderProps = {
    cartItems: {[key: string]: number};
    products: Product[];
-   onViewChange: (view: 'catalog' | 'order') => void;
-   currentView: 'catalog' | 'order';
    totalVolume: number;
    onRemoveFromCart: (productId: number, volume: string | number) => void;
    onClearCart: () => void;
@@ -23,12 +22,12 @@ type HeaderProps = {
 const Header = ({
    cartItems,
    products,
-   onViewChange,
-   currentView,
    totalVolume,
    onRemoveFromCart,
    onClearCart
 }: HeaderProps) => {
+   const router = useRouter();
+   const pathname = usePathname();
    const [isCartOpen, setIsCartOpen] = useState(false);
    const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
    const [isRegistrationDialogOpen, setIsRegistrationDialogOpen] = useState(false);
@@ -61,29 +60,31 @@ const Header = ({
                <div className="max-w-7xl mx-auto px-4">
                    <div className="flex items-center justify-between h-16">
                        <div className="flex items-center">
-                           <h1 className="text-lg font-bold text-gray-900">VINARIA s.r.o.</h1>
+                           <Link href="/" className="text-lg font-bold text-gray-900">
+                               VINARIA s.r.o.
+                           </Link>
                            <nav className="hidden md:ml-6 md:flex md:space-x-4">
-                               <button
-                                   onClick={() => onViewChange('catalog')}
+                               <Link
+                                   href="/"
                                    className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                                       currentView === 'catalog'
+                                       pathname === '/'
                                            ? 'bg-blue-100 text-blue-700'
                                            : 'text-gray-900 hover:bg-gray-100'
                                    }`}
                                >
                                    <List className="mr-1.5 h-5 w-5" />
                                    Katalog produktů
-                               </button>
-                               <button
-                                   onClick={() => onViewChange('order')}
+                               </Link>
+                               <Link
+                                   href="/order-summary"
                                    className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                                       currentView === 'order'
+                                       pathname === '/order-summary'
                                            ? 'bg-blue-100 text-blue-700'
                                            : 'text-gray-900 hover:bg-gray-100'
                                    }`}
                                >
                                    Souhrn objednávky
-                               </button>
+                               </Link>
                            </nav>
                        </div>
 
@@ -177,7 +178,7 @@ const Header = ({
                onClearCart={onClearCart}
                onGoToOrder={() => {
                    setIsCartOpen(false);
-                   onViewChange('order');
+                   router.push('/order-summary');
                }}
                totalVolume={totalVolume}
            />

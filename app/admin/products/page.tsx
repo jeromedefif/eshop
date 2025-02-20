@@ -1,87 +1,94 @@
+// app/admin/products/page.tsx
 'use client';
 
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
 import AdminProducts from '@/components/AdminProducts';
-import { useState, useEffect } from 'react';
-import { Product } from '@/types/database';
+import { useState, useEffect, useCallback } from 'react';
+import { Product, CreateProductInput } from '@/types/database';
+import {
+    fetchProducts,
+    createProduct,
+    updateProduct,
+    deleteProduct,
+    ProductError
+} from '@/lib/products';
 
 const AdminProductsPage = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchProducts = async () => {
+    const loadProducts = useCallback(async () => {
         try {
-            const response = await fetch('/api/products');
-            if (!response.ok) throw new Error('Failed to fetch products');
-            const data = await response.json();
+            setLoading(true);
+            const data = await fetchProducts();
             setProducts(data);
             setError(null);
         } catch (error) {
-            console.error('Error fetching products:', error);
-            setError(error instanceof Error ? error.message : 'Failed to fetch products');
+            console.error('Error loading products:', error);
+            setError(
+                error instanceof ProductError
+                    ? error.message
+                    : 'Nepodařilo se načíst produkty'
+            );
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const handleAddProduct = async (product: Omit<Product, 'id'>) => {
+    const handleAddProduct = async (productData: CreateProductInput) => {
         try {
-            const response = await fetch('/api/products', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(product)
-            });
-            if (!response.ok) throw new Error('Failed to add product');
-            const newProduct = await response.json();
+            const newProduct = await createProduct(productData);
             setProducts(prev => [...prev, newProduct]);
+            return newProduct;
         } catch (error) {
             console.error('Error adding product:', error);
-            throw error;
+            throw error instanceof ProductError
+                ? error
+                : new ProductError('Nepodařilo se přidat produkt');
         }
     };
 
     const handleUpdateProduct = async (product: Product) => {
         try {
-            const response = await fetch('/api/products', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(product)
-            });
-            if (!response.ok) throw new Error('Failed to update product');
-            const updatedProduct = await response.json();
-            setProducts(prev => prev.map(p => p.id === product.id ? updatedProduct : p));
+            const { id, ...updates } = product;
+            const updatedProduct = await updateProduct(id, updates);
+            setProducts(prev =>
+                prev.map(p => p.id === id ? updatedProduct : p)
+            );
+            return updatedProduct;
         } catch (error) {
             console.error('Error updating product:', error);
-            throw error;
+            throw error instanceof ProductError
+                ? error
+                : new ProductError('Nepodařilo se aktualizovat produkt');
         }
     };
 
-    const handleDeleteProduct = async (id: number) => {
+    const handleDeleteProduct = async (id: string) => {
         try {
-            const response = await fetch(`/api/products?id=${id}`, {
-                method: 'DELETE'
-            });
-            if (!response.ok) throw new Error('Failed to delete product');
+            await deleteProduct(id);
             setProducts(prev => prev.filter(p => p.id !== id));
         } catch (error) {
             console.error('Error deleting product:', error);
-            throw error;
+            throw error instanceof ProductError
+                ? error
+                : new ProductError('Nepodařilo se smazat produkt');
         }
     };
 
     useEffect(() => {
-        fetchProducts();
-    }, []);
+        loadProducts();
+    }, [loadProducts]);
 
     if (error) {
         return (
             <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center text-red-600">
-                    <p>{error}</p>
+                <div className="text-center">
+                    <p className="text-red-600 mb-4">{error}</p>
                     <button
-                        onClick={fetchProducts}
-                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        onClick={() => loadProducts()}
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                     >
                         Zkusit znovu
                     </button>
@@ -104,7 +111,7 @@ const AdminProductsPage = () => {
     return (
         <AdminProducts
             products={products}
-            onProductsChange={fetchProducts}
+            onProductsChange={loadProducts}
             onAddProduct={handleAddProduct}
             onUpdateProduct={handleUpdateProduct}
             onDeleteProduct={handleDeleteProduct}

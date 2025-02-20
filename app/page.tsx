@@ -1,223 +1,265 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase/client';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import Header from './components/Header';
-import ProductList from './components/ProductList';
-import OrderForm from './components/OrderForm';
-import AdminProducts from './components/AdminProducts';
-import AuthDialog from './components/AuthDialog';
-import { Product } from '@/types/database';
+import { supabase } from '@/lib/supabase/client';
+import Header from '@/components/Header';
+import ProductList from '@/components/ProductList';
+import OrderForm from '@/components/OrderForm';
+import AdminProducts from '@/components/AdminProducts';
+import AuthDialog from '@/components/AuthDialog';
+import type { Product } from '@/types/database';
+
+export const CartContext = createContext<{
+    cartItems: {[key: string]: number};
+    setCartItems: (items: {[key: string]: number} | ((prev: {[key: string]: number}) => {[key: string]: number})) => void;
+    products: Product[];
+    setProducts: (products: Product[]) => void;
+    totalVolume: number;
+} | null>(null);
 
 const defaultCartItems: {[key: string]: number} = {};
 
+export const CartProvider = ({ children }: { children: React.ReactNode }) => {
+    const [cartItems, setCartItems] = useState<{[key: string]: number}>(defaultCartItems);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [totalVolume, setTotalVolume] = useState(0);
+
+    // Načtení košíku z localStorage
+    useEffect(() => {
+        try {
+            const savedCart = localStorage.getItem('cart');
+            if (savedCart) {
+                setCartItems(JSON.parse(savedCart));
+            }
+        } catch (error) {
+            console.error('Error loading cart from localStorage:', error);
+            setCartItems(defaultCartItems);
+        }
+    }, []);
+
+    // Uložení košíku do localStorage při změně
+    useEffect(() => {
+        try {
+            localStorage.setItem('cart', JSON.stringify(cartItems));
+        } catch (error) {
+            console.error('Error saving cart to localStorage:', error);
+        }
+    }, [cartItems]);
+
+    // Výpočet celkového objemu
+    const getTotalVolume = () => {
+        return Object.entries(cartItems).reduce((total, [keyString, count]) => {
+            const [, volume] = keyString.split('-');
+            if (volume === 'maly' || volume === 'velky' || volume === 'baleni') {
+                return total;
+            }
+            return total + (parseInt(volume as string) * count);
+        }, 0);
+    };
+
+    useEffect(() => {
+        setTotalVolume(getTotalVolume());
+    }, [cartItems]);
+
+    return (
+        <CartContext.Provider value={{
+            cartItems,
+            setCartItems,
+            products,
+            setProducts,
+            totalVolume
+        }}>
+            {children}
+        </CartContext.Provider>
+    );
+};
+
 export default function Home() {
- const { user, profile } = useAuth();
- const [currentView, setCurrentView] = useState<'catalog' | 'order' | 'admin'>('catalog');
- const [cartItems, setCartItems] = useState<{[key: string]: number}>(defaultCartItems);
- const [products, setProducts] = useState<Product[]>([]);
- const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
- const [isLoading, setIsLoading] = useState(true);
+    const cartContext = useContext(CartContext);
+    const { user, profile } = useAuth();
+    const [currentView, setCurrentView] = useState<'catalog' | 'order' | 'admin'>('catalog');
+    const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
- const loadProducts = async () => {
-   try {
-     setIsLoading(true);
-     const { data, error } = await supabase
-       .from('products')
-       .select('*')
-       .order('name');
-
-     if (error) {
-       throw error;
-     }
-
-     setProducts(data || []);
-   } catch (error) {
-     console.error('Error loading products:', error);
-   } finally {
-     setIsLoading(false);
-   }
- };
-
- useEffect(() => {
-   loadProducts();
- }, []);
-
- useEffect(() => {
-   try {
-     const savedCart = localStorage.getItem('cart');
-     if (savedCart) {
-       setCartItems(JSON.parse(savedCart));
-     }
-   } catch (error) {
-     console.error('Error loading cart from localStorage:', error);
-     setCartItems(defaultCartItems);
-   }
- }, []);
-
- useEffect(() => {
-   try {
-     localStorage.setItem('cart', JSON.stringify(cartItems));
-   } catch (error) {
-     console.error('Error saving cart to localStorage:', error);
-   }
- }, [cartItems]);
-
- const handleViewChange = (view: 'catalog' | 'order') => {
-    if (profile?.is_admin) {
-        setCurrentView('catalog');
-    } else {
-        setCurrentView(view);
+    if (!cartContext) {
+        return null;
     }
-};
 
- const handleAddToCart = (productId: number, volume: number | string) => {
-   setCartItems(prev => {
-     const key = `${productId}-${volume}`;
-     return {
-       ...prev,
-       [key]: (prev[key] || 0) + 1
-     };
-   });
- };
+    const {
+        cartItems, setCartItems,
+        products, setProducts,
+        totalVolume
+    } = cartContext;
 
- const handleRemoveFromCart = (productId: number, volume: number | string) => {
-   setCartItems(prev => {
-     const key = `${productId}-${volume}`;
-     const currentCount = prev[key] || 0;
+    const loadProducts = async () => {
+        try {
+            setIsLoading(true);
+            const { data, error } = await supabase
+                .from('products')
+                .select('*')
+                .order('name');
 
-     if (currentCount <= 1) {
-       const newCart = Object.fromEntries(
-         Object.entries(prev).filter(([k]) => k !== key)
-       );
-       return newCart;
-     }
+            if (error) {
+                throw error;
+            }
 
-     return {
-       ...prev,
-       [key]: currentCount - 1
-     };
-   });
- };
+            setProducts(data || []);
+        } catch (error) {
+            console.error('Error loading products:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
- const handleClearCart = () => {
-   setCartItems(defaultCartItems);
- };
+    useEffect(() => {
+        loadProducts();
+    }, []);
 
- const getTotalVolume = () => {
-    return Object.entries(cartItems).reduce((total, [keyString, count]) => {
-      const [, volume] = keyString.split('-');
-      if (volume === 'maly' || volume === 'velky' || volume === 'baleni') {
-        return total;
-      }
-      return total + (parseInt(volume as string) * count);
-    }, 0);
-};
+    const handleViewChange = (view: 'catalog' | 'order') => {
+        if (profile?.is_admin) {
+            setCurrentView('catalog');
+        } else {
+            setCurrentView(view);
+        }
+    };
 
- if (isLoading) {
-   return (
-     <div className="min-h-screen bg-gray-50 flex justify-center items-center">
-       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-     </div>
-   );
- }
+    const handleAddToCart = (productId: number, volume: number | string) => {
+        setCartItems(prev => {
+            const key = `${productId}-${volume}`;
+            return {
+                ...prev,
+                [key]: (prev[key] || 0) + 1
+            };
+        });
+    };
 
- return (
-     <div className="min-h-screen bg-gray-50">
-         <div className="sticky top-0 z-50">
-             <Header
-                 cartItems={cartItems}
-                 products={products}
-                 onViewChange={handleViewChange}
-                 currentView={currentView === 'admin' ? 'catalog' : currentView}
-                 totalVolume={getTotalVolume()}
-                 onRemoveFromCart={handleRemoveFromCart}
-                 onClearCart={handleClearCart}
-             />
-         </div>
+    const handleRemoveFromCart = (productId: number, volume: number | string) => {
+        setCartItems(prev => {
+            const key = `${productId}-${volume}`;
+            const currentCount = prev[key] || 0;
 
-     <main className="container mx-auto px-4 py-6">
-       {currentView === 'catalog' && (
-         <ProductList
-           onAddToCart={handleAddToCart}
-           onRemoveFromCart={handleRemoveFromCart}
-           cartItems={cartItems}
-           products={products}
-         />
-       )}
+            if (currentCount <= 1) {
+                const newCart = Object.fromEntries(
+                    Object.entries(prev).filter(([k]) => k !== key)
+                );
+                return newCart;
+            }
 
-       {currentView === 'order' && (
-         <OrderForm
-           cartItems={cartItems}
-           products={products}
-           onRemoveFromCart={handleRemoveFromCart}
-           onAddToCart={handleAddToCart}
-           onClearCart={handleClearCart}
-           totalVolume={getTotalVolume()}
-           user={user}
-           profile={profile}
-         />
-       )}
+            return {
+                ...prev,
+                [key]: currentCount - 1
+            };
+        });
+    };
 
-       {currentView === 'admin' && profile?.is_admin && (
-         <AdminProducts
-           products={products}
-           onProductsChange={loadProducts}
-           onAddProduct={async (product) => {
-             const { error } = await supabase
-               .from('products')
-               .insert([{
-                 name: product.name,
-                 category: product.category,
-                 in_stock: product.in_stock
-               }]);
+    const handleClearCart = () => {
+        setCartItems(defaultCartItems);
+    };
 
-             if (error) {
-               console.error('Error adding product:', error);
-               return;
-             }
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex justify-center items-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        );
+    }
 
-             await loadProducts();
-           }}
-           onUpdateProduct={async (product) => {
-             const { error } = await supabase
-               .from('products')
-               .update({
-                 name: product.name,
-                 category: product.category,
-                 in_stock: product.in_stock
-               })
-               .eq('id', product.id);
+    return (
+        <div className="min-h-screen bg-gray-50">
+            <div className="sticky top-0 z-50">
+                <Header
+                    cartItems={cartItems}
+                    products={products}
+                    onViewChange={handleViewChange}
+                    currentView={currentView === 'admin' ? 'catalog' : currentView}
+                    totalVolume={totalVolume}
+                    onRemoveFromCart={handleRemoveFromCart}
+                    onClearCart={handleClearCart}
+                />
+            </div>
 
-             if (error) {
-               console.error('Error updating product:', error);
-               return;
-             }
+            <main className="container mx-auto px-4 py-6">
+                {currentView === 'catalog' && (
+                    <ProductList
+                        onAddToCart={handleAddToCart}
+                        onRemoveFromCart={handleRemoveFromCart}
+                        cartItems={cartItems}
+                        products={products}
+                    />
+                )}
 
-             await loadProducts();
-           }}
-           onDeleteProduct={async (id) => {
-             const { error } = await supabase
-               .from('products')
-               .delete()
-               .eq('id', id);
+                {currentView === 'order' && (
+                    <OrderForm
+                        cartItems={cartItems}
+                        products={products}
+                        onRemoveFromCart={handleRemoveFromCart}
+                        onAddToCart={handleAddToCart}
+                        onClearCart={handleClearCart}
+                        totalVolume={totalVolume}
+                        user={user}
+                        profile={profile}
+                    />
+                )}
 
-             if (error) {
-               console.error('Error deleting product:', error);
-               return;
-             }
+                {currentView === 'admin' && profile?.is_admin && (
+                    <AdminProducts
+                        products={products}
+                        onProductsChange={loadProducts}
+                        onAddProduct={async (product) => {
+                            const { error } = await supabase
+                                .from('products')
+                                .insert([{
+                                    name: product.name,
+                                    category: product.category,
+                                    in_stock: product.in_stock
+                                }]);
 
-             await loadProducts();
-           }}
-         />
-       )}
-     </main>
+                            if (error) {
+                                console.error('Error adding product:', error);
+                                return;
+                            }
 
-     <AuthDialog
-       isOpen={isLoginDialogOpen}
-       onClose={() => setIsLoginDialogOpen(false)}
-     />
-   </div>
- );
+                            await loadProducts();
+                        }}
+                        onUpdateProduct={async (product) => {
+                            const { error } = await supabase
+                                .from('products')
+                                .update({
+                                    name: product.name,
+                                    category: product.category,
+                                    in_stock: product.in_stock
+                                })
+                                .eq('id', product.id);
+
+                            if (error) {
+                                console.error('Error updating product:', error);
+                                return;
+                            }
+
+                            await loadProducts();
+                        }}
+                        onDeleteProduct={async (id) => {
+                            const { error } = await supabase
+                                .from('products')
+                                .delete()
+                                .eq('id', id);
+
+                            if (error) {
+                                console.error('Error deleting product:', error);
+                                return;
+                            }
+
+                            await loadProducts();
+                        }}
+                    />
+                )}
+            </main>
+
+            <AuthDialog
+                isOpen={isLoginDialogOpen}
+                onClose={() => setIsLoginDialogOpen(false)}
+            />
+        </div>
+    );
 }

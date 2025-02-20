@@ -1,21 +1,22 @@
+// app/components/AdminProducts.tsx
 'use client';
 
 import React, { useState } from 'react';
 import { PlusCircle, Edit2, Trash2, X, Search } from 'lucide-react';
-import type { Product } from '@/types/database';
+import type { Product, CreateProductInput } from '@/types/database';
+
+interface AdminProductsProps {
+    products: Product[];
+    onProductsChange: () => Promise<void>;
+    onAddProduct: (product: CreateProductInput) => Promise<void>;
+    onUpdateProduct: (product: Product) => Promise<void>;
+    onDeleteProduct: (id: string) => Promise<void>;
+}
 
 interface ProductFormData {
     name: string;
     category: string;
     in_stock: boolean;
-}
-
-interface AdminProductsProps {
-    products: Product[];
-    onProductsChange: () => Promise<void>;
-    onAddProduct: (product: ProductFormData) => Promise<void>;
-    onUpdateProduct: (product: Product) => Promise<void>;
-    onDeleteProduct: (id: number) => Promise<void>;
 }
 
 interface EditFormProps {
@@ -31,6 +32,9 @@ interface AddProductFormProps {
     isLoading: boolean;
 }
 
+const CATEGORIES = ["Víno", "Nápoje", "Ovocné víno", "Dusík", "PET"] as const;
+type Category = typeof CATEGORIES[number];
+
 const EditForm = ({
     product,
     onSave,
@@ -43,16 +47,21 @@ const EditForm = ({
         in_stock: product.in_stock
     });
 
-    const categories = ["Víno", "Nápoje", "Ovocné víno", "Dusík", "PET"];
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!formData.name.trim()) return;
+        onSave(formData);
+    };
 
     return (
-        <div className="bg-white p-4 rounded-lg shadow-inner border border-blue-100">
+        <form onSubmit={handleSubmit} className="bg-white p-4 rounded-lg shadow-inner border border-blue-100">
             <div className="space-y-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-1">
+                    <label htmlFor={`name-${product.id}`} className="block text-sm font-medium text-gray-900 mb-1">
                         Název produktu
                     </label>
                     <input
+                        id={`name-${product.id}`}
                         type="text"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -62,16 +71,17 @@ const EditForm = ({
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-1">
+                    <label htmlFor={`category-${product.id}`} className="block text-sm font-medium text-gray-900 mb-1">
                         Kategorie
                     </label>
                     <select
+                        id={`category-${product.id}`}
                         value={formData.category}
                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white text-gray-900"
                         disabled={isLoading}
                     >
-                        {categories.map((category) => (
+                        {CATEGORIES.map((category) => (
                             <option key={category} value={category}>
                                 {category}
                             </option>
@@ -102,16 +112,15 @@ const EditForm = ({
                         Zrušit
                     </button>
                     <button
-                        type="button"
-                        onClick={() => onSave(formData)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
-                        disabled={isLoading}
+                        type="submit"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 flex items-center"
+                        disabled={isLoading || !formData.name.trim()}
                     >
                         {isLoading ? 'Ukládám...' : 'Uložit změny'}
                     </button>
                 </div>
             </div>
-        </div>
+        </form>
     );
 };
 
@@ -122,21 +131,26 @@ const AddProductForm = ({
 }: AddProductFormProps) => {
     const [formData, setFormData] = useState<ProductFormData>({
         name: '',
-        category: 'Víno',
+        category: CATEGORIES[0],
         in_stock: true
     });
 
-    const categories = ["Víno", "Nápoje", "Ovocné víno", "Dusík", "PET"];
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!formData.name.trim()) return;
+        onSave(formData);
+    };
 
     return (
-        <div className="bg-white p-6 rounded-lg shadow mb-6">
+        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow mb-6">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">Nový produkt</h3>
             <div className="space-y-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-1">
+                    <label htmlFor="newProductName" className="block text-sm font-medium text-gray-900 mb-1">
                         Název produktu
                     </label>
                     <input
+                        id="newProductName"
                         type="text"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -147,16 +161,17 @@ const AddProductForm = ({
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-1">
+                    <label htmlFor="newProductCategory" className="block text-sm font-medium text-gray-900 mb-1">
                         Kategorie
                     </label>
                     <select
+                        id="newProductCategory"
                         value={formData.category}
                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white text-gray-900"
                         disabled={isLoading}
                     >
-                        {categories.map((category) => (
+                        {CATEGORIES.map((category) => (
                             <option key={category} value={category}>
                                 {category}
                             </option>
@@ -186,8 +201,7 @@ const AddProductForm = ({
                         Zrušit
                     </button>
                     <button
-                        type="button"
-                        onClick={() => onSave(formData)}
+                        type="submit"
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300"
                         disabled={isLoading || !formData.name.trim()}
                     >
@@ -195,7 +209,7 @@ const AddProductForm = ({
                     </button>
                 </div>
             </div>
-        </div>
+        </form>
     );
 };
 
@@ -206,7 +220,7 @@ const AdminProducts = ({
     onUpdateProduct,
     onDeleteProduct
 }: AdminProductsProps) => {
-    const [editingInline, setEditingInline] = useState<number | null>(null);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [isAddingNew, setIsAddingNew] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -216,21 +230,22 @@ const AdminProducts = ({
         product.category.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const handleDelete = async (id: number) => {
-        if (window.confirm('Opravdu chcete smazat tento produkt?')) {
-            setIsLoading(true);
-            try {
-                await onDeleteProduct(id);
-                await onProductsChange();
-            } catch (error) {
-                console.error('Error deleting product:', error);
-            } finally {
-                setIsLoading(false);
-            }
+    const handleDelete = async (id: string) => {
+        if (!window.confirm('Opravdu chcete smazat tento produkt?')) return;
+
+        setIsLoading(true);
+        try {
+            await onDeleteProduct(id);
+            await onProductsChange();
+        } catch (error) {
+            console.error('Error deleting product:', error);
+            alert('Nepodařilo se smazat produkt');
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const handleInlineUpdate = async (productId: number, formData: ProductFormData) => {
+    const handleInlineUpdate = async (productId: string, formData: ProductFormData) => {
         setIsLoading(true);
         try {
             await onUpdateProduct({
@@ -238,9 +253,10 @@ const AdminProducts = ({
                 id: productId
             });
             await onProductsChange();
-            setEditingInline(null);
+            setEditingId(null);
         } catch (error) {
             console.error('Error updating product:', error);
+            alert('Nepodařilo se aktualizovat produkt');
         } finally {
             setIsLoading(false);
         }
@@ -254,6 +270,7 @@ const AdminProducts = ({
             setIsAddingNew(false);
         } catch (error) {
             console.error('Error adding product:', error);
+            alert('Nepodařilo se přidat produkt');
         } finally {
             setIsLoading(false);
         }
@@ -312,89 +329,93 @@ const AdminProducts = ({
             </div>
 
             <div className="bg-white rounded-lg shadow overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Název</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategorie</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stav</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Akce</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredProducts.length === 0 ? (
-                            <tr>
-                                <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                                    {searchQuery ? (
-                                        <div className="flex flex-col items-center">
-                                            <Search className="h-8 w-8 text-gray-400 mb-2" />
-                                            <p>Nenalezeny žádné produkty odpovídající vašemu hledání</p>
-                                            <button
-                                                onClick={() => setSearchQuery('')}
-                                                className="mt-2 text-blue-600 hover:text-blue-800"
-                                            >
-                                                Zobrazit všechny produkty
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <p>Zatím nejsou přidány žádné produkty</p>
-                                    )}
-                                </td>
-                            </tr>
-                        ) : (
-                            filteredProducts.map((product) => (
-                                <React.Fragment key={product.id}>
-                                    <tr className={editingInline === product.id ? 'bg-blue-50' : 'hover:bg-gray-50'}>
-                                        <td className="px-6 py-4 whitespace-nowrap text-gray-900">{product.name}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-gray-900">{product.category}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                product.in_stock
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : 'bg-red-100 text-red-800'
-                                            }`}>
-                                                {product.in_stock ? 'Skladem' : 'Není skladem'}
-                                            </span>
-                                            </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button
-                                                onClick={() => setEditingInline(product.id)}
-                                                disabled={isLoading}
-                                                className="text-blue-600 hover:text-blue-900 mr-3 disabled:text-blue-300"
-                                                title="Upravit"
-                                            >
-                                                <Edit2 className="w-5 h-5" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(product.id)}
-                                                disabled={isLoading}
-                                                className="text-red-600 hover:text-red-900 disabled:text-red-300"
-                                                title="Smazat"
-                                            >
-                                                <Trash2 className="w-5 h-5" />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    {editingInline === product.id && (
-                                        <tr>
-                                            <td colSpan={4} className="px-6 py-4 bg-blue-50">
-                                                <EditForm
-                                                    product={product}
-                                                    onSave={(formData) => handleInlineUpdate(product.id, formData)}
-                                                    onCancel={() => setEditingInline(null)}
-                                                    isLoading={isLoading}
-                                                />
-                                            </td>
-                                        </tr>
-                                    )}
-                                </React.Fragment>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
+   <table className="min-w-full divide-y divide-gray-200">
+       <thead className="bg-gray-50">
+           <tr>
+               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Název</th>
+               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategorie</th>
+               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stav</th>
+               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Akce</th>
+           </tr>
+       </thead>
+       <tbody className="bg-white divide-y divide-gray-200">
+           {filteredProducts.length === 0 ? (
+               <tr>
+                   <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                       {searchQuery ? (
+                           <div className="flex flex-col items-center">
+                               <Search className="h-8 w-8 text-gray-400 mb-2" />
+                               <p>Nenalezeny žádné produkty odpovídající vašemu hledání</p>
+                               <button
+                                   onClick={() => setSearchQuery('')}
+                                   className="mt-2 text-blue-600 hover:text-blue-800"
+                               >
+                                   Zobrazit všechny produkty
+                               </button>
+                           </div>
+                       ) : (
+                           <p>Zatím nejsou přidány žádné produkty</p>
+                       )}
+                   </td>
+               </tr>
+           ) : (
+               filteredProducts.map((product) => (
+                   <React.Fragment key={product.id}>
+                       <tr className={editingId === product.id ? 'bg-blue-50' : 'hover:bg-gray-50'}>
+                           <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                               {product.name}
+                           </td>
+                           <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                               {product.category}
+                           </td>
+                           <td className="px-6 py-4 whitespace-nowrap">
+                               <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                   product.in_stock
+                                       ? 'bg-green-100 text-green-800'
+                                       : 'bg-red-100 text-red-800'
+                               }`}>
+                                   {product.in_stock ? 'Skladem' : 'Není skladem'}
+                               </span>
+                           </td>
+                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                               <button
+                                   onClick={() => setEditingId(product.id)}
+                                   disabled={isLoading}
+                                   className="text-blue-600 hover:text-blue-900 mr-3 disabled:text-blue-300"
+                                   title="Upravit"
+                               >
+                                   <Edit2 className="w-5 h-5" />
+                               </button>
+                               <button
+                                   onClick={() => handleDelete(product.id)}
+                                   disabled={isLoading}
+                                   className="text-red-600 hover:text-red-900 disabled:text-red-300"
+                                   title="Smazat"
+                               >
+                                   <Trash2 className="w-5 h-5" />
+                               </button>
+                           </td>
+                       </tr>
+                       {editingId === product.id && (
+                           <tr>
+                               <td colSpan={4} className="px-6 py-4 bg-blue-50">
+                                   <EditForm
+                                       product={product}
+                                       onSave={(formData) => handleInlineUpdate(product.id, formData)}
+                                       onCancel={() => setEditingId(null)}
+                                       isLoading={isLoading}
+                                   />
+                               </td>
+                           </tr>
+                       )}
+                   </React.Fragment>
+               ))
+           )}
+       </tbody>
+   </table>
+</div>
+       </div>
+   );
 };
 
 export default AdminProducts;
