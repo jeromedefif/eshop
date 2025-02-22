@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Package, FileText, Settings, LogOut } from 'lucide-react';
+import { Package, FileText, Settings, LogOut, Home } from 'lucide-react';
 import Link from 'next/link';
 
 interface AdminLayoutProps {
@@ -45,7 +45,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                        <div className="flex items-center">
                            <span className="text-xl font-bold text-gray-900">Administrace</span>
                        </div>
-                       <div className="flex items-center">
+                       <div className="flex items-center space-x-4">
+                           <Link
+                               href="/"
+                               className="flex items-center text-blue-600 hover:text-blue-800 transition-colors"
+                           >
+                               <Home className="w-5 h-5 mr-1" />
+                               Zpět na e-shop
+                           </Link>
                            <button
                                onClick={() => signOut()}
                                className="flex items-center text-gray-700 hover:text-gray-900"

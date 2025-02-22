@@ -138,6 +138,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
        };
    }, []);
 
+   // Nový useEffect pro kontrolu platnosti session
+   useEffect(() => {
+       if (!user) return;
+
+       // Funkce pro kontrolu platnosti session
+       const checkSession = async () => {
+           try {
+               const { data: { session }, error } = await supabase.auth.getSession();
+               if (error || !session) {
+                   console.warn('Session is no longer valid, resetting auth state');
+                   await resetAuthState();
+               }
+           } catch (err) {
+               console.error('Error checking session:', err);
+           }
+       };
+
+       // Kontrola session po návratu na stránku
+       const handleVisibilityChange = () => {
+           if (document.visibilityState === 'visible') {
+               checkSession();
+           }
+       };
+
+       // Kontrola session při obnovení fokusování okna
+       const handleFocus = () => {
+           checkSession();
+       };
+
+       document.addEventListener('visibilitychange', handleVisibilityChange);
+       window.addEventListener('focus', handleFocus);
+
+       return () => {
+           document.removeEventListener('visibilitychange', handleVisibilityChange);
+           window.removeEventListener('focus', handleFocus);
+       };
+   }, [user]);
+
    const signIn = async (email: string, password: string) => {
        setIsLoading(true);
        try {
@@ -237,14 +275,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    const signOut = async () => {
        setIsLoading(true);
        try {
-           const { error } = await supabase.auth.signOut();
-           if (error) throw error;
+           // Pokus o standardní odhlášení
+           try {
+               await supabase.auth.signOut();
+           } catch (signOutError) {
+               console.warn('Error during standard sign out:', signOutError);
+               // Pokračujeme i při chybě
+           }
 
+           // V každém případě resetujeme stav autentizace
            await resetAuthState();
-           window.location.href = '/';
+
+           // Přidáme timeout pro zajištění, že se UI správně aktualizuje
+           setTimeout(() => {
+               window.location.href = '/';
+           }, 500);
        } catch (error) {
            console.error('Error in signOut:', error);
-           throw error;
+           // I při chybě resetujeme stav a přesměrujeme
+           await resetAuthState();
+           window.location.href = '/';
        } finally {
            setIsLoading(false);
        }
