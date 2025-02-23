@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import AdminOrders from '@/components/AdminOrders';
 import { Loader2 } from 'lucide-react';
 import type { Order } from '@/types/orders';
+import { supabase } from '@/lib/supabase/client';
 
 export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
@@ -11,10 +12,27 @@ export default function OrdersPage() {
 
     const fetchOrders = async () => {
         try {
-            const response = await fetch('/api/orders');
-            if (!response.ok) throw new Error('Nepodařilo se načíst objednávky');
-            const data = await response.json();
-            setOrders(data);
+            const { data, error } = await supabase
+                .from('orders')
+                .select(`
+                    *,
+                    order_items (
+                        id,
+                        product_id,
+                        volume,
+                        quantity,
+                        product:products (
+                            id,
+                            name,
+                            category,
+                            in_stock
+                        )
+                    )
+                `)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setOrders(data || []);
         } catch (error) {
             console.error('Chyba při načítání objednávek:', error);
         } finally {
