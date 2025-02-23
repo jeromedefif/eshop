@@ -218,43 +218,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
            const { email, password, metadata } = data;
            const normalizedEmail = email.toLowerCase().trim();
 
+           // Přidáme metadata a emailRedirectTo do options
            const { data: authData, error: signUpError } = await supabase.auth.signUp({
                email: normalizedEmail,
-               password
+               password,
+               options: {
+                   data: {
+                       full_name: metadata.full_name,
+                       company: metadata.company,
+                       phone: metadata.phone,
+                       address: metadata.address,
+                       city: metadata.city,
+                       postal_code: metadata.postal_code,
+                       is_admin: false
+                   },
+                   emailRedirectTo: `${window.location.origin}/auth/callback`
+               }
            });
 
            if (signUpError) throw signUpError;
            if (!authData?.user) throw new Error('Registrace se nezdařila');
 
+           // Počkáme na vytvoření uživatele
            await new Promise(resolve => setTimeout(resolve, 1000));
 
-           const profileData: Omit<UserProfile, 'created_at' | 'updated_at'> = {
-               id: authData.user.id,
-               email: normalizedEmail,
-               full_name: metadata.full_name,
-               company: metadata.company,
-               phone: metadata.phone,
-               address: metadata.address,
-               city: metadata.city,
-               postal_code: metadata.postal_code || null,
-               is_admin: false
+           // Vrátíme informaci o úspěšné registraci
+           return {
+               success: true,
+               message: 'Registrace proběhla úspěšně. Zkontrolujte prosím svůj email pro potvrzení účtu.'
            };
-
-           const { error: profileError } = await supabase
-               .from('profiles')
-               .upsert(profileData, {
-                   onConflict: 'id',
-                   ignoreDuplicates: false
-               });
-
-           if (profileError) {
-               console.error('Chyba při vytváření profilu:', profileError);
-               await supabase.auth.signOut();
-               throw new Error('Chyba při vytváření profilu');
-           }
-
-           setUser(authData.user);
-           setProfile(profileData as UserProfile);
 
        } catch (error) {
            console.error('Chyba při registraci:', error);
