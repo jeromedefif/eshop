@@ -1,7 +1,3 @@
-import { createClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
-
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
@@ -26,25 +22,21 @@ export async function GET(request: Request) {
       }
     )
 
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    try {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
-    if (data?.user) {
-      // Zkontrolujeme, zda profil existuje
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', data.user.id)
-        .single();
+      if (error) {
+        console.error("Session exchange error:", error);
+      }
 
-      // Pokud profil neexistuje, vytvoříme ho
-      if (!profileData) {
+      if (data?.user) {
         // Získáme metadata z uživatele
         const metadata = data.user.user_metadata;
 
-        // Vytvoříme profil s daty z user_metadata
-        const { error: insertError } = await supabase
+        // Použijeme UPSERT místo INSERT
+        const { error: upsertError } = await supabase
           .from('profiles')
-          .insert([{
+          .upsert({
             id: data.user.id,
             email: data.user.email,
             full_name: metadata?.full_name,
@@ -54,12 +46,17 @@ export async function GET(request: Request) {
             city: metadata?.city,
             postal_code: metadata?.postal_code,
             is_admin: metadata?.is_admin || false
-          }]);
+          }, {
+            onConflict: 'id',  // V případě konfliktu podle id
+            ignoreDuplicates: false  // Aktualizovat existující záznamy
+          });
 
-        if (insertError) {
-          console.error('Error creating profile:', insertError);
+        if (upsertError) {
+          console.error("Profile upsert error:", upsertError);
         }
       }
+    } catch (e) {
+      console.error("Unexpected error in callback:", e);
     }
   }
 
