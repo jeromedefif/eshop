@@ -56,6 +56,13 @@ model OrderItem {
 model Profile {
   id            String    @id @db.Uuid
   email         String?   @unique @db.Text
+  full_name     String?   @db.Text
+  company       String?   @db.Text
+  phone         String?   @db.Text
+  address       String?   @db.Text
+  city          String?   @db.Text
+  postal_code   String?   @db.Text
+  is_admin      Boolean   @default(false)
   created_at    DateTime  @default(now()) @db.Timestamptz(6)
   updated_at    DateTime  @default(now()) @db.Timestamptz(6)
 
