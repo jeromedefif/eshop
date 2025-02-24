@@ -1,3 +1,7 @@
+import { createClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+import { NextResponse } from 'next/server'
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
@@ -22,42 +26,7 @@ export async function GET(request: Request) {
       }
     )
 
-    try {
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-
-      if (error) {
-        console.error("Session exchange error:", error);
-      }
-
-      if (data?.user) {
-        // Získáme metadata z uživatele
-        const metadata = data.user.user_metadata;
-
-        // Použijeme UPSERT místo INSERT
-        const { error: upsertError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: data.user.id,
-            email: data.user.email,
-            full_name: metadata?.full_name,
-            company: metadata?.company,
-            phone: metadata?.phone,
-            address: metadata?.address,
-            city: metadata?.city,
-            postal_code: metadata?.postal_code,
-            is_admin: metadata?.is_admin || false
-          }, {
-            onConflict: 'id',  // V případě konfliktu podle id
-            ignoreDuplicates: false  // Aktualizovat existující záznamy
-          });
-
-        if (upsertError) {
-          console.error("Profile upsert error:", upsertError);
-        }
-      }
-    } catch (e) {
-      console.error("Unexpected error in callback:", e);
-    }
+    await supabase.auth.exchangeCodeForSession(code)
   }
 
   return NextResponse.redirect(requestUrl.origin)
