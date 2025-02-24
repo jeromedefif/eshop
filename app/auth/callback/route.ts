@@ -34,7 +34,7 @@ export async function GET(request: Request) {
         .from('profiles')
         .select('id')
         .eq('id', data.user.id)
-        .single()
+        .single();
 
       // Pokud profil neexistuje, vytvoříme ho
       if (!profileData) {
