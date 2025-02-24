@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ProfileDialogProps, ProfileFormData } from '@/types/auth';
+import { supabase } from '@/lib/supabase/client';
 
 const ProfileDialog = ({ isOpen, onClose }: ProfileDialogProps) => {
-    const { profile, updateProfile } = useAuth();
+    const { profile, updateProfile, user, refreshProfile } = useAuth();
     const [error, setError] = useState<string>('');
     const [successMessage, setSuccessMessage] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
@@ -15,8 +16,56 @@ const ProfileDialog = ({ isOpen, onClose }: ProfileDialogProps) => {
         company: '',
         phone: '',
         address: '',
-        city: ''
+        city: '',
+        postal_code: ''
     });
+
+    // Funkce pro kontrolu a příp. doplnění chybějících údajů z metadat
+    const syncMissingProfileData = async () => {
+        if (!user || !profile) return;
+
+        // Zjistíme, zda v profilu chybí důležité údaje
+        const missingData = !profile.company || !profile.address || !profile.city || !profile.phone;
+
+        if (missingData) {
+            try {
+                setIsLoading(true);
+
+                // Získáme aktuální metadata uživatele
+                const { data } = await supabase.auth.getUser();
+                const metadata = data?.user?.user_metadata;
+
+                if (metadata) {
+                    // Připravíme objekt s daty k aktualizaci
+                    const updateData: any = {};
+
+                    // Přidáme pouze chybějící hodnoty
+                    if (!profile.full_name && metadata.full_name) updateData.full_name = metadata.full_name;
+                    if (!profile.company && metadata.company) updateData.company = metadata.company;
+                    if (!profile.phone && metadata.phone) updateData.phone = metadata.phone;
+                    if (!profile.address && metadata.address) updateData.address = metadata.address;
+                    if (!profile.city && metadata.city) updateData.city = metadata.city;
+                    if (!profile.postal_code && metadata.postal_code) updateData.postal_code = metadata.postal_code;
+
+                    // Aktualizujeme profil, pokud je co aktualizovat
+                    if (Object.keys(updateData).length > 0) {
+                        await updateProfile(updateData);
+                        await refreshProfile();
+
+                        // Aktualizujeme formulář s novými daty
+                        setFormData(prev => ({
+                            ...prev,
+                            ...updateData
+                        }));
+                    }
+                }
+            } catch (error) {
+                console.error('Error syncing profile data:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    };
 
     useEffect(() => {
         if (profile) {
@@ -25,10 +74,14 @@ const ProfileDialog = ({ isOpen, onClose }: ProfileDialogProps) => {
                 company: profile.company || '',
                 phone: profile.phone || '',
                 address: profile.address || '',
-                city: profile.city || ''
+                city: profile.city || '',
+                postal_code: profile.postal_code || ''
             });
+
+            // Pokud chybí data v profilu, zkusíme je doplnit z metadat
+            syncMissingProfileData();
         }
-    }, [profile]);
+    }, [profile, isOpen]);
 
     if (!isOpen) return null;
 
@@ -157,6 +210,21 @@ const ProfileDialog = ({ isOpen, onClose }: ProfileDialogProps) => {
                                 onChange={handleInputChange}
                                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900"
                                 required
+                                disabled={isLoading}
+                            />
+                        </div>
+
+                        <div>
+                            <label htmlFor="postal_code" className="block text-sm font-medium text-gray-900 mb-1">
+                                PSČ
+                            </label>
+                            <input
+                                type="text"
+                                id="postal_code"
+                                name="postal_code"
+                                value={formData.postal_code || ''}
+                                onChange={handleInputChange}
+                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900"
                                 disabled={isLoading}
                             />
                         </div>
