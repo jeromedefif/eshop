@@ -19,3 +19,8 @@ body {
   background: var(--background);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+/* V globals.css */
+html[lang="cs"] {
+  translate: none;
+}

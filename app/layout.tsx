@@ -14,13 +14,32 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
+export const metadata = {
+  metadataBase: new URL('https://beginy.cz'),
+  title: "VINARIA s.r.o.",
+  description: "VINARIA, objednávky, B2B",
+  alternates: {
+    canonical: '/',
+    languages: {
+      'cs-CZ': '/',
+    },
+  },
+  openGraph: {
+    locale: 'cs_CZ',
+  }
+};
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="cs">
+    <html lang="cs-CZ">
+      <head>
+        <meta httpEquiv="Content-Language" content="cs-CZ" />
+        <meta name="language" content="Czech" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}
       >

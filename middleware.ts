@@ -5,10 +5,28 @@ export async function middleware(request: NextRequest) {
   try {
     const { supabase, response } = await createMiddlewareClient(request)
     await supabase.auth.getSession()
-    return response
+
+    // Přidání jazykových hlaviček do každé odpovědi
+    const newResponse = NextResponse.next({
+      request: {
+        headers: request.headers,
+      },
+    });
+
+    // Nastavení jazykových hlaviček
+    newResponse.headers.set('Content-Language', 'cs-CZ');
+    newResponse.headers.set('X-Content-Language', 'cs-CZ');
+
+    return newResponse;
   } catch (error) {
     console.error('Middleware error:', error)
-    return NextResponse.next()
+
+    // V případě chyby také nastavit hlavičky
+    const response = NextResponse.next()
+    response.headers.set('Content-Language', 'cs-CZ');
+    response.headers.set('X-Content-Language', 'cs-CZ');
+
+    return response
   }
 }
 

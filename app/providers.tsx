@@ -5,6 +5,7 @@ import { CartProvider } from "./page"
 import { useState, useEffect } from 'react'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import LanguageMeta from './components/LanguageMeta'
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
@@ -24,6 +25,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       <CartProvider>
+        {/* Přidáváme LanguageMeta komponentu, která zajistí jazykové metatags na všech stránkách */}
+        <LanguageMeta />
         {children}
         <ToastContainer position="top-center" autoClose={5000} hideProgressBar={false} />
       </CartProvider>
