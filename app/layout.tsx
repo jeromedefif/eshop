@@ -35,13 +35,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="cs-CZ">
+    <html
+      lang="cs-CZ"
+      translate="no"
+      className="notranslate"
+    >
       <head>
         <meta httpEquiv="Content-Language" content="cs-CZ" />
         <meta name="language" content="Czech" />
+        <meta name="google" content="notranslate" />
+        <meta name="translate" content="no" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground notranslate`}
       >
         <Providers>
           <div className="min-h-screen bg-white">

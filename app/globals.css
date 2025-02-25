@@ -20,7 +20,118 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
-/* V globals.css */
+/* Základní nastavení pro všechny elementy s českými texty */
+html[lang="cs-CZ"],
 html[lang="cs"] {
-  translate: none;
+  translate: none !important;
+  -webkit-translate: none !important;
+  -moz-translate: none !important;
+  -ms-translate: none !important;
+}
+
+/* Třída pro zabránění překladu - aplikováno globálně */
+.notranslate {
+  translate: none !important;
+  -webkit-translate: none !important;
+  -moz-translate: none !important;
+  -ms-translate: none !important;
+}
+
+/* Specifické nastavení pro Google Chrome */
+html.notranslate {
+  font-feature-settings: "locl" 1;  /* Aktivace lokalizovaných znaků */
+}
+
+/* Explicitní definice všech sémantických elementů pro české texty */
+h1, h2, h3, h4, h5, h6,
+p, a, button, span, label,
+div, input, textarea, select, li {
+  &:not([translate]) {
+    translate: no;
+  }
+
+  &:not([lang]) {
+    lang: cs-CZ;
+  }
+}
+
+/* Aplikace zesílených vlastností pro blokování překladu */
+[translate="no"] {
+  -webkit-user-select: text;  /* Vynucení textového výběru překonává některé heuristiky překladu */
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Nastavení pro části aplikace, které mají českou specifikaci */
+.order-summary,
+.admin-section,
+.product-list,
+.cart-component {
+  &::before {
+    content: "";
+    display: none;  /* Nutné pro kaskádové šíření atributů */
+    lang: cs-CZ;
+    translate: no;
+  }
+}
+
+/* Zpřesnění pravidel pro formulářové prvky */
+input, textarea, select, button {
+  &::placeholder {
+    translate: no;
+    unicode-bidi: isolate;  /* Zabraňuje změnám směru textu při překladu */
+  }
+}
+
+/* Specifická pravidla pro tisk a jiná média */
+@media print {
+  html, body {
+    translate: no !important;
+  }
+}
+
+/* Pro podporu starších prohlížečů */
+.legacy-browser-support {
+  -webkit-locale: "cs_CZ";
+  -moz-locale: "cs_CZ";
+}
+
+/* Styly pro react-toastify */
+.Toastify__toast {
+  border-radius: 6px;
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+}
+
+.Toastify__toast--success {
+  background-color: #def7ec;
+  color: #03543e;
+  border-left: 4px solid #0d9488;
+}
+
+.Toastify__toast--error {
+  background-color: #fde8e8;
+  color: #9b1c1c;
+  border-left: 4px solid #f05252;
+}
+
+.Toastify__toast--info {
+  background-color: #e1effe;
+  color: #1e429f;
+  border-left: 4px solid #3f83f8;
+}
+
+.Toastify__toast--warning {
+  background-color: #fdf6b2;
+  color: #8e4b10;
+  border-left: 4px solid #ff8a4c;
+}
+
+.Toastify__progress-bar {
+  height: 3px;
+}
+
+.Toastify__close-button {
+  color: currentColor;
+  opacity: 0.7;
 }
