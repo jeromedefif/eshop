@@ -1,47 +1,12 @@
 /** @type {import('next').NextConfig} */
-const path = require('path');
 const nextConfig = {
+  reactStrictMode: false,
+  swcMinify: true,
   eslint: {
     ignoreDuringBuilds: true
   },
   typescript: {
-    // Ignore build errors from Supabase functions
     ignoreBuildErrors: true
-  },
-  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      '@': path.resolve(__dirname, './app')
-    }
-    // Ignorování Supabase funkcí
-    config.module.rules.push({
-      test: /supabase\/functions/,
-      use: 'ignore-loader'
-    });
-    return config
-  },
-  async headers() {
-    return [
-      {
-        // Přidáváme hlavičky pro všechny stránky
-        source: '/:path*',
-        headers: [
-          { key: 'Content-Language', value: 'cs-CZ' },
-          { key: 'X-Content-Language', value: 'cs-CZ' }
-        ]
-      },
-      {
-        // Ponecháváme existující CORS hlavičky pro API routes
-        source: '/api/:path*',
-        headers: [
-          { key: 'Access-Control-Allow-Credentials', value: 'true' },
-          { key: 'Access-Control-Allow-Origin', value: '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET,DELETE,PATCH,POST,PUT' },
-          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version' },
-          { key: 'Content-Language', value: 'cs-CZ' }
-        ]
-      }
-    ]
   }
 }
 

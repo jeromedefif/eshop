@@ -4,9 +4,10 @@
  "private": true,
  "scripts": {
   "dev": "next dev",
-  "build": "prisma generate && next build",
+  "build": "prisma generate && NODE_OPTIONS=\"--max_old_space_size=4096\" next build",
   "start": "next start",
-  "lint": "next lint"
+  "lint": "next lint",
+  "clean": "rm -rf .next && rm -rf node_modules/.cache"
  },
  "dependencies": {
   "@prisma/client": "^6.3.1",

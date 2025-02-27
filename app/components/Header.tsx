@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { List, Settings, UserCog, LogOut, ShoppingCart, Package } from 'lucide-react';
@@ -8,8 +8,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import Cart from './Cart';
 import AuthDialog from './AuthDialog';
 import RegistrationDialog from './RegistrationDialog';
-import ProfileDialog from './ProfileDialog';
 import { Product } from '@/types/database';
+
+// Lazy load ProfileDialog - klíčová změna
+const ProfileDialog = lazy(() => import('./ProfileDialog'));
 
 type HeaderProps = {
    cartItems: {[key: string]: number};
@@ -176,10 +178,19 @@ const Header = ({
         onClose={() => setIsRegistrationDialogOpen(false)}
       />
 
-      <ProfileDialog
-        isOpen={isProfileDialogOpen}
-        onClose={() => setIsProfileDialogOpen(false)}
-      />
+      {/* Upravené renderování ProfileDialog - pouze když je otevřený */}
+      {isProfileDialogOpen && (
+        <Suspense fallback={
+          <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[100]">
+            <div className="bg-white p-4 rounded-lg">Načítání...</div>
+          </div>
+        }>
+          <ProfileDialog
+            isOpen={isProfileDialogOpen}
+            onClose={() => setIsProfileDialogOpen(false)}
+          />
+        </Suspense>
+      )}
 
       <Cart
         isOpen={isCartOpen}

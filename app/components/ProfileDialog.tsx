@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ProfileDialogProps, ProfileFormData } from '@/types/auth';
@@ -20,9 +20,18 @@ const ProfileDialog = ({ isOpen, onClose }: ProfileDialogProps) => {
         postal_code: ''
     });
 
+    // Přidáno: indikátor pro sledování, zda již byla synchronizace provedena
+    const syncPerformedRef = useRef(false);
+    // Přidáno: reference pro sledování, zda je dialog aktivní
+    const isActiveRef = useRef(false);
+
     // Funkce pro kontrolu a příp. doplnění chybějících údajů z metadat
     const syncMissingProfileData = async () => {
-        if (!user || !profile) return;
+        // Přidáno: kontrola, zda je dialog stále otevřený a synchronizace ještě nebyla provedena
+        if (!user || !profile || !isOpen || syncPerformedRef.current || !isActiveRef.current) return;
+
+        // Označíme, že synchronizace už proběhla
+        syncPerformedRef.current = true;
 
         // Zjistíme, zda v profilu chybí důležité údaje
         const missingData = !profile.company || !profile.address || !profile.city || !profile.phone;
@@ -50,9 +59,11 @@ const ProfileDialog = ({ isOpen, onClose }: ProfileDialogProps) => {
                     // Aktualizujeme profil, pokud je co aktualizovat
                     if (Object.keys(updateData).length > 0) {
                         await updateProfile(updateData);
-                        await refreshProfile();
 
-                        // Aktualizujeme formulář s novými daty
+                        // KLÍČOVÁ ZMĚNA: Nebudeme volat refreshProfile, abychom zabránili cyklu
+                        // await refreshProfile();
+
+                        // Aktualizujeme formulář přímo novými daty
                         setFormData(prev => ({
                             ...prev,
                             ...updateData
@@ -67,8 +78,23 @@ const ProfileDialog = ({ isOpen, onClose }: ProfileDialogProps) => {
         }
     };
 
+    // Efekt pro otevření/zavření dialogu
     useEffect(() => {
-        if (profile) {
+        if (isOpen) {
+            // Když se dialog otevře, nastavíme aktivní stav
+            isActiveRef.current = true;
+            // Resetujeme flag synchronizace při každém otevření
+            syncPerformedRef.current = false;
+        } else {
+            // Když se dialog zavře, zrušíme aktivní stav
+            isActiveRef.current = false;
+        }
+    }, [isOpen]);
+
+    // Efekt pro inicializaci formuláře z profilu
+    useEffect(() => {
+        // Načteme data pouze pokud je dialog otevřený a máme profil
+        if (isOpen && profile && isActiveRef.current) {
             setFormData({
                 full_name: profile.full_name || '',
                 company: profile.company || '',
@@ -78,11 +104,14 @@ const ProfileDialog = ({ isOpen, onClose }: ProfileDialogProps) => {
                 postal_code: profile.postal_code || ''
             });
 
-            // Pokud chybí data v profilu, zkusíme je doplnit z metadat
-            syncMissingProfileData();
+            // Synchronizace se spustí jen při otevření dialogu a jen jednou
+            if (!syncPerformedRef.current) {
+                syncMissingProfileData();
+            }
         }
     }, [profile, isOpen]);
 
+    // Pokud není dialog otevřený, nebudeme nic renderovat
     if (!isOpen) return null;
 
     const handleSubmit = async (e: React.FormEvent) => {

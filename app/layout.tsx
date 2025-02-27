@@ -20,9 +20,6 @@ export const metadata = {
   description: "VINARIA, objednávky, B2B",
   alternates: {
     canonical: '/',
-    languages: {
-      'cs-CZ': '/',
-    },
   },
   openGraph: {
     locale: 'cs_CZ',
@@ -35,19 +32,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html
-      lang="cs-CZ"
-      translate="no"
-      className="notranslate"
-    >
+    <html lang="cs">
       <head>
-        <meta httpEquiv="Content-Language" content="cs-CZ" />
-        <meta name="language" content="Czech" />
-        <meta name="google" content="notranslate" />
-        <meta name="translate" content="no" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground notranslate`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}
       >
         <Providers>
           <div className="min-h-screen bg-white">
