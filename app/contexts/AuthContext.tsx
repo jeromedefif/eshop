@@ -1,6 +1,6 @@
 // app/contexts/AuthContext.tsx
 'use client'
-
+let lastSignOutEventTime = 0;
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
@@ -56,8 +56,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const authOperationCounterRef = useRef<number>(0);
   // Čítač profil fetchů - sleduje kolikrát byl profil načten
   const profileFetchCounterRef = useRef<number>(0);
-  // Přidaná proměnná pro sledování času posledního odhlášení
-  const lastSignOutTimestampRef = useRef<number>(0);
 
   // KLÍČOVÁ OPTIMALIZACE: Optimalizovaná funkce pro získání profilu
   // Tato funkce využívá cache pro zamezení zbytečným dotazům
@@ -114,16 +112,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const resetAuthState = useCallback(async () => {
     // Zabránit vícenásobným reset operacím - pokud již operace probíhá, vrátíme se
     if (inProgressRef.current) return;
-
-    // Ochrana proti nekonečné smyčce - zabráníme příliš častému resetování
-    const now = Date.now();
-    if (now - lastSignOutTimestampRef.current < 2000) { // 2 sekundy
-      console.log('[Auth] Preventing reset loop - too many resets in short time');
-      return;
-    }
-
-    // Aktualizujeme časovou značku posledního resetování
-    lastSignOutTimestampRef.current = now;
     inProgressRef.current = true;
 
     try {
@@ -140,8 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Explicitní odhlášení ze Supabase - toto musí proběhnout jako poslední
       try {
-        // Změna - používáme 'local' místo 'global' scope pro prevenci kaskádových událostí
-        await supabase.auth.signOut({ scope: 'local' });
+        await supabase.auth.signOut({ scope: 'global' });
       } catch (e) {
         console.warn('[Auth] Error during Supabase signOut:', e);
       }
@@ -276,15 +263,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               console.log('[Auth] Auth state changed:', event);
 
               if (event === 'SIGNED_OUT') {
-                // Přidáme kontrolu proti nekonečné smyčce
                 const now = Date.now();
-                if (now - lastSignOutTimestampRef.current < 1000) { // 1 sekunda
-                  console.log('[Auth] Ignoring rapid SIGNED_OUT event to prevent loop');
-                  return;
-                }
-                await resetAuthState();
-                return;
-              }
+                if (now - lastSignOutEventTime < 1500) {
+                console.log('[Auth] Ignoring rapid consecutive SIGNED_OUT event to prevent loop');
+               return;
+               }
+               lastSignOutEventTime = now;
+
+                 // Pokračujeme s normálním zpracováním
+                 await resetAuthState();
+                 return;
+               }
+
 
               if (session?.user) {
                 // Pokusíme se použít cache při změně stavu autentizace
@@ -559,9 +549,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Vyčistíme úložiště
       cleanupAuthStorage();
 
-      // Serverové odhlášení
+      // Serverové odhlášení - s globálním scope pro odhlášení na všech zařízeních
       try {
-        // Explicitní odhlášení - stále používáme global při vědomém odhlášení
         await supabase.auth.signOut({ scope: 'global' });
       } catch (signOutError) {
         console.warn('[Auth] Error during sign out:', signOutError);
@@ -573,9 +562,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Kontrola zrušení operace
       if (currentOperationId !== authOperationCounterRef.current) return;
-
-      // Aktualizujeme časovou značku posledního odhlášení
-      lastSignOutTimestampRef.current = Date.now();
 
       toast.success('Odhlášení bylo úspěšné');
 
