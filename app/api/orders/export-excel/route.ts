@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import * as XLSX from 'xlsx';
 
+// Zakázání cachování pro tento endpoint
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
+
 // Pomocná funkce pro formátování objemu
 function formatVolume(volume: string | number, category: string): string {
     if (category === 'PET') return 'balení';
@@ -9,9 +14,34 @@ function formatVolume(volume: string | number, category: string): string {
     return `${volume}L`;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+    console.log('Export Excel API called at', new Date().toISOString());
+
+    // Získání URL parametrů (pokud existují)
+    const url = new URL(request.url);
+    const timestamp = url.searchParams.get('t') || Date.now();
+    console.log('Request timestamp:', timestamp);
+
     try {
+        // Nejprve ověříme, zda můžeme vůbec číst z databáze
+        console.log('Testing database connection...');
+        try {
+            const testQuery = await prisma.$queryRaw`SELECT 1 as test`;
+            console.log('Database connection test:', testQuery);
+        } catch (testError) {
+            console.error('Database connection test failed:', testError);
+        }
+
+        // Nejprve kontrolní dotaz na všechny stavy objednávek pro diagnostiku
+        const statusCounts = await prisma.$queryRaw`
+            SELECT status, COUNT(*) as count
+            FROM "orders"
+            GROUP BY status
+        `;
+        console.log('Order status counts:', statusCounts);
+
         // Načtení pouze objednávek se statusem "pending" (čeká na vyřízení)
+        console.log('Fetching all pending orders...');
         const pendingOrders = await prisma.order.findMany({
             where: {
                 status: 'pending'
@@ -26,11 +56,21 @@ export async function GET() {
             orderBy: { created_at: 'desc' }
         });
 
+        console.log(`Found ${pendingOrders.length} pending orders for export`);
+
         // Pokud nejsou žádné objednávky k exportu
         if (pendingOrders.length === 0) {
+            console.log('No pending orders found for export');
             return NextResponse.json(
                 { message: 'Žádné objednávky ke zpracování' },
-                { status: 200 }
+                {
+                    status: 200,
+                    headers: {
+                        'Cache-Control': 'no-store, max-age=0, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                }
             );
         }
 
@@ -55,24 +95,15 @@ export async function GET() {
             }));
         });
 
+        console.log(`Excel data prepared with ${excelData.length} rows`);
+
         // Vytvoření Excel workbooku
         const worksheet = XLSX.utils.json_to_sheet(excelData);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Objednávky');
 
         // Auto-size columns
-        const colWidths = [
-            { wch: 15 }, // Datum vytvoření
-            { wch: 20 }, // Zákazník
-            { wch: 20 }, // Firma
-            { wch: 25 }, // Produkt
-            { wch: 10 }, // Množství
-            { wch: 10 }, // Objem
-            { wch: 15 }, // Kategorie
-            { wch: 30 }, // Poznámka
-            { wch: 15 }  // Celkový objem
-        ];
-
+        const colWidths = Object.keys(excelData[0] || {}).map(key => ({ wch: Math.max(key.length, 15) }));
         worksheet['!cols'] = colWidths;
 
         // Nastavení hlavičky (tučné písmo)
@@ -85,22 +116,37 @@ export async function GET() {
 
         // Generování Buffer z Excel workbooku
         const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+        console.log('Excel buffer generated');
 
         // Nastavení názvu souboru s aktuálním datem
         const date = new Date().toISOString().split('T')[0];
         const filename = `objednavky-cekajici-na-vyrizeni-${date}.xlsx`;
 
+        // Vrácení odpovědi s explicitními anti-cache hlavičkami
         return new NextResponse(excelBuffer, {
             headers: {
                 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition': `attachment; filename=${filename}`
+                'Content-Disposition': `attachment; filename=${filename}`,
+                'Cache-Control': 'no-store, max-age=0, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             }
         });
     } catch (error) {
         console.error('Error exporting orders to Excel:', error);
         return NextResponse.json(
-            { error: 'Chyba při exportu objednávek do Excelu' },
-            { status: 500 }
+            {
+                error: 'Chyba při exportu objednávek do Excelu',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            },
+            {
+                status: 500,
+                headers: {
+                    'Cache-Control': 'no-store, max-age=0, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            }
         );
     }
 }

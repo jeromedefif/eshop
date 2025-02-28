@@ -10,6 +10,7 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isExportingExcel, setIsExportingExcel] = useState(false);
+    const [isExportingCsv, setIsExportingCsv] = useState(false);
 
     const filteredOrders = orders.filter(order =>
         order.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -37,13 +38,70 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
         }
     };
 
+    // Upravený export do CSV s anti-cache opatřeními
+    const handleExportToCsv = async () => {
+        if (isExportingCsv) return;
+
+        setIsExportingCsv(true);
+        try {
+            const timestamp = Date.now();
+            console.log('Začíná export do CSV:', timestamp);
+
+            const response = await fetch(`/api/orders/export?t=${timestamp}`, {
+                cache: 'no-store',
+                headers: {
+                    'Pragma': 'no-cache',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                }
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Chyba při exportu do CSV:', response.status, errorText);
+                throw new Error(`Export do CSV selhal: ${response.status} ${errorText}`);
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const date = new Date().toISOString().split('T')[0];
+            a.download = `objednavky-cekajici-na-vyrizeni-${date}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            console.log('Export do CSV dokončen');
+        } catch (error) {
+            console.error('Chyba při exportu do CSV:', error);
+            alert('Nepodařilo se exportovat data do CSV. Zkuste to prosím znovu.');
+        } finally {
+            setIsExportingCsv(false);
+        }
+    };
+
+    // Upravený export do Excelu s anti-cache opatřeními
     const handleExportToExcel = async () => {
         if (isExportingExcel) return;
 
         setIsExportingExcel(true);
         try {
-            const response = await fetch('/api/orders/export-excel');
-            if (!response.ok) throw new Error('Export do Excelu selhal');
+            const timestamp = Date.now();
+            console.log('Začíná export do Excelu:', timestamp);
+
+            const response = await fetch(`/api/orders/export-excel?t=${timestamp}`, {
+                cache: 'no-store',
+                headers: {
+                    'Pragma': 'no-cache',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                }
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Chyba při exportu do Excelu:', response.status, errorText);
+                throw new Error(`Export do Excelu selhal: ${response.status} ${errorText}`);
+            }
 
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -55,8 +113,10 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
+            console.log('Export do Excelu dokončen');
         } catch (error) {
             console.error('Chyba při exportu do Excelu:', error);
+            alert('Nepodařilo se exportovat data do Excelu. Zkuste to prosím znovu.');
         } finally {
             setIsExportingExcel(false);
         }
@@ -95,12 +155,13 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
                         Obnovit
                     </button>
                     <button
-                        onClick={onExportOrders}
+                        onClick={handleExportToCsv}
                         className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg
                                  hover:bg-blue-700 transition-colors"
+                        disabled={isExportingCsv}
                     >
                         <Download className="w-5 h-5 mr-2" />
-                        Export do CSV
+                        {isExportingCsv ? 'Exportuji...' : 'Export do CSV'}
                     </button>
                     <button
                         onClick={handleExportToExcel}
