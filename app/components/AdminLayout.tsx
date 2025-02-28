@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Package, FileText, Settings, LogOut, Home } from 'lucide-react';
+import { Package, FileText, Users, LogOut, Home } from 'lucide-react';
 import Link from 'next/link';
 
 interface AdminLayoutProps {
@@ -34,7 +34,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
    const menuItems = [
        { icon: Package, label: 'Produkty', href: '/admin/products' },
        { icon: FileText, label: 'Objednávky', href: '/admin/orders' },
-       { icon: Settings, label: 'Nastavení', href: '/admin/settings' }
+       { icon: Users, label: 'Uživatelé', href: '/admin/users' }
    ];
 
    return (
