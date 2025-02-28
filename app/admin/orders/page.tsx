@@ -4,34 +4,27 @@ import { useState, useEffect } from 'react';
 import AdminOrders from '@/components/AdminOrders';
 import { Loader2 } from 'lucide-react';
 import type { Order } from '@/types/orders';
-import { supabase } from '@/lib/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
+    const { isAdmin } = useAuth();
 
     const fetchOrders = async () => {
         try {
-            const { data, error } = await supabase
-                .from('orders')
-                .select(`
-                    *,
-                    order_items (
-                        id,
-                        product_id,
-                        volume,
-                        quantity,
-                        product:products (
-                            id,
-                            name,
-                            category,
-                            in_stock
-                        )
-                    )
-                `)
-                .order('created_at', { ascending: false });
+            setLoading(true);
+            console.log('Načítání objednávek pro administrátora...');
 
-            if (error) throw error;
+            // Pro administrátora použít REST API endpoint který používá Prisma
+            // Prisma není omezena Supabase RLS, tedy vrací všechny objednávky
+            const response = await fetch('/api/orders');
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log(`Načteno ${data.length} objednávek`);
             setOrders(data || []);
         } catch (error) {
             console.error('Chyba při načítání objednávek:', error);
@@ -60,8 +53,10 @@ export default function OrdersPage() {
     };
 
     useEffect(() => {
-        fetchOrders();
-    }, []);
+        if (isAdmin) {
+            fetchOrders();
+        }
+    }, [isAdmin]);
 
     if (loading) {
         return (
