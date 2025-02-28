@@ -16,9 +16,17 @@ export default function OrdersPage() {
             setLoading(true);
             console.log('Načítání objednávek pro administrátora...');
 
-            // Pro administrátora použít REST API endpoint který používá Prisma
-            // Prisma není omezena Supabase RLS, tedy vrací všechny objednávky
-            const response = await fetch('/api/orders');
+            // Přidáme timestamp pro zabránění cachování
+            const timestamp = Date.now();
+            const response = await fetch(`/api/orders?t=${timestamp}`, {
+                // Explicitně nastavíme hlavičky pro zabránění cachování
+                cache: 'no-store',
+                headers: {
+                    'Pragma': 'no-cache',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                }
+            });
+
             if (!response.ok) {
                 throw new Error(`API error: ${response.status}`);
             }
@@ -35,7 +43,11 @@ export default function OrdersPage() {
 
     const handleExportOrders = async () => {
         try {
-            const response = await fetch('/api/orders/export');
+            const timestamp = Date.now();
+            const response = await fetch(`/api/orders/export?t=${timestamp}`, {
+                cache: 'no-store'
+            });
+
             if (!response.ok) throw new Error('Export selhal');
 
             const blob = await response.blob();
