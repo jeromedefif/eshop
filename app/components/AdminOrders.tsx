@@ -1,19 +1,40 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, X, Eye, Download } from 'lucide-react';
+import { Search, X, Eye, Download, RefreshCw } from 'lucide-react';
 import OrderDetail from './OrderDetail';
 import type { Order, AdminOrdersProps } from '../types/orders';
 
-export default function AdminOrders({ orders, onExportOrders }: AdminOrdersProps) {
+export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: AdminOrdersProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const filteredOrders = orders.filter(order =>
         order.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         order.customer_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
         order.id.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    const handleStatusChange = async (orderId: string, newStatus: string) => {
+        // Aktualizace seznamu objednávek po změně stavu
+        if (onOrdersChange) {
+            await onOrdersChange();
+        }
+    };
+
+    const handleRefreshOrders = async () => {
+        if (isRefreshing) return;
+
+        setIsRefreshing(true);
+        try {
+            if (onOrdersChange) {
+                await onOrdersChange();
+            }
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
 
     const getStatusColor = (status: Order['status']) => {
         switch (status) {
@@ -24,18 +45,38 @@ export default function AdminOrders({ orders, onExportOrders }: AdminOrdersProps
         }
     };
 
+    const getStatusText = (status: Order['status']) => {
+        switch (status) {
+            case 'pending': return 'Čeká na zpracování';
+            case 'confirmed': return 'Potvrzeno';
+            case 'completed': return 'Dokončeno';
+            default: return status;
+        }
+    };
+
     return (
         <div className="max-w-6xl mx-auto">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Správa objednávek</h2>
-                <button
-                    onClick={onExportOrders}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg
-                             hover:bg-blue-700 transition-colors"
-                >
-                    <Download className="w-5 h-5 mr-2" />
-                    Export do CSV
-                </button>
+                <div className="flex space-x-3">
+                    <button
+                        onClick={handleRefreshOrders}
+                        className="flex items-center px-4 py-2 bg-gray-100 text-gray-800 rounded-lg
+                                 hover:bg-gray-200 transition-colors"
+                        disabled={isRefreshing}
+                    >
+                        <RefreshCw className={`w-5 h-5 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        Obnovit
+                    </button>
+                    <button
+                        onClick={onExportOrders}
+                        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg
+                                 hover:bg-blue-700 transition-colors"
+                    >
+                        <Download className="w-5 h-5 mr-2" />
+                        Export do CSV
+                    </button>
+                </div>
             </div>
 
             <div className="mb-6">
@@ -75,38 +116,48 @@ export default function AdminOrders({ orders, onExportOrders }: AdminOrdersProps
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredOrders.map((order) => (
-                            <tr key={order.id} className="hover:bg-gray-50">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {order.id.slice(0, 8)}...
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {new Date(order.created_at).toLocaleDateString('cs')}
-                                </td>
-                                <td className="px-6 py-4 text-sm text-gray-900">
-                                    <div>{order.customer_name}</div>
-                                    <div className="text-gray-500">{order.customer_email}</div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {order.total_volume}L
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                                                   ${getStatusColor(order.status)}`}>
-                                        {order.status}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button
-                                        onClick={() => setSelectedOrder(order)}
-                                        className="text-blue-600 hover:text-blue-900"
-                                        title="Zobrazit detail"
-                                    >
-                                        <Eye className="w-5 h-5" />
-                                    </button>
+                        {filteredOrders.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                                    {searchQuery
+                                        ? 'Nenalezeny žádné objednávky odpovídající vašemu hledání'
+                                        : 'Zatím nejsou žádné objednávky'}
                                 </td>
                             </tr>
-                        ))}
+                        ) : (
+                            filteredOrders.map((order) => (
+                                <tr key={order.id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {order.id.slice(0, 8)}...
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {new Date(order.created_at).toLocaleDateString('cs')}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-900">
+                                        <div>{order.customer_name}</div>
+                                        <div className="text-gray-500">{order.customer_email}</div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {order.total_volume}L
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                                    ${getStatusColor(order.status)}`}>
+                                            {getStatusText(order.status)}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button
+                                            onClick={() => setSelectedOrder(order)}
+                                            className="text-blue-600 hover:text-blue-900"
+                                            title="Zobrazit detail"
+                                        >
+                                            <Eye className="w-5 h-5" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -115,6 +166,7 @@ export default function AdminOrders({ orders, onExportOrders }: AdminOrdersProps
                 <OrderDetail
                     order={selectedOrder}
                     onClose={() => setSelectedOrder(null)}
+                    onStatusChange={handleStatusChange}
                 />
             )}
         </div>

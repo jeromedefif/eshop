@@ -78,6 +78,7 @@ export interface OrderConfirmationData {
 export interface OrderDetailProps {
     order: Order;
     onClose: () => void;
+    onStatusChange?: (orderId: string, newStatus: string) => Promise<void>;
 }
 
 export interface AdminOrdersProps {
