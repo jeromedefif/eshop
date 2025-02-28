@@ -10,7 +10,7 @@ export async function PATCH(
     const { status } = await request.json();
 
     // Validace statusu
-    if (!['pending', 'confirmed', 'completed'].includes(status)) {
+    if (!['pending', 'confirmed', 'cancelled'].includes(status)) {
       return NextResponse.json(
         { error: 'Neplatný status objednávky' },
         { status: 400 }

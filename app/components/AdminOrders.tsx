@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, X, Eye, Download, RefreshCw } from 'lucide-react';
+import { Search, X, Eye, Download, RefreshCw, FileSpreadsheet } from 'lucide-react';
 import OrderDetail from './OrderDetail';
 import type { Order, AdminOrdersProps } from '../types/orders';
 
@@ -9,6 +9,7 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isExportingExcel, setIsExportingExcel] = useState(false);
 
     const filteredOrders = orders.filter(order =>
         order.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -36,20 +37,45 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
         }
     };
 
+    const handleExportToExcel = async () => {
+        if (isExportingExcel) return;
+
+        setIsExportingExcel(true);
+        try {
+            const response = await fetch('/api/orders/export-excel');
+            if (!response.ok) throw new Error('Export do Excelu selhal');
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const date = new Date().toISOString().split('T')[0];
+            a.download = `objednavky-cekajici-na-vyrizeni-${date}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Chyba při exportu do Excelu:', error);
+        } finally {
+            setIsExportingExcel(false);
+        }
+    };
+
     const getStatusColor = (status: Order['status']) => {
         switch (status) {
             case 'pending': return 'bg-yellow-100 text-yellow-800';
             case 'confirmed': return 'bg-blue-100 text-blue-800';
-            case 'completed': return 'bg-green-100 text-green-800';
+            case 'cancelled': return 'bg-red-100 text-red-800';
             default: return 'bg-gray-100 text-gray-800';
         }
     };
 
     const getStatusText = (status: Order['status']) => {
         switch (status) {
-            case 'pending': return 'Čeká na zpracování';
+            case 'pending': return 'Čeká na potvrzení';
             case 'confirmed': return 'Potvrzeno';
-            case 'completed': return 'Dokončeno';
+            case 'cancelled': return 'Zrušeno';
             default: return status;
         }
     };
@@ -75,6 +101,15 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
                     >
                         <Download className="w-5 h-5 mr-2" />
                         Export do CSV
+                    </button>
+                    <button
+                        onClick={handleExportToExcel}
+                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg
+                                 hover:bg-green-700 transition-colors"
+                        disabled={isExportingExcel}
+                    >
+                        <FileSpreadsheet className="w-5 h-5 mr-2" />
+                        {isExportingExcel ? 'Exportuji...' : 'Export do Excelu'}
                     </button>
                 </div>
             </div>

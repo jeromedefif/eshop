@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import prisma from '@/lib/prisma';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 
 // Pomocná funkce pro formátování objemu
 function formatVolume(volume: string | number, category: string): string {
@@ -25,40 +23,21 @@ export async function POST(request: Request) {
       );
     }
 
-    // Inicializace Supabase klienta pro autentizaci
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookies().get(name)?.value;
-          },
-          set() {}, // Není potřeba pro čtení session
-          remove() {} // Není potřeba pro čtení session
-        }
-      }
-    );
-
-    // Kontrola session
-    const { data: { session } } = await supabase.auth.getSession();
-
-    // Parse request body
+    // Zpracování požadavku
     const body = await request.json();
-    const orderId = body.orderId;
+    const { orderId, status } = body;
 
-    if (!orderId) {
+    if (!orderId || !status) {
       return NextResponse.json(
-        { error: 'Missing orderId' },
+        { error: 'Missing orderId or status' },
         { status: 400 }
       );
     }
 
-    // Načtení objednávky s kontrolou vlastníka
+    // Načtení objednávky s položkami
     const order = await prisma.order.findUnique({
       where: {
-        id: orderId,
-        ...(session && { user_id: session.user.id }) // Přidá podmínku jen pokud je uživatel přihlášený
+        id: orderId
       },
       include: {
         order_items: {
@@ -70,10 +49,34 @@ export async function POST(request: Request) {
     });
 
     if (!order) {
-      console.error('Order not found or unauthorized:', orderId);
+      console.error('Order not found:', orderId);
       return NextResponse.json(
         { error: 'Objednávka nenalezena' },
         { status: 404 }
+      );
+    }
+
+    // Určení předmětu a úvodního textu emailu podle stavu
+    let subject: string;
+    let statusText: string;
+    let statusColor: string;
+    let additionalMessage: string = '';
+
+    if (status === 'confirmed') {
+      subject = `Potvrzení objednávky - VINARIA s.r.o.`;
+      statusText = 'POTVRZENA';
+      statusColor = '#4CAF50'; // Změněno na zelenou barvu
+      additionalMessage = 'Vaše objednávka byla úspěšně potvrzena a připravuje se k expedici.';
+    } else if (status === 'cancelled') {
+      subject = `Zrušení objednávky - VINARIA s.r.o.`;
+      statusText = 'ZRUŠENA';
+      statusColor = '#e53935';
+      additionalMessage = 'Vaše objednávka byla zrušena. V případě jakýchkoliv dotazů nás neváhejte kontaktovat.';
+    } else {
+      // Pro jiné stavy neodešleme email
+      return NextResponse.json(
+        { error: 'Tento stav nevyžaduje odeslání emailu' },
+        { status: 400 }
       );
     }
 
@@ -82,12 +85,11 @@ export async function POST(request: Request) {
       <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
           <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h1 style="color: #1a73e8;">Objednávka přijata - čeká na potvrzení</h1>
+            <h1 style="color: ${statusColor};">Vaše objednávka byla ${statusText}</h1>
 
             <p>Vážený zákazníku ${order.customer_name}, ze společnosti ${order.customer_company || 'Neuvedeno'}</p>
-            <p>děkujeme za Vaši objednávku. Vaše objednávka byla přijata a čeká na potvrzení naším pracovníkem.</p>
-            <p>O potvrzení objednávky Vás budeme informovat emailem.</p>
-            <p>Níže najdete její shrnutí:</p>
+            <p>${additionalMessage}</p>
+            <p>Níže najdete shrnutí Vaší objednávky:</p>
 
             <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
               <h2 style="margin-top: 0;">Položky objednávky:</h2>
@@ -133,15 +135,9 @@ export async function POST(request: Request) {
       from: process.env.FROM_EMAIL,
       to: order.customer_email,
       bcc: 'fiala@vinaria.cz',
-      subject: `Objednávka přijata - VINARIA s.r.o.`,
+      subject: subject,
       html: emailHtml
     });
-
-    // Důležitá změna: Již neměníme status objednávky
-    // Odebráno: await prisma.order.update({
-    //   where: { id: orderId },
-    //   data: { status: 'confirmed' }
-    // });
 
     return NextResponse.json({
       success: true,
@@ -150,7 +146,7 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('Error in send-email route:', {
+    console.error('Error in send-status-email route:', {
       message: error.message,
       name: error.name,
       code: error.code,

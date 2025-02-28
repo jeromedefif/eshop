@@ -19,6 +19,7 @@ const OrderDetail = ({ order, onClose, onStatusChange }: OrderDetailProps) => {
         setUpdateMessage(null);
 
         try {
+            // 1. Aktualizace statusu objednávky v databázi
             const response = await fetch(`/api/orders/${order.id}`, {
                 method: 'PATCH',
                 headers: {
@@ -32,14 +33,39 @@ const OrderDetail = ({ order, onClose, onStatusChange }: OrderDetailProps) => {
                 throw new Error(errorData.error || 'Nepodařilo se aktualizovat status objednávky');
             }
 
-            // Nastavit nový status
+            // 2. Odeslání emailu zákazníkovi při změně stavu (pouze pro confirmed a cancelled)
+            if (newStatus === 'confirmed' || newStatus === 'cancelled') {
+                try {
+                    const emailResponse = await fetch('/api/orders/send-status-email', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            orderId: order.id,
+                            status: newStatus
+                        }),
+                    });
+
+                    if (!emailResponse.ok) {
+                        console.warn('Nepodařilo se odeslat email, ale status byl změněn');
+                    } else {
+                        console.log('Email byl úspěšně odeslán');
+                    }
+                } catch (emailError) {
+                    console.warn('Chyba při odesílání emailu:', emailError);
+                    // Pokračujeme dál i v případě chyby s emailem
+                }
+            }
+
+            // 3. Nastavit nový status v UI
             setStatus(newStatus);
             setUpdateMessage({
                 type: 'success',
-                text: 'Status objednávky byl úspěšně aktualizován'
+                text: `Status objednávky byl úspěšně změněn na "${getStatusText(newStatus)}"`
             });
 
-            // Volání callback funkce pro aktualizaci seznamu objednávek
+            // 4. Volání callback funkce pro aktualizaci seznamu objednávek
             if (onStatusChange) {
                 await onStatusChange(order.id, newStatus);
             }
@@ -58,16 +84,16 @@ const OrderDetail = ({ order, onClose, onStatusChange }: OrderDetailProps) => {
         switch (currentStatus) {
             case 'pending': return 'bg-yellow-100 text-yellow-800';
             case 'confirmed': return 'bg-blue-100 text-blue-800';
-            case 'completed': return 'bg-green-100 text-green-800';
+            case 'cancelled': return 'bg-red-100 text-red-800';
             default: return 'bg-gray-100 text-gray-800';
         }
     };
 
     const getStatusText = (currentStatus: string) => {
         switch (currentStatus) {
-            case 'pending': return 'Čeká na zpracování';
+            case 'pending': return 'Čeká na potvrzení';
             case 'confirmed': return 'Potvrzeno';
-            case 'completed': return 'Dokončeno';
+            case 'cancelled': return 'Zrušeno';
             default: return currentStatus;
         }
     };
@@ -133,9 +159,9 @@ const OrderDetail = ({ order, onClose, onStatusChange }: OrderDetailProps) => {
                                             className="px-3 py-1.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white text-gray-900 appearance-none pl-3 pr-10"
                                             disabled={isUpdating}
                                         >
-                                            <option value="pending">Čeká na zpracování</option>
+                                            <option value="pending">Čeká na potvrzení</option>
                                             <option value="confirmed">Potvrzeno</option>
-                                            <option value="completed">Dokončeno</option>
+                                            <option value="cancelled">Zrušeno</option>
                                         </select>
                                         <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                                             <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
