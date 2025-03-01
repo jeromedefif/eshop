@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client'; // Importujeme Supabase klienta
 import type { RegistrationFormData, SignUpData } from '@/types/auth';
 import { ArrowLeft } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 export default function RegisterPage() {
     const [formData, setFormData] = useState<RegistrationFormData>({
@@ -105,7 +106,7 @@ export default function RegisterPage() {
                     const { data: userData } = await supabase.auth.getUser();
 
                     if (userData && userData.user) {
-                        // 4. Explicitně vytvoříme záznam v tabulce profiles
+                        // 4. Explicitně vytvoříme záznam v tabulce profiles - jako "pojistka" k triggeru
                         const { error: profileError } = await supabase
                             .from('profiles')
                             .upsert({
@@ -123,6 +124,8 @@ export default function RegisterPage() {
                         if (profileError) {
                             console.error('Chyba při vytváření profilu:', profileError);
                             // Pokračujeme i přes chybu v profilu, protože uživatel už byl vytvořen
+                        } else {
+                            console.log('Profil byl úspěšně vytvořen/aktualizován');
                         }
                     }
                 } catch (profileCreationError) {
@@ -145,6 +148,7 @@ export default function RegisterPage() {
             });
 
             // Přesměrujeme na hlavní stránku s oznámením o úspěšné registraci
+            toast.success('Registrace proběhla úspěšně! Zkontrolujte svůj email pro potvrzení účtu.');
             router.push('/?registered=true');
         } catch (error) {
             setError(error instanceof Error ? error.message : 'Chyba při registraci. Zkontrolujte zadané údaje.');

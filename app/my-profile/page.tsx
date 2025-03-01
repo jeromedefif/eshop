@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { ProfileFormData } from '@/types/auth';
 import { ArrowLeft } from 'lucide-react';
+import { supabase } from '@/lib/supabase/client';
+import { toast } from 'react-toastify';
 
 export default function MyProfilePage() {
     const { profile, updateProfile, user, refreshProfile } = useAuth();
@@ -43,6 +45,28 @@ export default function MyProfilePage() {
         } else if (user) {
             // Pokud máme uživatele, ale nemáme profil, zkusíme ho načíst
             refreshProfile();
+
+            // Jako záložní plán, zkusíme načíst metadata přímo z auth
+            const loadUserMetadata = async () => {
+                try {
+                    const { data } = await supabase.auth.getUser();
+                    if (data?.user?.user_metadata) {
+                        const metadata = data.user.user_metadata;
+                        setFormData({
+                            full_name: metadata.full_name || '',
+                            company: metadata.company || '',
+                            phone: metadata.phone || '',
+                            address: metadata.address || '',
+                            city: metadata.city || '',
+                            postal_code: metadata.postal_code || ''
+                        });
+                    }
+                } catch (error) {
+                    console.error('Chyba při načítání metadat uživatele:', error);
+                }
+            };
+
+            loadUserMetadata();
         }
     }, [profile, user, refreshProfile]);
 
@@ -61,24 +85,68 @@ export default function MyProfilePage() {
         setIsLoading(true);
 
         try {
+            // 1. Aktualizovat profil v tabulce profiles
             await updateProfile(formData);
+
+            // 2. Aktualizovat metadata v auth systému - "dvojité jištění"
+            if (user) {
+                try {
+                    const { error: metadataError } = await supabase.auth.updateUser({
+                        data: {
+                            full_name: formData.full_name,
+                            company: formData.company,
+                            phone: formData.phone,
+                            address: formData.address,
+                            city: formData.city,
+                            postal_code: formData.postal_code
+                        }
+                    });
+
+                    if (metadataError) {
+                        console.error('Chyba při aktualizaci metadat:', metadataError);
+                        // Pokračujeme i přes chybu, protože hlavní profil byl aktualizován
+                    }
+                } catch (metadataError) {
+                    console.error('Chyba při aktualizaci metadat:', metadataError);
+                    // Pokračujeme i přes chybu
+                }
+            }
+
             setSuccessMessage('Profil byl úspěšně aktualizován');
+            toast.success('Profil byl úspěšně aktualizován');
             window.scrollTo(0, 0);
 
-            // Po 2 sekundách skryjeme zprávu o úspěchu
+            // Po 3 sekundách skryjeme zprávu o úspěchu
             setTimeout(() => {
                 setSuccessMessage('');
             }, 3000);
+
+            // Obnovit data profilu
+            refreshProfile();
         } catch (error) {
             console.error('Error updating profile:', error);
             setError(error instanceof Error ? error.message : 'Chyba při aktualizaci profilu');
+            toast.error('Chyba při aktualizaci profilu');
             window.scrollTo(0, 0);
         } finally {
             setIsLoading(false);
         }
     };
 
-    if (!user || !profile) {
+    if (!user) {
+        return (
+            <div className="min-h-screen bg-gray-50 py-12">
+                <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600">Přesměrování na přihlašovací stránku...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (!profile && !formData.full_name) {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
                 <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
