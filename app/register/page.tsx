@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase/client'; // Importujeme Supabase klienta
+import { supabase } from '@/lib/supabase/client';
 import type { RegistrationFormData, SignUpData } from '@/types/auth';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -83,6 +83,10 @@ export default function RegisterPage() {
         setIsLoading(true);
 
         try {
+            // KLÍČOVÁ ZMĚNA: Úprava URL pro přesměrování po verifikaci emailu
+            // Přesměruje na přihlašovací stránku místo automatického přihlášení
+            const redirectUrl = `${window.location.origin}/login?verified=true`;
+
             const signUpData: SignUpData = {
                 email: formData.email,
                 password: formData.password,
@@ -96,42 +100,45 @@ export default function RegisterPage() {
                 }
             };
 
-            // 1. Registrace uživatele pomocí Auth systému
-            const authResult = await signUp(signUpData);
-
-            // 2. Zkontrolujeme, zda registrace proběhla úspěšně
-            if (authResult && authResult.success) {
-                try {
-                    // 3. Získáme aktuálního uživatele, aby byl k dispozici jeho ID
-                    const { data: userData } = await supabase.auth.getUser();
-
-                    if (userData && userData.user) {
-                        // 4. Explicitně vytvoříme záznam v tabulce profiles - jako "pojistka" k triggeru
-                        const { error: profileError } = await supabase
-                            .from('profiles')
-                            .upsert({
-                                id: userData.user.id,
-                                email: formData.email,
-                                full_name: formData.full_name,
-                                company: formData.company,
-                                phone: formData.phone,
-                                address: formData.address,
-                                city: formData.city,
-                                postal_code: formData.postal_code,
-                                is_admin: false,
-                            });
-
-                        if (profileError) {
-                            console.error('Chyba při vytváření profilu:', profileError);
-                            // Pokračujeme i přes chybu v profilu, protože uživatel už byl vytvořen
-                        } else {
-                            console.log('Profil byl úspěšně vytvořen/aktualizován');
-                        }
-                    }
-                } catch (profileCreationError) {
-                    console.error('Chyba při vytváření profilu:', profileCreationError);
-                    // Pokračujeme dál i přes chybu
+            // Vlastní volání Supabase Auth API, aby se zajistilo správné přesměrování
+            const { data, error: signUpError } = await supabase.auth.signUp({
+                email: formData.email,
+                password: formData.password,
+                options: {
+                    data: signUpData.metadata,
+                    emailRedirectTo: redirectUrl
                 }
+            });
+
+            if (signUpError) {
+                throw signUpError;
+            }
+
+            if (!data.user) {
+                throw new Error('Registrace se nezdařila');
+            }
+
+            // Explicitně vytvoříme záznam v tabulce profiles - jako "pojistka" k triggeru
+            try {
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .upsert({
+                        id: data.user.id,
+                        email: formData.email,
+                        full_name: formData.full_name,
+                        company: formData.company,
+                        phone: formData.phone,
+                        address: formData.address,
+                        city: formData.city,
+                        postal_code: formData.postal_code,
+                        is_admin: false,
+                    });
+
+                if (profileError) {
+                    console.error('Chyba při vytváření profilu:', profileError);
+                }
+            } catch (profileError) {
+                console.error('Chyba při vytváření profilu:', profileError);
             }
 
             // Resetujeme formulář
@@ -147,16 +154,15 @@ export default function RegisterPage() {
                 postal_code: ''
             });
 
-            // Přesměrujeme na hlavní stránku s oznámením o úspěšné registraci
             toast.success('Registrace proběhla úspěšně! Zkontrolujte svůj email pro potvrzení účtu.');
-            router.push('/?registered=true');
+            router.push('/register-success');
         } catch (error) {
-            setError(error instanceof Error ? error.message : 'Chyba při registraci. Zkontrolujte zadané údaje.');
             console.error('Registration error:', error);
+            setError(error instanceof Error ? error.message : 'Chyba při registraci. Zkontrolujte zadané údaje.');
         } finally {
             setIsLoading(false);
         }
-    }, [formData, router, signUp, validateForm]);
+    }, [formData, router, validateForm]);
 
     return (
         <div className="min-h-screen bg-gray-50 py-12">

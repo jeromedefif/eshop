@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CheckCircle } from 'lucide-react';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -13,9 +13,13 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
     const { signIn, user } = useAuth();
     const router = useRouter();
+    const searchParams = useSearchParams();
+
+    // Kontrola, zda byl email ověřen (parametr verified=true v URL)
+    const isVerified = searchParams.get('verified') === 'true';
 
     // Přesměrovat přihlášeného uživatele
-    React.useEffect(() => {
+    useEffect(() => {
         if (user) {
             router.push('/');
         }
@@ -51,6 +55,14 @@ export default function LoginPage() {
                 </div>
 
                 <h1 className="text-2xl font-bold text-gray-900 mb-6">Přihlášení</h1>
+
+                {/* Zobrazení oznámení o úspěšném ověření emailu */}
+                {isVerified && (
+                    <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-lg flex items-center">
+                        <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+                        <span>Váš email byl úspěšně ověřen! Nyní se můžete přihlásit.</span>
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
