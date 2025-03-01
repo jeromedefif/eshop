@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase/client'; // Importujeme Supabase klienta
 import type { RegistrationFormData, SignUpData } from '@/types/auth';
 import { ArrowLeft } from 'lucide-react';
 
@@ -94,8 +95,43 @@ export default function RegisterPage() {
                 }
             };
 
-            await signUp(signUpData);
+            // 1. Registrace uživatele pomocí Auth systému
+            const authResult = await signUp(signUpData);
 
+            // 2. Zkontrolujeme, zda registrace proběhla úspěšně
+            if (authResult && authResult.success) {
+                try {
+                    // 3. Získáme aktuálního uživatele, aby byl k dispozici jeho ID
+                    const { data: userData } = await supabase.auth.getUser();
+
+                    if (userData && userData.user) {
+                        // 4. Explicitně vytvoříme záznam v tabulce profiles
+                        const { error: profileError } = await supabase
+                            .from('profiles')
+                            .upsert({
+                                id: userData.user.id,
+                                email: formData.email,
+                                full_name: formData.full_name,
+                                company: formData.company,
+                                phone: formData.phone,
+                                address: formData.address,
+                                city: formData.city,
+                                postal_code: formData.postal_code,
+                                is_admin: false,
+                            });
+
+                        if (profileError) {
+                            console.error('Chyba při vytváření profilu:', profileError);
+                            // Pokračujeme i přes chybu v profilu, protože uživatel už byl vytvořen
+                        }
+                    }
+                } catch (profileCreationError) {
+                    console.error('Chyba při vytváření profilu:', profileCreationError);
+                    // Pokračujeme dál i přes chybu
+                }
+            }
+
+            // Resetujeme formulář
             setFormData({
                 email: '',
                 password: '',
