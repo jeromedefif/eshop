@@ -1,17 +1,12 @@
 'use client';
 
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { List, Settings, UserCog, LogOut, ShoppingCart, Package } from 'lucide-react';
+import { List, UserCog, LogOut, ShoppingCart, Package, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Cart from './Cart';
-import AuthDialog from './AuthDialog';
-import RegistrationDialog from './RegistrationDialog';
 import { Product } from '@/types/database';
-
-// Lazy load ProfileDialog - klíčová změna
-const ProfileDialog = lazy(() => import('./ProfileDialog'));
 
 type HeaderProps = {
    cartItems: {[key: string]: number};
@@ -31,9 +26,6 @@ const Header = ({
    const router = useRouter();
    const pathname = usePathname();
    const [isCartOpen, setIsCartOpen] = useState(false);
-   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
-   const [isRegistrationDialogOpen, setIsRegistrationDialogOpen] = useState(false);
-   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
    const [isSigningOut, setIsSigningOut] = useState(false);
    const { user, profile, signOut } = useAuth();
 
@@ -50,10 +42,6 @@ const Header = ({
        } finally {
            setIsSigningOut(false);
        }
-   };
-
-   const handleProfileClick = () => {
-       setIsProfileDialogOpen(true);
    };
 
    return (
@@ -96,7 +84,7 @@ const Header = ({
                   href="/admin/products"
                   className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-900 hover:bg-gray-100"
                 >
-                  <Settings className="mr-1.5 h-5 w-5" />
+                  <UserCog className="mr-1.5 h-5 w-5" />
                   Administrace
                 </Link>
               )}
@@ -105,7 +93,6 @@ const Header = ({
                 <div className="flex items-center space-x-4">
                   <div className="relative group">
                     <button
-                      onClick={handleProfileClick}
                       className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
                     >
                       <UserCog className="h-5 w-5 text-gray-600" />
@@ -114,6 +101,14 @@ const Header = ({
 
                     {/* Dropdown menu */}
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg overflow-hidden z-20 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                      <Link
+                        href="/my-profile"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                      >
+                        <User className="h-4 w-4 mr-2" />
+                        Můj profil
+                      </Link>
+
                       <Link
                         href="/my-orders"
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
@@ -135,19 +130,19 @@ const Header = ({
                 </div>
               ) : (
                 <div className="flex items-center space-x-4">
-                  <button
-                    onClick={() => setIsAuthDialogOpen(true)}
+                  <Link
+                    href="/login"
                     className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
                   >
                     Přihlásit
-                  </button>
-                  <button
-                    onClick={() => setIsRegistrationDialogOpen(true)}
+                  </Link>
+                  <Link
+                    href="/register"
                     className="px-4 py-2 text-sm font-medium text-white bg-blue-600
                              hover:bg-blue-700 rounded-md transition-colors"
                   >
                     Registrace
-                  </button>
+                  </Link>
                 </div>
               )}
 
@@ -167,30 +162,6 @@ const Header = ({
           </div>
         </div>
       </header>
-
-      <AuthDialog
-        isOpen={isAuthDialogOpen}
-        onClose={() => setIsAuthDialogOpen(false)}
-      />
-
-      <RegistrationDialog
-        isOpen={isRegistrationDialogOpen}
-        onClose={() => setIsRegistrationDialogOpen(false)}
-      />
-
-      {/* Upravené renderování ProfileDialog - pouze když je otevřený */}
-      {isProfileDialogOpen && (
-        <Suspense fallback={
-          <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[100]">
-            <div className="bg-white p-4 rounded-lg">Načítání...</div>
-          </div>
-        }>
-          <ProfileDialog
-            isOpen={isProfileDialogOpen}
-            onClose={() => setIsProfileDialogOpen(false)}
-          />
-        </Suspense>
-      )}
 
       <Cart
         isOpen={isCartOpen}
