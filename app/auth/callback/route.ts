@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const type = requestUrl.searchParams.get('type')
 
   if (code) {
     const cookieStore = cookies()
@@ -27,7 +28,13 @@ export async function GET(request: Request) {
     )
 
     await supabase.auth.exchangeCodeForSession(code)
+
+    // Pokud jde o verifikaci emailu, přesměrovat na přihlašovací stránku s parametrem verified=true
+    if (type === 'email_change' || type === 'signup' || type === 'recovery') {
+      return NextResponse.redirect(`${requestUrl.origin}/login?verified=true`)
+    }
   }
 
-  return NextResponse.redirect(requestUrl.origin)
+  // Pro ostatní případy nebo když není code, přesměrovat na výchozí stránku
+  return NextResponse.redirect(`${requestUrl.origin}/login?callback=true`)
 }

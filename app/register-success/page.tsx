@@ -40,13 +40,8 @@ export default function RegisterSuccessPage() {
                     </div>
                 </div>
 
-                <div className="text-center">
-                    <Link
-                        href="/login"
-                        className="inline-block px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                        Přejít na přihlášení
-                    </Link>
+                <div className="mt-6 text-center text-sm text-gray-500">
+                    Po potvrzení emailu se budete moci přihlásit do svého účtu.
                 </div>
 
                 <div className="mt-6 text-center text-sm text-gray-500">
