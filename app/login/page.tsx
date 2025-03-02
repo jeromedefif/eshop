@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle } from 'lucide-react';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -12,47 +12,25 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [showVerificationMessage, setShowVerificationMessage] = useState(false);
-    const [isProcessingVerification, setIsProcessingVerification] = useState(false);
-    const { signIn, user, signOut } = useAuth();
+    const { signIn, user } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    // Zpracování verifikace emailu a přesměrování
+    // Detekce URL parametru verified=true a nastavení zobrazení zprávy
     useEffect(() => {
-        // Zjistíme, zda jsme na stránce přihlášení po verifikaci
+        // Pokud je parametr verified=true, zobrazíme zprávu o úspěšné verifikaci
         const isVerified = searchParams.get('verified') === 'true';
-        const isPostVerification = sessionStorage.getItem('justVerified') === 'true';
-
-        // Pokud jsme po verifikaci a máme uživatele (automaticky přihlášen)
-        if (isVerified && user) {
-            console.log('Detekována automatická verifikace, odhlašuji uživatele...');
-            setIsProcessingVerification(true);
-
-            // Uložíme příznak, že jsme prošli verifikací
-            sessionStorage.setItem('justVerified', 'true');
-
-            // Odhlásíme uživatele, aby se zobrazila přihlašovací obrazovka
-            signOut().catch(console.error).finally(() => {
-                setIsProcessingVerification(false);
-            });
-            return;
-        }
-
-        // Pokud jsme přišli z verifikace (ať již z parametru nebo ze sessionStorage)
-        if (isVerified || isPostVerification) {
+        if (isVerified) {
             setShowVerificationMessage(true);
-
-            // Pokud jsme zpracovali verifikaci, vyčistíme příznak
-            if (isPostVerification) {
-                sessionStorage.removeItem('justVerified');
-            }
         }
+    }, [searchParams]);
 
-        // Přesměrovat přihlášeného uživatele na hlavní stránku
-        if (user && !isProcessingVerification) {
+    // Přesměrování přihlášeného uživatele na hlavní stránku
+    useEffect(() => {
+        if (user) {
             router.push('/');
         }
-    }, [user, router, searchParams, signOut]);
+    }, [user, router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -61,7 +39,7 @@ export default function LoginPage() {
 
         try {
             await signIn(email, password);
-            router.push('/');
+            // Uživatel bude automaticky přesměrován díky useEffect výše
         } catch (error) {
             console.error('Sign in error:', error);
             setError(error instanceof Error ? error.message : 'Chyba při přihlašování');
@@ -69,19 +47,6 @@ export default function LoginPage() {
             setIsLoading(false);
         }
     };
-
-    // Zobrazíme načítací obrazovku během zpracování verifikace
-    if (isProcessingVerification) {
-        return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center">
-                    <Loader2 className="w-12 h-12 mx-auto mb-4 text-blue-600 animate-spin" />
-                    <h2 className="text-xl font-semibold mb-2">Připravujeme přihlašovací stránku</h2>
-                    <p className="text-gray-600">Moment prosím, zpracováváme vaši verifikaci...</p>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="min-h-screen bg-gray-50 py-12">
