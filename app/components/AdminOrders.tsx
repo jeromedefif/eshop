@@ -2,28 +2,21 @@
 
 import React, { useState } from 'react';
 import { Search, X, Eye, Download, RefreshCw, FileSpreadsheet } from 'lucide-react';
-import OrderDetail from './OrderDetail';
+import { useRouter } from 'next/navigation';
 import type { Order, AdminOrdersProps } from '../types/orders';
 
 export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: AdminOrdersProps) {
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isExportingExcel, setIsExportingExcel] = useState(false);
     const [isExportingCsv, setIsExportingCsv] = useState(false);
+    const router = useRouter();
 
     const filteredOrders = orders.filter(order =>
         order.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         order.customer_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
         order.id.toLowerCase().includes(searchQuery.toLowerCase())
     );
-
-    const handleStatusChange = async (orderId: string, newStatus: string) => {
-        // Aktualizace seznamu objednávek po změně stavu
-        if (onOrdersChange) {
-            await onOrdersChange();
-        }
-    };
 
     const handleRefreshOrders = async () => {
         if (isRefreshing) return;
@@ -140,6 +133,11 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
         }
     };
 
+    // Navigate to order detail page
+    const handleViewOrderDetail = (orderId: string) => {
+        router.push(`/admin/orders/${orderId}`);
+    };
+
     return (
         <div className="max-w-6xl mx-auto">
             <div className="flex justify-between items-center mb-6">
@@ -150,27 +148,36 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
                         className="flex items-center px-4 py-2 bg-gray-100 text-gray-800 rounded-lg
                                  hover:bg-gray-200 transition-colors"
                         disabled={isRefreshing}
+                        title="Obnovit"
                     >
-                        <RefreshCw className={`w-5 h-5 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                        Obnovit
+                        <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        <span className="ml-2 hidden md:inline">
+                            Obnovit
+                        </span>
                     </button>
                     <button
                         onClick={handleExportToCsv}
                         className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg
                                  hover:bg-blue-700 transition-colors"
                         disabled={isExportingCsv}
+                        title="Export do CSV"
                     >
-                        <Download className="w-5 h-5 mr-2" />
-                        {isExportingCsv ? 'Exportuji...' : 'Export do CSV'}
+                        <Download className="w-5 h-5" />
+                        <span className="ml-2 hidden md:inline">
+                            {isExportingCsv ? 'Exportuji...' : 'Export do CSV'}
+                        </span>
                     </button>
                     <button
                         onClick={handleExportToExcel}
                         className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg
                                  hover:bg-green-700 transition-colors"
                         disabled={isExportingExcel}
+                        title="Export do Excelu"
                     >
-                        <FileSpreadsheet className="w-5 h-5 mr-2" />
-                        {isExportingExcel ? 'Exportuji...' : 'Export do Excelu'}
+                        <FileSpreadsheet className="w-5 h-5" />
+                        <span className="ml-2 hidden md:inline">
+                            {isExportingExcel ? 'Exportuji...' : 'Export do Excelu'}
+                        </span>
                     </button>
                 </div>
             </div>
@@ -203,18 +210,17 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Akce</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Datum</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Zákazník</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Objem</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stav</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Akce</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {filteredOrders.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                                     {searchQuery
                                         ? 'Nenalezeny žádné objednávky odpovídající vašemu hledání'
                                         : 'Zatím nejsou žádné objednávky'}
@@ -223,8 +229,14 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
                         ) : (
                             filteredOrders.map((order) => (
                                 <tr key={order.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {order.id.slice(0, 8)}...
+                                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                                        <button
+                                            onClick={() => handleViewOrderDetail(order.id)}
+                                            className="text-blue-600 hover:text-blue-900"
+                                            title="Zobrazit detail"
+                                        >
+                                            <Eye className="w-5 h-5" />
+                                        </button>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                         {new Date(order.created_at).toLocaleDateString('cs')}
@@ -242,29 +254,12 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
                                             {getStatusText(order.status)}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <button
-                                            onClick={() => setSelectedOrder(order)}
-                                            className="text-blue-600 hover:text-blue-900"
-                                            title="Zobrazit detail"
-                                        >
-                                            <Eye className="w-5 h-5" />
-                                        </button>
-                                    </td>
                                 </tr>
                             ))
                         )}
                     </tbody>
                 </table>
             </div>
-
-            {selectedOrder && (
-                <OrderDetail
-                    order={selectedOrder}
-                    onClose={() => setSelectedOrder(null)}
-                    onStatusChange={handleStatusChange}
-                />
-            )}
         </div>
     );
 }
