@@ -62,6 +62,7 @@ export interface OrderCustomer {
 }
 
 export interface OrderConfirmationItem {
+    productId: number;
     productName: string;
     volume: string | number;
     quantity: number;

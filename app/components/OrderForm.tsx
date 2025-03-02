@@ -1,33 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { supabase } from '@/lib/supabase/client';
-import OrderConfirmationDialog from './OrderConfirmationDialog';
+import { useRouter } from 'next/navigation';
 import OrderSummary from './OrderSummary';
 import type {
   OrderFormProps,
-  OrderStatus,
   OrderConfirmationData
 } from '@/types/orders';
-import { toast } from 'react-toastify';
-
-interface OrderData {
-  user_id: string;
-  total_volume: number;
-  customer_name: string | null;
-  customer_email: string;
-  customer_phone: string | null;
-  customer_company: string | null;
-  note: string;
-  status: 'pending';
-}
-
-interface OrderItem {
-  order_id: string;
-  product_id: number;
-  volume: string;
-  quantity: number;
-}
 
 const OrderForm = ({
   cartItems,
@@ -39,109 +18,24 @@ const OrderForm = ({
   user,
   profile
 }: OrderFormProps) => {
-  const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
-  const [orderStatus, setOrderStatus] = useState<OrderStatus>('pending');
   const [note, setNote] = useState('');
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      setIsConfirmationOpen(true);
-  };
 
-  const handleConfirmOrder = async () => {
-      setOrderStatus('processing');
-      try {
-          if (!user || !profile) throw new Error('User not authenticated');
-
-          const orderData: OrderData = {
-              user_id: user.id,
-              total_volume: totalVolume,
-              customer_name: profile.full_name,
-              customer_email: profile.email,
-              customer_phone: profile.phone,
-              customer_company: profile.company,
-              note: note,
-              status: 'pending'
-          };
-
-          console.log('Creating order with data:', orderData);
-
-          const { data: order, error: orderError } = await supabase
-              .from('orders')
-              .insert([orderData])
-              .select()
-              .single();
-
-          if (orderError) {
-              console.error('Order creation error:', orderError);
-              throw orderError;
-          }
-
-          console.log('Order created:', order);
-
-          const orderItems: OrderItem[] = Object.entries(cartItems).map(([key, quantity]) => {
-              const [productId, volume] = key.split('-');
-              return {
-                  order_id: order.id,
-                  product_id: parseInt(productId),
-                  volume: volume,
-                  quantity: quantity
-              };
-          });
-
-          console.log('Creating order items:', orderItems);
-
-          const { data: items, error: itemsError } = await supabase
-              .from('order_items')
-              .insert(orderItems)
-              .select();
-
-          if (itemsError) {
-              console.error('Order items creation error:', itemsError);
-              await supabase.from('orders').delete().eq('id', order.id);
-              throw itemsError;
-          }
-
-          console.log('Order items created:', items);
-
-          try {
-              console.log('Sending confirmation email for order:', order.id);
-
-              const emailResponse = await fetch('/api/send-email', {
-                  method: 'POST',
-                  headers: {
-                      'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({ orderId: order.id })
-              });
-
-              if (!emailResponse.ok) {
-                  const errorData = await emailResponse.json();
-                  console.error('Email API error:', errorData);
-              } else {
-                  console.log('Email sent successfully');
-              }
-          } catch (emailError) {
-              console.error('Email function error:', emailError);
-              // Pokračujeme i když se nepodaří odeslat email
-          }
-
-          setOrderStatus('completed');
-          setTimeout(() => {
-              setIsConfirmationOpen(false);
-              onClearCart();
-              setNote('');
-
-              // Přidáme lokální storage hodnotu pro zobrazení zprávy na hlavní stránce
-              localStorage.setItem('orderSuccess', 'true');
-
-              // Přesměrování na hlavní stránku
-              window.location.href = '/';
-          }, 2000);
-      } catch (error) {
-          console.error('Error:', error);
-          setOrderStatus('error');
+      if (!user || !profile || Object.keys(cartItems).length === 0) {
+          return;
       }
+
+      // Vytvořit data objednávky
+      const orderData = getOrderSummary();
+
+      // Uložit data do localStorage pro následující stránku
+      localStorage.setItem('pendingOrderData', JSON.stringify(orderData));
+
+      // Přesměrovat na stránku potvrzení objednávky
+      router.push('/order-confirmation');
   };
 
   const getOrderSummary = (): OrderConfirmationData => {
@@ -150,15 +44,18 @@ const OrderForm = ({
           const product = products.find(p => p.id === parseInt(productId));
           if (!product) return null;
 
+          const display = product.category === 'PET'
+              ? `${quantity}× balení`
+              : product.category === 'Dusík'
+                  ? `${quantity}× ${volume === 'maly' ? 'malý' : 'velký'}`
+                  : `${volume}L × ${quantity}`;
+
           return {
+              productId: parseInt(productId),
               productName: product.name,
               volume: volume as string | number,
               quantity,
-              display: product.category === 'PET'
-                  ? `${quantity}× balení`
-                  : product.category === 'Dusík'
-                      ? `${quantity}× ${volume === 'maly' ? 'malý' : 'velký'}`
-                      : `${volume}L × ${quantity}`
+              display
           };
       }).filter((item): item is NonNullable<typeof item> => item !== null);
 
@@ -209,24 +106,11 @@ const OrderForm = ({
                           ? 'Pro odeslání objednávky se prosím přihlaste'
                           : Object.keys(cartItems).length === 0
                               ? 'Nejdříve přidejte položky do košíku'
-                              : 'Odeslat objednávku'
+                              : 'Přejít k potvrzení objednávky'
                       }
                   </button>
               </div>
           </div>
-
-          <OrderConfirmationDialog
-              isOpen={isConfirmationOpen}
-              onClose={() => {
-                  if (orderStatus !== 'processing') {
-                      setIsConfirmationOpen(false);
-                      setOrderStatus('pending');
-                  }
-              }}
-              onConfirm={handleConfirmOrder}
-              orderData={getOrderSummary()}
-              orderStatus={orderStatus}
-          />
       </div>
   );
 };
