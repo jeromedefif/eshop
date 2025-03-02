@@ -138,45 +138,86 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
         router.push(`/admin/orders/${orderId}`);
     };
 
+    // Komponenta karty objednávky pro mobilní zobrazení
+    const OrderCard = ({ order }: { order: Order }) => {
+        return (
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-3">
+                <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                        <div className="font-medium text-gray-900">{order.customer_name}</div>
+                        {order.customer_company && (
+                            <div className="text-sm text-gray-700">{order.customer_company}</div>
+                        )}
+                        <div className="text-sm text-gray-500">{order.customer_email}</div>
+                    </div>
+                    <button
+                        onClick={() => handleViewOrderDetail(order.id)}
+                        className="text-blue-600 p-1.5 hover:bg-blue-50 rounded-full"
+                        title="Zobrazit detail"
+                    >
+                        <Eye className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div className="flex justify-between items-center text-sm">
+                    <div className="text-gray-700">
+                        {new Date(order.created_at).toLocaleDateString('cs')}
+                    </div>
+                    <div className="font-medium text-gray-900">
+                        {order.total_volume}L
+                    </div>
+                </div>
+
+                <div className="mt-2 flex justify-between items-center">
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
+                        {getStatusText(order.status)}
+                    </span>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="max-w-6xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Správa objednávek</h2>
-                <div className="flex space-x-3">
+
+                {/* Přepracovaná nástrojová lišta pro lepší mobilní zobrazení */}
+                <div className="flex gap-2 w-full sm:w-auto justify-end">
                     <button
                         onClick={handleRefreshOrders}
-                        className="flex items-center px-4 py-2 bg-gray-100 text-gray-800 rounded-lg
+                        className="flex-1 sm:flex-none flex justify-center items-center px-3 py-2 bg-gray-100 text-gray-800 rounded-lg
                                  hover:bg-gray-200 transition-colors"
                         disabled={isRefreshing}
                         title="Obnovit"
                     >
                         <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                        <span className="ml-2 hidden md:inline">
+                        <span className="ml-2 hidden sm:inline">
                             Obnovit
                         </span>
                     </button>
                     <button
                         onClick={handleExportToCsv}
-                        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg
+                        className="flex-1 sm:flex-none flex justify-center items-center px-3 py-2 bg-blue-600 text-white rounded-lg
                                  hover:bg-blue-700 transition-colors"
                         disabled={isExportingCsv}
                         title="Export do CSV"
                     >
                         <Download className="w-5 h-5" />
-                        <span className="ml-2 hidden md:inline">
-                            {isExportingCsv ? 'Exportuji...' : 'Export do CSV'}
+                        <span className="ml-2 hidden sm:inline">
+                            {isExportingCsv ? 'Exportuji...' : 'CSV'}
                         </span>
                     </button>
                     <button
                         onClick={handleExportToExcel}
-                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg
+                        className="flex-1 sm:flex-none flex justify-center items-center px-3 py-2 bg-green-600 text-white rounded-lg
                                  hover:bg-green-700 transition-colors"
                         disabled={isExportingExcel}
                         title="Export do Excelu"
                     >
                         <FileSpreadsheet className="w-5 h-5" />
-                        <span className="ml-2 hidden md:inline">
-                            {isExportingExcel ? 'Exportuji...' : 'Export do Excelu'}
+                        <span className="ml-2 hidden sm:inline">
+                            {isExportingExcel ? 'Exportuji...' : 'Excel'}
                         </span>
                     </button>
                 </div>
@@ -206,59 +247,93 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
                 </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Akce</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Datum</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Zákazník</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Objem</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stav</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredOrders.length === 0 ? (
+            {/* Mobilní zobrazení - karty */}
+            <div className="md:hidden">
+                {filteredOrders.length === 0 ? (
+                    <div className="bg-white rounded-lg p-8 text-center">
+                        <Search className="h-10 w-10 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-600 text-base">
+                            {searchQuery
+                                ? 'Nenalezeny žádné objednávky odpovídající vašemu hledání'
+                                : 'Zatím nejsou žádné objednávky'}
+                        </p>
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
+                            >
+                                Zobrazit všechny objednávky
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {filteredOrders.map((order) => (
+                            <OrderCard key={order.id} order={order} />
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Desktop zobrazení - tabulka */}
+            <div className="hidden md:block">
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
                             <tr>
-                                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                                    {searchQuery
-                                        ? 'Nenalezeny žádné objednávky odpovídající vašemu hledání'
-                                        : 'Zatím nejsou žádné objednávky'}
-                                </td>
+                                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Akce</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Datum</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Zákazník</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Objem</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stav</th>
                             </tr>
-                        ) : (
-                            filteredOrders.map((order) => (
-                                <tr key={order.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                                        <button
-                                            onClick={() => handleViewOrderDetail(order.id)}
-                                            className="text-blue-600 hover:text-blue-900"
-                                            title="Zobrazit detail"
-                                        >
-                                            <Eye className="w-5 h-5" />
-                                        </button>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {new Date(order.created_at).toLocaleDateString('cs')}
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-gray-900">
-                                        <div>{order.customer_name}</div>
-                                        <div className="text-gray-500">{order.customer_email}</div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {order.total_volume}L
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                                                    ${getStatusColor(order.status)}`}>
-                                            {getStatusText(order.status)}
-                                        </span>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {filteredOrders.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                                        {searchQuery
+                                            ? 'Nenalezeny žádné objednávky odpovídající vašemu hledání'
+                                            : 'Zatím nejsou žádné objednávky'}
                                     </td>
                                 </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                            ) : (
+                                filteredOrders.map((order) => (
+                                    <tr key={order.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                            <button
+                                                onClick={() => handleViewOrderDetail(order.id)}
+                                                className="text-blue-600 hover:text-blue-900"
+                                                title="Zobrazit detail"
+                                            >
+                                                <Eye className="w-5 h-5" />
+                                            </button>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {new Date(order.created_at).toLocaleDateString('cs')}
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-900">
+                                            <div>{order.customer_name}</div>
+                                            {order.customer_company && (
+                                                <div className="text-gray-700">{order.customer_company}</div>
+                                            )}
+                                            <div className="text-gray-500">{order.customer_email}</div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {order.total_volume}L
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                                        ${getStatusColor(order.status)}`}>
+                                                {getStatusText(order.status)}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );
