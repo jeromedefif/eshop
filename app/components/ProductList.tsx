@@ -82,8 +82,84 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
             return acc;
         }, {} as Record<string, Product[]>) : null;
 
-        // Upravte ProductItem komponentu v ProductList.tsx:
+    // Komponenta pro tlačítko objemu - používá se jak v kartě, tak v seznamu
+    const VolumeButton = ({ product, volume, label }: { product: Product, volume: string | number, label: string }) => {
+        const count = getCartCount(product.id, volume);
+        const isInCart = count > 0;
 
+        return (
+            <div className="relative flex-1">
+                <button
+                    onClick={() => product.in_stock && onAddToCart(product.id, volume)}
+                    disabled={!product.in_stock}
+                    className={`w-full px-2 py-1 text-xs border rounded-md
+                             transition-colors duration-150 ${
+                            isInCart
+                                ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100'
+                                : product.in_stock
+                                    ? 'bg-white text-gray-900 border-gray-300 hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100'
+                                    : 'opacity-50 cursor-not-allowed text-gray-500'
+                        }`}
+                >
+                    {label}
+                </button>
+                {isInCart && (
+                    <button
+                        onClick={() => onRemoveFromCart(product.id, volume)}
+                        className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600
+                                 text-white text-[10px] rounded-full w-4 h-4
+                                 flex items-center justify-center font-medium shadow-sm
+                                 transition-colors duration-150 cursor-pointer"
+                        title="Kliknutím snížíte počet o 1"
+                    >
+                        {count}
+                    </button>
+                )}
+            </div>
+        );
+    };
+
+    // Komponenta pro kartičku produktu (mobilní zobrazení)
+    const ProductCard = ({ product }: { product: Product }) => {
+        const productButtons = getVolumeButtons(product);
+
+        return (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
+                <div className="flex items-start gap-2 mb-2">
+                    <div className="mt-0.5">
+                        {getProductIcon(product.category)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                            <h3 className="font-medium text-gray-900">{product.name}</h3>
+                            <span className={`px-1.5 py-0.5 rounded-full text-[11px] leading-none font-medium shrink-0 ${
+                                product.in_stock
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-red-50 text-red-800'
+                            }`}>
+                                {product.in_stock ? "Skladem" : "Není skladem"}
+                            </span>
+                        </div>
+                        <span className="text-xs text-gray-500">{product.category}</span>
+                    </div>
+                </div>
+
+                {/* Tlačítka objemů - stejná jako v desktop verzi */}
+                <div className="flex gap-1 mt-3">
+                    {productButtons.map(({ label, value }) => (
+                        <VolumeButton
+                            key={`${product.id}-${value}`}
+                            product={product}
+                            volume={value}
+                            label={label}
+                        />
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    // Komponenta pro řádek produktu (desktop zobrazení)
     const ProductItem = ({ product }: { product: Product }) => {
         const productButtons = getVolumeButtons(product);
 
@@ -114,40 +190,14 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                 </div>
 
                 <div className="flex items-center gap-1 mt-2 sm:mt-0 sm:pl-2 w-full sm:w-auto">
-                    {productButtons.map(({ label, value }) => {
-                        const count = getCartCount(product.id, value);
-                        const isInCart = count > 0;
-                        return (
-                            <div key={`${product.id}-${value}`} className="relative flex-1 sm:flex-none">
-                                <button
-                                    onClick={() => product.in_stock && onAddToCart(product.id, value)}
-                                    disabled={!product.in_stock}
-                                    className={`w-full sm:w-auto min-w-[52px] px-2 py-1 text-xs border rounded-md
-                                         transition-colors duration-150 ${
-                                        isInCart
-                                            ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100'
-                                            : product.in_stock
-                                                ? 'bg-white text-gray-900 border-gray-300 hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100'
-                                                : 'opacity-50 cursor-not-allowed text-gray-500'
-                                    }`}
-                                >
-                                    {label}
-                                </button>
-                                {isInCart && (
-                                    <button
-                                        onClick={() => onRemoveFromCart(product.id, value)}
-                                        className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600
-                                             text-white text-[10px] rounded-full w-4 h-4
-                                             flex items-center justify-center font-medium shadow-sm
-                                             transition-colors duration-150 cursor-pointer"
-                                        title="Kliknutím snížíte počet o 1"
-                                    >
-                                        {count}
-                                    </button>
-                                )}
-                            </div>
-                        );
-                    })}
+                    {productButtons.map(({ label, value }) => (
+                        <VolumeButton
+                            key={`${product.id}-${value}`}
+                            product={product}
+                            volume={value}
+                            label={label}
+                        />
+                    ))}
                 </div>
             </div>
         );
@@ -189,7 +239,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                     )}
                 </div>
 
-                {/* Category buttons and view toggle */}
+                {/* Category buttons and view toggle - optimalizované pro mobilní zařízení */}
                 <div className="flex justify-between items-center">
                     <div className="flex space-x-1 overflow-x-auto">
                         {categoryButtons.map((cat) => (
@@ -204,7 +254,8 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                                 title={cat.id}
                             >
                                 {React.cloneElement(cat.icon, { className: 'h-4 w-4' })}
-                                <span className="text-xs font-medium">{cat.label}</span>
+                                {/* Zobrazíme popisek pouze na větších obrazovkách */}
+                                <span className="text-xs font-medium hidden sm:inline">{cat.label}</span>
                             </button>
                         ))}
                     </div>
@@ -237,8 +288,8 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                 </div>
             </div>
 
-            {/* Products list */}
-            <div className="mt-3">
+            {/* Mobilní zobrazení - karty */}
+            <div className="md:hidden mt-3">
                 {filteredProducts.length === 0 ? (
                     <div className="text-center py-6">
                         <Search className="h-10 w-10 text-gray-400 mx-auto mb-2" />
@@ -257,7 +308,54 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                         )}
                     </div>
                 ) : isGrouped ? (
-                    // Grouped view
+                    // Seskupené zobrazení karet podle kategorií
+                    Object.entries(groupedProducts!).map(([category, categoryProducts]) => (
+                        <div key={category} className="mb-4">
+                            <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2 px-1 py-2">
+                                {getProductIcon(category)}
+                                {category}
+                                <span className="text-xs font-normal text-gray-500">
+                                    ({categoryProducts.length})
+                                </span>
+                            </h2>
+                            <div className="space-y-3">
+                                {categoryProducts.map(product => (
+                                    <ProductCard key={product.id} product={product} />
+                                ))}
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    // Kartičky bez seskupení
+                    <div className="space-y-3">
+                        {filteredProducts.map(product => (
+                            <ProductCard key={product.id} product={product} />
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Desktop a tablet zobrazení - seznam */}
+            <div className="hidden md:block mt-3">
+                {filteredProducts.length === 0 ? (
+                    <div className="text-center py-6">
+                        <Search className="h-10 w-10 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-600 text-base">
+                            {searchQuery
+                                ? "Nenalezeny žádné produkty odpovídající vašemu hledání"
+                                : "V této kategorii nejsou žádné produkty"}
+                        </p>
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
+                            >
+                                Zobrazit všechny produkty
+                            </button>
+                        )}
+                    </div>
+                ) : isGrouped ? (
+                    // Seskupené zobrazení podle kategorií
                     <div className="space-y-4 bg-white rounded-lg border">
                         {Object.entries(groupedProducts!).map(([category, categoryProducts]) => (
                             <div key={category} className="border-t first:border-t-0">
@@ -277,7 +375,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                         ))}
                     </div>
                 ) : (
-                    // List view
+                    // Seznam bez seskupení
                     <div className="bg-white rounded-lg border">
                         {filteredProducts.map(product => (
                             <ProductItem key={product.id} product={product} />
