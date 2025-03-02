@@ -147,7 +147,7 @@ const MyOrdersPage = () => {
                 className="flex items-center text-blue-600 hover:text-blue-800 transition-colors"
             >
                 <Home className="w-5 h-5 mr-1" />
-                Zpět na e-shop
+                Zpět na katalog
             </Link>
         </div>
     </div>

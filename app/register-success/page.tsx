@@ -14,7 +14,7 @@ export default function RegisterSuccessPage() {
                         className="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors"
                     >
                         <ArrowLeft className="w-4 h-4 mr-1" />
-                        Zpět na e-shop
+                        Zpět na katalog
                     </Link>
                 </div>
 
