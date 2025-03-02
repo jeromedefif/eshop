@@ -22,12 +22,12 @@ type OrderSummaryProps = {
 // Definice pořadí kategorií
 const CATEGORY_ORDER = ['Víno', 'Ovocné víno', 'Nápoje', 'Dusík', 'PET'];
 
-const OrderSummary = ({ 
-    cartItems, 
-    products, 
-    onRemoveFromCart, 
+const OrderSummary = ({
+    cartItems,
+    products,
+    onRemoveFromCart,
     onAddToCart,
-    totalVolume 
+    totalVolume
 }: OrderSummaryProps) => {
     const getCategoryIcon = (category: string) => {
         switch(category) {
@@ -81,6 +81,18 @@ const OrderSummary = ({
         return 'položek';
     };
 
+    // Funkce pro úplné odstranění položky z košíku
+    const handleRemoveItem = (productId: number, volume: string) => {
+        // Odstraníme položku úplně, ne jen snížení množství
+        const key = `${productId}-${volume}`;
+
+        // Voláme funkci tolikrát, kolik je množství položky, abychom ji úplně odstranili
+        const count = cartItems[key] || 0;
+        for (let i = 0; i < count; i++) {
+            onRemoveFromCart(productId, volume);
+        }
+    };
+
     const handleIncrement = (productId: number, volume: string) => {
         onAddToCart(productId, volume);
     };
@@ -106,37 +118,45 @@ const OrderSummary = ({
             <div className="p-4 border-b border-gray-100">
                 <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-gray-900">Přehled objednávky</h2>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-700">
                         {Object.keys(cartItems).length} {getItemsCount(Object.keys(cartItems).length)}
                     </span>
                 </div>
             </div>
 
-            {/* Items list */}
+            {/* Items list - nový design ve stylu skupin */}
             <div className="p-4">
-                <div className="divide-y divide-gray-100">
+                <div className="space-y-4">
                     {sortedCategories.map((category) => (
-                        <div key={category} className="py-3 first:pt-0 last:pb-0">
-                            <div className="flex items-center text-gray-700 mb-2">
+                        <div key={category} className="border-t first:border-t-0 pt-3 first:pt-0">
+                            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2 px-2 py-2 bg-gray-50 rounded-lg">
                                 {getCategoryIcon(category)}
-                                <span className="ml-2 font-medium">{category}</span>
-                            </div>
-                            <div className="space-y-1 ml-7">
+                                {category}
+                                <span className="text-xs font-normal text-gray-700">
+                                    ({groupedItems[category].length})
+                                </span>
+                            </h3>
+                            <div className="mt-2 space-y-1">
                                 {groupedItems[category].map(({ product, volume, count }) => (
-                                    <div 
-                                        key={`${product.id}-${volume}`} 
-                                        className="flex items-center justify-between text-sm hover:bg-blue-50 
-                                                 p-2 rounded-lg transition-colors group"
+                                    <div
+                                        key={`${product.id}-${volume}`}
+                                        className="flex items-center justify-between px-3 py-2 hover:bg-blue-50
+                                                rounded-lg transition-colors"
                                     >
                                         <div className="flex-1 min-w-0">
-                                            <span className="font-medium text-gray-900">
-                                                {product.name}
-                                            </span>
-                                            <span className="ml-2 text-gray-500">
-                                                {getItemText(product, volume)}
-                                            </span>
+                                            <div className="flex items-center gap-1">
+                                                {/* Nové pořadí: objem, poté název produktu */}
+                                                <span className="font-bold text-gray-900">
+                                                    {product.category === 'PET' ? 'balení' :
+                                                     product.category === 'Dusík' ? (volume === 'maly' ? 'malý' : 'velký') :
+                                                     `${volume}L`} -
+                                                </span>
+                                                <span className="font-medium text-gray-900 ml-1">
+                                                    {product.name}
+                                                </span>
+                                            </div>
                                         </div>
-                                        
+
                                         {/* Quantity controls */}
                                         <div className="flex items-center space-x-2">
                                             <div className="flex items-center bg-white border rounded-lg">
@@ -158,11 +178,11 @@ const OrderSummary = ({
                                                     <Plus className="w-4 h-4 text-gray-600" />
                                                 </button>
                                             </div>
-                                            
+
                                             <button
-                                                onClick={() => onRemoveFromCart(product.id, volume)}
-                                                className="p-1 hover:bg-red-100 rounded-lg 
-                                                         opacity-0 group-hover:opacity-100 transition-opacity"
+                                                onClick={() => handleRemoveItem(product.id, volume)}
+                                                className="p-1.5 hover:bg-red-100 rounded-lg
+                                                        transition-colors"
                                                 title="Odebrat položku"
                                             >
                                                 <Trash2 className="w-4 h-4 text-red-500" />
@@ -180,7 +200,7 @@ const OrderSummary = ({
             {totalVolume > 0 && (
                 <div className="border-t border-gray-100 p-4 bg-gray-50 rounded-b-lg">
                     <div className="flex justify-between items-center">
-                        <span className="text-gray-600 font-medium">Celkový objem:</span>
+                        <span className="text-gray-800 font-medium">Celkový objem:</span>
                         <span className="text-xl font-bold text-blue-600">
                             {totalVolume}L
                         </span>
