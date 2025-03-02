@@ -104,8 +104,8 @@ const OrderSummary = ({
     if (Object.keys(cartItems).length === 0) {
         return (
             <div className="bg-white rounded-lg shadow p-6">
-                <div className="text-center text-gray-500">
-                    <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <div className="text-center text-gray-700">
+                    <Package className="h-12 w-12 mx-auto mb-4 text-gray-600" />
                     <p className="text-lg">Košík je prázdný</p>
                 </div>
             </div>
@@ -118,7 +118,7 @@ const OrderSummary = ({
             <div className="p-4 border-b border-gray-100">
                 <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-gray-900">Přehled objednávky</h2>
-                    <span className="text-sm text-gray-700">
+                    <span className="text-sm text-gray-800">
                         {Object.keys(cartItems).length} {getItemsCount(Object.keys(cartItems).length)}
                     </span>
                 </div>
@@ -132,7 +132,7 @@ const OrderSummary = ({
                             <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2 px-2 py-2 bg-gray-50 rounded-lg">
                                 {getCategoryIcon(category)}
                                 {category}
-                                <span className="text-xs font-normal text-gray-700">
+                                <span className="text-xs font-medium text-gray-800">
                                     ({groupedItems[category].length})
                                 </span>
                             </h3>
@@ -167,7 +167,7 @@ const OrderSummary = ({
                                                 >
                                                     <Minus className="w-4 h-4 text-gray-600" />
                                                 </button>
-                                                <span className="px-3 py-1 font-medium text-gray-700">
+                                                <span className="px-3 py-1 font-medium text-gray-800">
                                                     {count}
                                                 </span>
                                                 <button
@@ -200,7 +200,7 @@ const OrderSummary = ({
             {totalVolume > 0 && (
                 <div className="border-t border-gray-100 p-4 bg-gray-50 rounded-b-lg">
                     <div className="flex justify-between items-center">
-                        <span className="text-gray-800 font-medium">Celkový objem:</span>
+                        <span className="text-gray-900 font-medium">Celkový objem:</span>
                         <span className="text-xl font-bold text-blue-600">
                             {totalVolume}L
                         </span>
