@@ -41,10 +41,6 @@ export default function RegisterSuccessPage() {
                 </div>
 
                 <div className="mt-6 text-center text-sm text-gray-500">
-                    Po potvrzení emailu se budete moci přihlásit do svého účtu.
-                </div>
-
-                <div className="mt-6 text-center text-sm text-gray-500">
                     Email nedorazil? Zkontrolujte prosím složku spam nebo nevyžádaná pošta.
                 </div>
             </div>
