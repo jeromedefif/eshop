@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PlusCircle, Edit2, Trash2, X, Search } from 'lucide-react';
+import { PlusCircle, Edit2, Trash2, X, Search, MoreHorizontal, ChevronDown } from 'lucide-react';
 import type { Product, CreateProductInput } from '@/types/database';
 
 interface AdminProductsProps {
@@ -213,6 +213,109 @@ const AddProductForm = ({
     );
 };
 
+// Komponenta pro dropdown menu akcí (pro tablety)
+const ActionsDropdown = ({
+    onEdit,
+    onDelete
+}: {
+    onEdit: () => void;
+    onDelete: () => void
+}) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+        <div className="relative">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="p-1.5 rounded-full hover:bg-gray-100 text-gray-600"
+                title="Akce"
+            >
+                <MoreHorizontal className="w-5 h-5" />
+            </button>
+
+            {isOpen && (
+                <>
+                    {/* Overlay pro zavření menu při kliknutí mimo */}
+                    <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setIsOpen(false)}
+                    />
+
+                    <div className="absolute right-0 mt-1 w-36 bg-white rounded-md shadow-lg overflow-hidden z-20 border border-gray-200">
+                        <div className="py-1">
+                            <button
+                                onClick={() => {
+                                    onEdit();
+                                    setIsOpen(false);
+                                }}
+                                className="flex items-center w-full px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100"
+                            >
+                                <Edit2 className="w-4 h-4 mr-2 text-blue-600" />
+                                Upravit
+                            </button>
+                            <button
+                                onClick={() => {
+                                    onDelete();
+                                    setIsOpen(false);
+                                }}
+                                className="flex items-center w-full px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100"
+                            >
+                                <Trash2 className="w-4 h-4 mr-2 text-red-600" />
+                                Smazat
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
+        </div>
+    );
+};
+
+// Komponenta karty produktu pro mobilní zobrazení
+const ProductCard = ({
+    product,
+    onEdit,
+    onDelete
+}: {
+    product: Product;
+    onEdit: () => void;
+    onDelete: () => void;
+}) => {
+    return (
+        <div className="bg-white p-4 rounded-lg mb-3 border border-gray-200 shadow-sm">
+            <div className="flex justify-between items-start">
+                <h3 className="font-medium text-gray-900 pr-2">{product.name}</h3>
+                <div className="flex space-x-1 shrink-0">
+                    <button
+                        onClick={onEdit}
+                        className="p-1.5 rounded-full hover:bg-blue-50 text-blue-600"
+                        title="Upravit"
+                    >
+                        <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={onDelete}
+                        className="p-1.5 rounded-full hover:bg-red-50 text-red-600"
+                        title="Smazat"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
+            </div>
+            <div className="mt-2 flex justify-between text-sm items-center">
+                <span className="text-gray-600">{product.category}</span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    product.in_stock
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                }`}>
+                    {product.in_stock ? 'Skladem' : 'Není skladem'}
+                </span>
+            </div>
+        </div>
+    );
+};
+
 const AdminProducts = ({
     products,
     onProductsChange,
@@ -328,94 +431,153 @@ const AdminProducts = ({
                 )}
             </div>
 
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-   <table className="min-w-full divide-y divide-gray-200">
-       <thead className="bg-gray-50">
-           <tr>
-               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Název</th>
-               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategorie</th>
-               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stav</th>
-               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Akce</th>
-           </tr>
-       </thead>
-       <tbody className="bg-white divide-y divide-gray-200">
-           {filteredProducts.length === 0 ? (
-               <tr>
-                   <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                       {searchQuery ? (
-                           <div className="flex flex-col items-center">
-                               <Search className="h-8 w-8 text-gray-400 mb-2" />
-                               <p>Nenalezeny žádné produkty odpovídající vašemu hledání</p>
-                               <button
-                                   onClick={() => setSearchQuery('')}
-                                   className="mt-2 text-blue-600 hover:text-blue-800"
-                               >
-                                   Zobrazit všechny produkty
-                               </button>
-                           </div>
-                       ) : (
-                           <p>Zatím nejsou přidány žádné produkty</p>
-                       )}
-                   </td>
-               </tr>
-           ) : (
-               filteredProducts.map((product) => (
-                   <React.Fragment key={product.id}>
-                       <tr className={editingId === product.id ? 'bg-blue-50' : 'hover:bg-gray-50'}>
-                           <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                               {product.name}
-                           </td>
-                           <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-                               {product.category}
-                           </td>
-                           <td className="px-6 py-4 whitespace-nowrap">
-                               <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                   product.in_stock
-                                       ? 'bg-green-100 text-green-800'
-                                       : 'bg-red-100 text-red-800'
-                               }`}>
-                                   {product.in_stock ? 'Skladem' : 'Není skladem'}
-                               </span>
-                           </td>
-                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                               <button
-                                   onClick={() => setEditingId(product.id)}
-                                   disabled={isLoading}
-                                   className="text-blue-600 hover:text-blue-900 mr-3 disabled:text-blue-300"
-                                   title="Upravit"
-                               >
-                                   <Edit2 className="w-5 h-5" />
-                               </button>
-                               <button
-                                   onClick={() => handleDelete(product.id)}
-                                   disabled={isLoading}
-                                   className="text-red-600 hover:text-red-900 disabled:text-red-300"
-                                   title="Smazat"
-                               >
-                                   <Trash2 className="w-5 h-5" />
-                               </button>
-                           </td>
-                       </tr>
-                       {editingId === product.id && (
-                           <tr>
-                               <td colSpan={4} className="px-6 py-4 bg-blue-50">
-                                   <EditForm
-                                       product={product}
-                                       onSave={(formData) => handleInlineUpdate(product.id, formData)}
-                                       onCancel={() => setEditingId(null)}
-                                       isLoading={isLoading}
-                                   />
-                               </td>
-                           </tr>
-                       )}
-                   </React.Fragment>
-               ))
-           )}
-       </tbody>
-   </table>
-</div>
-       </div>
-   );
+            {/* Mobilní zobrazení - karty */}
+            <div className="md:hidden">
+                {filteredProducts.length === 0 ? (
+                    <div className="text-center py-6">
+                        <Search className="h-10 w-10 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-600 text-base">
+                            {searchQuery
+                                ? "Nenalezeny žádné produkty odpovídající vašemu hledání"
+                                : "Zatím nejsou přidány žádné produkty"}
+                        </p>
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
+                            >
+                                Zobrazit všechny produkty
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    filteredProducts.map(product => (
+                        <React.Fragment key={product.id}>
+                            {editingId === product.id ? (
+                                <div className="mb-3">
+                                    <EditForm
+                                        product={product}
+                                        onSave={(formData) => handleInlineUpdate(product.id, formData)}
+                                        onCancel={() => setEditingId(null)}
+                                        isLoading={isLoading}
+                                    />
+                                </div>
+                            ) : (
+                                <ProductCard
+                                    product={product}
+                                    onEdit={() => setEditingId(product.id)}
+                                    onDelete={() => handleDelete(product.id)}
+                                />
+                            )}
+                        </React.Fragment>
+                    ))
+                )}
+            </div>
+
+            {/* Tablet a desktop zobrazení - tabulka */}
+            <div className="hidden md:block">
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th width="80" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Akce</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Název</th>
+                                <th width="150" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategorie</th>
+                                <th width="120" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Stav</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {filteredProducts.length === 0 ? (
+                                <tr>
+                                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                                        {searchQuery ? (
+                                            <div className="flex flex-col items-center">
+                                                <Search className="h-8 w-8 text-gray-400 mb-2" />
+                                                <p>Nenalezeny žádné produkty odpovídající vašemu hledání</p>
+                                                <button
+                                                    onClick={() => setSearchQuery('')}
+                                                    className="mt-2 text-blue-600 hover:text-blue-800"
+                                                >
+                                                    Zobrazit všechny produkty
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <p>Zatím nejsou přidány žádné produkty</p>
+                                        )}
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredProducts.map((product) => (
+                                    <React.Fragment key={product.id}>
+                                        <tr className={editingId === product.id ? 'bg-blue-50' : 'hover:bg-gray-50'}>
+                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                {/* Na tabletech zobrazíme dropdown, na velkých desktopech ikony */}
+                                                <div className="flex justify-center items-center">
+                                                    <div className="hidden xl:flex space-x-1">
+                                                        <button
+                                                            onClick={() => setEditingId(product.id)}
+                                                            disabled={isLoading}
+                                                            className="p-1.5 rounded-full hover:bg-blue-50 text-blue-600 disabled:text-blue-300"
+                                                            title="Upravit"
+                                                        >
+                                                            <Edit2 className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(product.id)}
+                                                            disabled={isLoading}
+                                                            className="p-1.5 rounded-full hover:bg-red-50 text-red-600 disabled:text-red-300"
+                                                            title="Smazat"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                    <div className="xl:hidden">
+                                                        <ActionsDropdown
+                                                            onEdit={() => setEditingId(product.id)}
+                                                            onDelete={() => handleDelete(product.id)}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-sm text-gray-900 truncate max-w-xs" title={product.name}>
+                                                    {product.name}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {product.category}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                    product.in_stock
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : 'bg-red-100 text-red-800'
+                                                }`}>
+                                                    {product.in_stock ? 'Skladem' : 'Není skladem'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {editingId === product.id && (
+                                            <tr>
+                                                <td colSpan={4} className="px-6 py-4 bg-blue-50">
+                                                    <EditForm
+                                                        product={product}
+                                                        onSave={(formData) => handleInlineUpdate(product.id, formData)}
+                                                        onCancel={() => setEditingId(null)}
+                                                        isLoading={isLoading}
+                                                    />
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </React.Fragment>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 export default AdminProducts;
