@@ -12,3 +12,4 @@ Online katalog pro B2B prodej vín a nápojů.
 - Next.js
 - TypeScript
 - Tailwind CSS
+# Trigger deployment
