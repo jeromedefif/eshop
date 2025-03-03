@@ -73,7 +73,7 @@ const AuthDialog = ({ isOpen, onClose }: AuthDialogProps) => {
                                 id="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900"
                                 required
                                 disabled={isLoading}
                             />
@@ -88,7 +88,7 @@ const AuthDialog = ({ isOpen, onClose }: AuthDialogProps) => {
                                 id="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900"
                                 required
                                 disabled={isLoading}
                             />
