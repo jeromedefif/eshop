@@ -1,8 +1,12 @@
+// Úprava v souboru app/components/AdminOrders.tsx
+
 'use client';
 
 import React, { useState } from 'react';
-import { Search, X, Eye, Download, RefreshCw, FileSpreadsheet } from 'lucide-react';
+import { Search, X, Download, RefreshCw, FileSpreadsheet } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { format } from 'date-fns';
+import { cs } from 'date-fns/locale';
 import type { Order, AdminOrdersProps } from '../types/orders';
 
 export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: AdminOrdersProps) {
@@ -138,12 +142,23 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
         router.push(`/admin/orders/${orderId}`);
     };
 
+    // Formátování data s časem
+    const formatDateTime = (dateString: string) => {
+        const date = new Date(dateString);
+        return {
+            date: format(date, 'dd.MM.yyyy', { locale: cs }),
+            time: format(date, 'HH:mm', { locale: cs })
+        };
+    };
+
     // Komponenta karty objednávky pro mobilní zobrazení
     const OrderCard = ({ order }: { order: Order }) => {
+        const dateTime = formatDateTime(order.created_at);
+
         return (
             <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-3">
                 <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                         <div className="font-medium text-gray-900">{order.customer_name}</div>
                         {order.customer_company && (
                             <div className="text-sm text-gray-700">{order.customer_company}</div>
@@ -152,26 +167,20 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
                     </div>
                     <button
                         onClick={() => handleViewOrderDetail(order.id)}
-                        className="text-blue-600 p-1.5 hover:bg-blue-50 rounded-full"
+                        className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}
                         title="Zobrazit detail"
                     >
-                        <Eye className="w-5 h-5" />
+                        {getStatusText(order.status)}
                     </button>
                 </div>
 
                 <div className="flex justify-between items-center text-sm">
                     <div className="text-gray-700">
-                        {new Date(order.created_at).toLocaleDateString('cs')}
+                        {dateTime.date} <span className="text-gray-500">{dateTime.time}</span>
                     </div>
                     <div className="font-medium text-gray-900">
                         {order.total_volume}L
                     </div>
-                </div>
-
-                <div className="mt-2 flex justify-between items-center">
-                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
-                        {getStatusText(order.status)}
-                    </span>
                 </div>
             </div>
         );
@@ -281,55 +290,52 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Akce</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stav</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Datum</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Zákazník</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Objem</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stav</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                             {filteredOrders.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
                                         {searchQuery
                                             ? 'Nenalezeny žádné objednávky odpovídající vašemu hledání'
                                             : 'Zatím nejsou žádné objednávky'}
                                     </td>
                                 </tr>
                             ) : (
-                                filteredOrders.map((order) => (
-                                    <tr key={order.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                                            <button
-                                                onClick={() => handleViewOrderDetail(order.id)}
-                                                className="text-blue-600 hover:text-blue-900"
-                                                title="Zobrazit detail"
-                                            >
-                                                <Eye className="w-5 h-5" />
-                                            </button>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {new Date(order.created_at).toLocaleDateString('cs')}
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-900">
-                                            <div>{order.customer_name}</div>
-                                            {order.customer_company && (
-                                                <div className="text-gray-700">{order.customer_company}</div>
-                                            )}
-                                            <div className="text-gray-500">{order.customer_email}</div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {order.total_volume}L
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                                                        ${getStatusColor(order.status)}`}>
-                                                {getStatusText(order.status)}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))
+                                filteredOrders.map((order) => {
+                                    const dateTime = formatDateTime(order.created_at);
+                                    return (
+                                        <tr key={order.id} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <button
+                                                    onClick={() => handleViewOrderDetail(order.id)}
+                                                    className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                                                        ${getStatusColor(order.status)} cursor-pointer hover:opacity-80`}
+                                                >
+                                                    {getStatusText(order.status)}
+                                                </button>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                <div>{dateTime.date}</div>
+                                                <div className="text-xs text-gray-500">{dateTime.time}</div>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-900">
+                                                <div>{order.customer_name}</div>
+                                                {order.customer_company && (
+                                                    <div className="text-gray-700">{order.customer_company}</div>
+                                                )}
+                                                <div className="text-gray-500">{order.customer_email}</div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {order.total_volume}L
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
