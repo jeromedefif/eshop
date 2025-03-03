@@ -134,7 +134,6 @@ export async function POST(request: Request) {
     const emailResult = await resend.emails.send({
       from: process.env.FROM_EMAIL,
       to: order.customer_email,
-      bcc: 'fiala@vinaria.cz',
       subject: subject,
       html: emailHtml
     });

@@ -84,8 +84,8 @@ export async function POST(request: Request) {
           <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
             <h1 style="color: #1a73e8;">Objednávka přijata - čeká na potvrzení</h1>
 
-            <p>Vážený zákazníku ${order.customer_name}, ze společnosti ${order.customer_company || 'Neuvedeno'}</p>
-            <p>děkujeme za Vaši objednávku. Vaše objednávka byla přijata a čeká na potvrzení naším pracovníkem.</p>
+            <p style="font-weight: bold;"><strong>Vážený zákazníku ${order.customer_name}, ze společnosti ${order.customer_company || 'Neuvedeno'}</strong></p>
+            <p>děkujeme za Vaši objednávku. Vaše objednávka byla přijata do systému a čeká na potvrzení naším pracovníkem.</p>
             <p>O potvrzení objednávky Vás budeme informovat emailem.</p>
             <p>Níže najdete její shrnutí:</p>
 
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
       from: process.env.FROM_EMAIL,
       to: order.customer_email,
       bcc: 'fiala@vinaria.cz',
-      subject: `Objednávka přijata - VINARIA s.r.o.`,
+      subject: `Nová objednávka: ${order.customer_name} (${order.customer_company || 'Bez firmy'})`,
       html: emailHtml
     });
 
