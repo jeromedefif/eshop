@@ -1,10 +1,14 @@
-// app/admin/users/page.tsx
+// Úprava v souboru app/admin/users/page.tsx
+// Přidání možnosti přejít na detail uživatele
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
 import { supabase } from '@/lib/supabase/client';
-import { Search, X, Mail, Building, Phone, Calendar, RefreshCw, User } from 'lucide-react';
+import { Search, X, Mail, Building, Phone, Calendar, RefreshCw, User, Eye } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { UserProfile } from '@/types/auth';
 
 const AdminUsersPage = () => {
@@ -13,6 +17,7 @@ const AdminUsersPage = () => {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const router = useRouter();
 
     const fetchUsers = async () => {
         try {
@@ -60,6 +65,10 @@ const AdminUsersPage = () => {
         return new Date(dateString).toLocaleDateString('cs-CZ');
     };
 
+    const handleViewUserDetail = (userId: string) => {
+        router.push(`/admin/users/${userId}`);
+    };
+
     // Komponenta karty uživatele pro mobilní zobrazení
     const UserCard = ({ user }: { user: UserProfile }) => {
         return (
@@ -93,7 +102,7 @@ const AdminUsersPage = () => {
                             </div>
                         </div>
                     </div>
-                    <div className="ml-1">
+                    <div className="ml-1 flex flex-col items-end gap-2">
                         <span className={`px-2 py-1 inline-flex text-xs font-medium rounded-full ${
                             user.is_admin
                                 ? 'bg-blue-100 text-blue-800'
@@ -101,6 +110,13 @@ const AdminUsersPage = () => {
                         }`}>
                             {user.is_admin ? 'Admin' : 'Uživatel'}
                         </span>
+                        <button
+                            onClick={() => handleViewUserDetail(user.id)}
+                            className="text-blue-600 p-1 hover:bg-blue-50 rounded-full transition-colors"
+                            title="Zobrazit detail"
+                        >
+                            <Eye className="w-4 h-4" />
+                        </button>
                     </div>
                 </div>
             </div>
@@ -218,12 +234,13 @@ const AdminUsersPage = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Telefon</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Registrace</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Akce</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {filteredUsers.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                                        <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
                                             {searchQuery
                                                 ? 'Nenalezeni žádní uživatelé odpovídající vašemu hledání'
                                                 : 'Zatím nejsou žádní uživatelé'}
@@ -267,6 +284,15 @@ const AdminUsersPage = () => {
                                                 }`}>
                                                     {user.is_admin ? 'Admin' : 'Uživatel'}
                                                 </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                <button
+                                                    onClick={() => handleViewUserDetail(user.id)}
+                                                    className="text-blue-600 hover:text-blue-900 p-1.5 hover:bg-blue-50 rounded-full transition-colors"
+                                                    title="Zobrazit detail"
+                                                >
+                                                    <Eye className="w-5 h-5" />
+                                                </button>
                                             </td>
                                         </tr>
                                     ))
