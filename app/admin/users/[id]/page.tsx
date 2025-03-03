@@ -9,16 +9,14 @@ import { withAdminAuth } from '@/components/auth/withAdminAuth';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 import type { UserProfile } from '@/types/auth';
-import type { Order } from '@/types/orders';
 
 const UserDetailPage = () => {
     const router = useRouter();
     const params = useParams();
     const userId = params.id as string;
 
-    const [user, setUser] = useState<any>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
-    const [orders, setOrders] = useState<Order[]>([]);
+    const [orders, setOrders] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -45,38 +43,15 @@ const UserDetailPage = () => {
 
                 setProfile(profileData);
 
-                // 2. Načtení Supabase uživatelských dat
-                const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
-
-                if (userError) {
-                    console.error('Nepodařilo se načíst uživatelská data:', userError);
-                    // Pokračujeme i bez těchto dat
-                } else if (userData) {
-                    setUser(userData.user);
-                }
-
-                // 3. Načtení objednávek uživatele
+                // 2. Načtení objednávek uživatele
                 const { data: ordersData, error: ordersError } = await supabase
                     .from('orders')
-                    .select(`
-                        *,
-                        order_items (
-                            id,
-                            product_id,
-                            volume,
-                            quantity,
-                            product:products (
-                                name,
-                                category
-                            )
-                        )
-                    `)
+                    .select('*')
                     .eq('user_id', userId)
                     .order('created_at', { ascending: false });
 
                 if (ordersError) {
                     console.error('Chyba při načítání objednávek:', ordersError);
-                    // Pokračujeme i bez objednávek
                 } else {
                     setOrders(ordersData || []);
                 }
@@ -124,13 +99,30 @@ const UserDetailPage = () => {
         }
     };
 
-    const getTotalOrdersVolume = () => {
-        return orders.reduce((sum, order) => sum + parseFloat(order.total_volume.toString()), 0);
+    // Vypočtení statistik z načtených objednávek
+    const calculateStats = () => {
+        const totalCount = orders.length;
+        const confirmedCount = orders.filter(order => order.status === 'confirmed').length;
+
+        let totalVolume = 0;
+        orders.forEach(order => {
+            if (order.total_volume) {
+                // Pokusíme se převést hodnotu na číslo bez ohledu na formát
+                const value = parseFloat(String(order.total_volume).replace(/[^\d.-]/g, ''));
+                if (!isNaN(value)) {
+                    totalVolume += value;
+                }
+            }
+        });
+
+        return {
+            totalCount,
+            confirmedCount,
+            totalVolume: Math.round(totalVolume * 10) / 10 // Zaokrouhlíme na 1 desetinné místo
+        };
     };
 
-    const getConfirmedOrdersCount = () => {
-        return orders.filter(order => order.status === 'confirmed').length;
-    };
+    const stats = calculateStats();
 
     if (isLoading) {
         return (
@@ -182,40 +174,40 @@ const UserDetailPage = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Základní informace */}
                         <div className="bg-gray-50 p-4 rounded-lg">
-                            <h2 className="text-lg font-semibold mb-4 flex items-center">
+                            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                                 <User className="w-5 h-5 mr-2 text-gray-500" />
                                 Osobní údaje
                             </h2>
                             <div className="space-y-3">
                                 <div>
-                                    <span className="text-sm text-gray-500">Jméno</span>
-                                    <p className="font-medium">{profile?.full_name || 'Neuvedeno'}</p>
+                                    <span className="text-sm font-medium text-gray-700">Jméno</span>
+                                    <p className="font-medium text-gray-900">{profile?.full_name || 'Neuvedeno'}</p>
                                 </div>
                                 <div>
-                                    <span className="text-sm text-gray-500">Email</span>
-                                    <p className="font-medium flex items-center">
-                                        <Mail className="w-4 h-4 mr-1 text-gray-400" />
+                                    <span className="text-sm font-medium text-gray-700">Email</span>
+                                    <p className="font-medium text-gray-900 flex items-center">
+                                        <Mail className="w-4 h-4 mr-1 text-gray-500" />
                                         {profile?.email}
                                     </p>
                                 </div>
                                 <div>
-                                    <span className="text-sm text-gray-500">Telefon</span>
-                                    <p className="font-medium flex items-center">
-                                        <Phone className="w-4 h-4 mr-1 text-gray-400" />
+                                    <span className="text-sm font-medium text-gray-700">Telefon</span>
+                                    <p className="font-medium text-gray-900 flex items-center">
+                                        <Phone className="w-4 h-4 mr-1 text-gray-500" />
                                         {profile?.phone || 'Neuvedeno'}
                                     </p>
                                 </div>
                                 <div>
-                                    <span className="text-sm text-gray-500">Společnost</span>
-                                    <p className="font-medium flex items-center">
-                                        <Building className="w-4 h-4 mr-1 text-gray-400" />
+                                    <span className="text-sm font-medium text-gray-700">Společnost</span>
+                                    <p className="font-medium text-gray-900 flex items-center">
+                                        <Building className="w-4 h-4 mr-1 text-gray-500" />
                                         {profile?.company || 'Neuvedeno'}
                                     </p>
                                 </div>
                                 <div>
-                                    <span className="text-sm text-gray-500">Registrace</span>
-                                    <p className="font-medium flex items-center">
-                                        <Calendar className="w-4 h-4 mr-1 text-gray-400" />
+                                    <span className="text-sm font-medium text-gray-700">Registrace</span>
+                                    <p className="font-medium text-gray-900 flex items-center">
+                                        <Calendar className="w-4 h-4 mr-1 text-gray-500" />
                                         {formatDate(profile?.created_at)}
                                     </p>
                                 </div>
@@ -224,22 +216,22 @@ const UserDetailPage = () => {
 
                         {/* Adresa a další údaje */}
                         <div className="bg-gray-50 p-4 rounded-lg">
-                            <h2 className="text-lg font-semibold mb-4 flex items-center">
+                            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                                 <MapPin className="w-5 h-5 mr-2 text-gray-500" />
                                 Fakturační údaje
                             </h2>
                             <div className="space-y-3">
                                 <div>
-                                    <span className="text-sm text-gray-500">Adresa</span>
-                                    <p className="font-medium">{profile?.address || 'Neuvedeno'}</p>
+                                    <span className="text-sm font-medium text-gray-700">Adresa</span>
+                                    <p className="font-medium text-gray-900">{profile?.address || 'Neuvedeno'}</p>
                                 </div>
                                 <div>
-                                    <span className="text-sm text-gray-500">Město</span>
-                                    <p className="font-medium">{profile?.city || 'Neuvedeno'}</p>
+                                    <span className="text-sm font-medium text-gray-700">Město</span>
+                                    <p className="font-medium text-gray-900">{profile?.city || 'Neuvedeno'}</p>
                                 </div>
                                 <div>
-                                    <span className="text-sm text-gray-500">PSČ</span>
-                                    <p className="font-medium">{profile?.postal_code || 'Neuvedeno'}</p>
+                                    <span className="text-sm font-medium text-gray-700">PSČ</span>
+                                    <p className="font-medium text-gray-900">{profile?.postal_code || 'Neuvedeno'}</p>
                                 </div>
                             </div>
                         </div>
@@ -250,25 +242,25 @@ const UserDetailPage = () => {
             {/* Souhrnné statistiky objednávek */}
             <div className="bg-white shadow-md rounded-lg overflow-hidden mb-6">
                 <div className="p-6">
-                    <h2 className="text-lg font-semibold mb-4 flex items-center">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                         <FileText className="w-5 h-5 mr-2 text-gray-500" />
                         Statistiky objednávek
                     </h2>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-indigo-50 p-4 rounded-lg text-center">
-                            <p className="text-sm text-indigo-700">Celkem objednávek</p>
-                            <p className="text-2xl font-bold text-indigo-900">{orders.length}</p>
+                            <p className="text-sm text-indigo-700 font-medium">Celkem objednávek</p>
+                            <p className="text-2xl font-bold text-indigo-900">{stats.totalCount}</p>
                         </div>
 
                         <div className="bg-green-50 p-4 rounded-lg text-center">
-                            <p className="text-sm text-green-700">Dokončené objednávky</p>
-                            <p className="text-2xl font-bold text-green-900">{getConfirmedOrdersCount()}</p>
+                            <p className="text-sm text-green-700 font-medium">Dokončené objednávky</p>
+                            <p className="text-2xl font-bold text-green-900">{stats.confirmedCount}</p>
                         </div>
 
                         <div className="bg-blue-50 p-4 rounded-lg text-center">
-                            <p className="text-sm text-blue-700">Celkový objem</p>
-                            <p className="text-2xl font-bold text-blue-900">{getTotalOrdersVolume()}L</p>
+                            <p className="text-sm text-blue-700 font-medium">Celkový objem</p>
+                            <p className="text-2xl font-bold text-blue-900">{stats.totalVolume}L</p>
                         </div>
                     </div>
                 </div>
@@ -277,10 +269,10 @@ const UserDetailPage = () => {
             {/* Historie objednávek */}
             <div className="bg-white shadow-md rounded-lg overflow-hidden">
                 <div className="p-6">
-                    <h2 className="text-lg font-semibold mb-4">Historie objednávek</h2>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Historie objednávek</h2>
 
                     {orders.length === 0 ? (
-                        <div className="text-center py-6 text-gray-500">
+                        <div className="text-center py-6 text-gray-700">
                             Uživatel zatím nemá žádné objednávky
                         </div>
                     ) : (
@@ -288,10 +280,10 @@ const UserDetailPage = () => {
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Datum</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Objem</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stav</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Akce</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Datum</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Objem</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Stav</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Akce</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
@@ -302,7 +294,7 @@ const UserDetailPage = () => {
                                             <tr key={order.id} className="hover:bg-gray-50">
                                                 <td className="px-4 py-3 whitespace-nowrap">
                                                     <div className="text-sm text-gray-900">{dateTime.date}</div>
-                                                    <div className="text-xs text-gray-500">{dateTime.time}</div>
+                                                    <div className="text-xs text-gray-700">{dateTime.time}</div>
                                                 </td>
                                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                                                     {order.total_volume}L
@@ -312,10 +304,10 @@ const UserDetailPage = () => {
                                                         {getStatusText(order.status)}
                                                     </span>
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                                <td className="px-4 py-3 whitespace-nowrap text-sm">
                                                     <Link
                                                         href={`/admin/orders/${order.id}`}
-                                                        className="text-blue-600 hover:text-blue-900"
+                                                        className="text-blue-600 hover:text-blue-900 font-medium"
                                                     >
                                                         Detail
                                                     </Link>
