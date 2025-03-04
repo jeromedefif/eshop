@@ -275,11 +275,13 @@ const ActionsDropdown = ({
 const ProductCard = ({
     product,
     onEdit,
-    onDelete
+    onDelete,
+    onToggleStock
 }: {
     product: Product;
     onEdit: () => void;
     onDelete: () => void;
+    onToggleStock: () => void;
 }) => {
     return (
         <div className="bg-white p-4 rounded-lg mb-3 border border-gray-200 shadow-sm">
@@ -304,13 +306,17 @@ const ProductCard = ({
             </div>
             <div className="mt-2 flex justify-between text-sm items-center">
                 <span className="text-gray-600">{product.category}</span>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                    product.in_stock
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                }`}>
+                <button
+                    onClick={onToggleStock}
+                    className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors cursor-pointer ${
+                        product.in_stock
+                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                            : 'bg-red-100 text-red-800 hover:bg-red-200'
+                    }`}
+                    title={product.in_stock ? "Kliknutím označíte jako 'Není skladem'" : "Kliknutím označíte jako 'Skladem'"}
+                >
                     {product.in_stock ? 'Skladem' : 'Není skladem'}
-                </span>
+                </button>
             </div>
         </div>
     );
@@ -343,6 +349,21 @@ const AdminProducts = ({
         } catch (error) {
             console.error('Error deleting product:', error);
             alert('Nepodařilo se smazat produkt');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleToggleStock = async (product: Product) => {
+        setIsLoading(true);
+        try {
+            // Obrátit aktuální hodnotu in_stock
+            const updatedProduct = {...product, in_stock: !product.in_stock};
+            await onUpdateProduct(updatedProduct);
+            await onProductsChange();
+        } catch (error) {
+            console.error('Error toggling product stock status:', error);
+            alert('Nepodařilo se změnit stav skladu');
         } finally {
             setIsLoading(false);
         }
@@ -467,6 +488,7 @@ const AdminProducts = ({
                                     product={product}
                                     onEdit={() => setEditingId(product.id)}
                                     onDelete={() => handleDelete(product.id)}
+                                    onToggleStock={() => handleToggleStock(product)}
                                 />
                             )}
                         </React.Fragment>
@@ -548,13 +570,19 @@ const AdminProducts = ({
                                                 {product.category}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-center">
-                                                <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                    product.in_stock
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : 'bg-red-100 text-red-800'
-                                                }`}>
+                                                <button
+                                                    onClick={() => handleToggleStock(product)}
+                                                    disabled={isLoading}
+                                                    className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                                                        cursor-pointer transition-colors ${
+                                                        product.in_stock
+                                                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                                            : 'bg-red-100 text-red-800 hover:bg-red-200'
+                                                    } ${isLoading ? 'opacity-50 cursor-wait' : ''}`}
+                                                    title={product.in_stock ? "Kliknutím označíte jako 'Není skladem'" : "Kliknutím označíte jako 'Skladem'"}
+                                                >
                                                     {product.in_stock ? 'Skladem' : 'Není skladem'}
-                                                </span>
+                                                </button>
                                             </td>
                                         </tr>
                                         {editingId === product.id && (
