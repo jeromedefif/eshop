@@ -18,6 +18,16 @@ const VolumeOption = {
     ]
 };
 
+// Definice barev ikon pro kategorie
+const categoryColors = {
+    "Všechny": "text-gray-700",
+    "Víno": "text-purple-700",
+    "Nápoje": "text-blue-700",
+    "Ovocné víno": "text-rose-700",
+    "Dusík": "text-cyan-700",
+    "PET": "text-amber-700"
+};
+
 const categoryButtons = [
     { id: 'Všechny', icon: <ListFilter className="h-5 w-5" />, label: 'Vše' },
     { id: 'Víno', icon: <Grape className="h-5 w-5" />, label: 'Víno' },
@@ -33,19 +43,21 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
     const [isGrouped, setIsGrouped] = useState(false);
 
     const getProductIcon = (category: string) => {
+        const color = categoryColors[category] || "text-gray-700";
+
         switch(category) {
             case 'Víno':
-                return <Grape className="h-5 w-5 text-gray-700" />;
+                return <Grape className={`h-5 w-5 ${color}`} />;
             case 'Ovocné víno':
-                return <Wine className="h-5 w-5 text-gray-700" />;
+                return <Wine className={`h-5 w-5 ${color}`} />;
             case 'Nápoje':
-                return <Martini className="h-5 w-5 text-gray-700" />;
+                return <Martini className={`h-5 w-5 ${color}`} />;
             case 'Dusík':
-                return <TestTube className="h-5 w-5 text-gray-700" />;
+                return <TestTube className={`h-5 w-5 ${color}`} />;
             case 'PET':
-                return <Box className="h-5 w-5 text-gray-700" />;
+                return <Box className={`h-5 w-5 ${color}`} />;
             default:
-                return <Package className="h-5 w-5 text-gray-700" />;
+                return <Package className={`h-5 w-5 ${color}`} />;
         }
     };
 
@@ -242,22 +254,27 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                 {/* Category buttons and view toggle - optimalizované pro mobilní zařízení */}
                 <div className="flex justify-between items-center">
                     <div className="flex space-x-1 overflow-x-auto">
-                        {categoryButtons.map((cat) => (
-                            <button
-                                key={cat.id}
-                                onClick={() => setSelectedCategory(cat.id)}
-                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors ${
-                                    selectedCategory === cat.id
-                                        ? 'bg-blue-100 text-blue-700'
-                                        : 'bg-white text-gray-700 hover:bg-gray-100'
-                                } whitespace-nowrap`}
-                                title={cat.id}
-                            >
-                                {React.cloneElement(cat.icon, { className: 'h-4 w-4' })}
-                                {/* Zobrazíme popisek pouze na větších obrazovkách */}
-                                <span className="text-xs font-medium hidden sm:inline">{cat.label}</span>
-                            </button>
-                        ))}
+                        {categoryButtons.map((cat) => {
+                            const colorClass = categoryColors[cat.id] || "text-gray-700";
+                            return (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => setSelectedCategory(cat.id)}
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors ${
+                                        selectedCategory === cat.id
+                                            ? 'bg-blue-100 text-blue-700'
+                                            : 'bg-white text-gray-700 hover:bg-gray-100'
+                                    } whitespace-nowrap`}
+                                    title={cat.id}
+                                >
+                                    {React.cloneElement(cat.icon, {
+                                        className: `h-5 w-5 ${colorClass}`
+                                    })}
+                                    {/* Zobrazíme popisek pouze na větších obrazovkách */}
+                                    <span className="text-xs font-medium hidden sm:inline">{cat.label}</span>
+                                </button>
+                            );
+                        })}
                     </div>
 
                     {/* View toggle button */}
