@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 import prisma from '@/lib/prisma';
-import { ArrowLeft, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertCircle, Loader2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { formatOrderDisplay } from '@/lib/formatters';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
@@ -19,8 +19,10 @@ const OrderDetailPage = () => {
     const [order, setOrder] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isUpdating, setIsUpdating] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [status, setStatus] = useState<string>('');
     const [updateMessage, setUpdateMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     // Fetch order data
     useEffect(() => {
@@ -113,6 +115,40 @@ const OrderDetailPage = () => {
         }
     };
 
+    // Nová funkce pro mazání objednávky
+    const handleDeleteOrder = async () => {
+        setIsDeleting(true);
+        setUpdateMessage(null);
+
+        try {
+            const response = await fetch(`/api/orders/${orderId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Nepodařilo se smazat objednávku');
+            }
+
+            toast.success('Objednávka byla úspěšně smazána');
+
+            // Přesměrování zpět na seznam objednávek
+            router.push('/admin/orders');
+        } catch (error) {
+            console.error('Error deleting order:', error);
+            setUpdateMessage({
+                type: 'error',
+                text: error instanceof Error ? error.message : 'Nepodařilo se smazat objednávku'
+            });
+            toast.error('Nepodařilo se smazat objednávku');
+            setIsDeleting(false);
+            setShowDeleteConfirm(false);
+        }
+    };
+
     const getStatusColor = (currentStatus: string) => {
         switch (currentStatus) {
             case 'pending': return 'bg-yellow-100 text-yellow-800';
@@ -129,6 +165,45 @@ const OrderDetailPage = () => {
             case 'cancelled': return 'Zrušeno';
             default: return currentStatus;
         }
+    };
+
+    // Komponenta pro potvrzovací dialog
+    const DeleteConfirmationDialog = () => {
+        if (!showDeleteConfirm) return null;
+
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg p-6 max-w-md w-full">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Potvrzení smazání</h3>
+                    <p className="text-gray-700 mb-6">
+                        Opravdu chcete smazat tuto objednávku? Tato akce je nevratná a smaže všechny související položky.
+                    </p>
+                    <div className="flex justify-end space-x-3">
+                        <button
+                            onClick={() => setShowDeleteConfirm(false)}
+                            className="px-4 py-2 text-gray-700 border rounded-lg hover:bg-gray-50"
+                            disabled={isDeleting}
+                        >
+                            Zrušit
+                        </button>
+                        <button
+                            onClick={handleDeleteOrder}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                            disabled={isDeleting}
+                        >
+                            {isDeleting ? (
+                                <span className="flex items-center">
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Mazání...
+                                </span>
+                            ) : (
+                                'Smazat objednávku'
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     if (isLoading) {
@@ -278,7 +353,7 @@ const OrderDetailPage = () => {
                     )}
 
                     {/* Položky objednávky */}
-                    <div>
+                    <div className="mb-6">
                         <h2 className="text-lg font-semibold mb-3">Položky objednávky</h2>
                         <div className="border rounded-lg overflow-hidden">
                             <table className="min-w-full divide-y divide-gray-200">
@@ -307,8 +382,26 @@ const OrderDetailPage = () => {
                             </table>
                         </div>
                     </div>
+
+                    {/* Tlačítko pro smazání objednávky */}
+                    <div className="border-t pt-6 mt-6">
+                        <button
+                            onClick={() => setShowDeleteConfirm(true)}
+                            className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                            disabled={isDeleting}
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Smazat objednávku
+                        </button>
+                        <p className="text-sm text-gray-500 mt-2">
+                            Tato akce je nevratná a smaže objednávku včetně všech položek.
+                        </p>
+                    </div>
                 </div>
             </div>
+
+            {/* Potvrzovací dialog pro smazání */}
+            <DeleteConfirmationDialog />
         </div>
     );
 };
