@@ -4,18 +4,18 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
-import { ArrowLeft, User, Calendar, Mail, Building, Phone, MapPin, FileText } from 'lucide-react';
+import { ArrowLeft, User, Calendar, Mail, Building, Phone, MapPin, FileText, Loader2 } from 'lucide-react';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
-import type { UserProfile } from '@/types/auth';
+import { toast } from 'react-toastify';
 
 const UserDetailPage = () => {
     const router = useRouter();
     const params = useParams();
     const userId = params.id as string;
 
-    const [profile, setProfile] = useState<UserProfile | null>(null);
+    const [profile, setProfile] = useState<any>(null);
     const [orders, setOrders] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,7 @@ const UserDetailPage = () => {
             setError(null);
 
             try {
-                // 1. Načtení profilu uživatele
+                // 1. Načtení profilu uživatele ze Supabase
                 const { data: profileData, error: profileError } = await supabase
                     .from('profiles')
                     .select('*')
@@ -43,21 +43,32 @@ const UserDetailPage = () => {
 
                 setProfile(profileData);
 
-                // 2. Načtení objednávek uživatele
-                const { data: ordersData, error: ordersError } = await supabase
-                    .from('orders')
-                    .select('*')
-                    .eq('user_id', userId)
-                    .order('created_at', { ascending: false });
+                // 2. Načtení všech objednávek přes API a následná filtrace
+                // Použijeme stejný přístup jako v admin/orders/page.tsx
+                const timestamp = Date.now();
+                const ordersResponse = await fetch(`/api/orders?t=${timestamp}`, {
+                    cache: 'no-store',
+                    headers: {
+                        'Pragma': 'no-cache',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    }
+                });
 
-                if (ordersError) {
-                    console.error('Chyba při načítání objednávek:', ordersError);
-                } else {
-                    setOrders(ordersData || []);
+                if (!ordersResponse.ok) {
+                    throw new Error(`API error: ${ordersResponse.status}`);
                 }
+
+                const allOrders = await ordersResponse.json();
+
+                // Filtrujeme objednávky pro konkrétního uživatele
+                const userOrders = allOrders.filter((order: any) => order.user_id === userId);
+                console.log(`Nalezeno ${userOrders.length} objednávek pro uživatele ${userId}`);
+                setOrders(userOrders);
+
             } catch (err) {
                 console.error('Chyba při načítání dat uživatele:', err);
                 setError(err instanceof Error ? err.message : 'Nepodařilo se načíst data uživatele');
+                toast.error('Chyba při načítání dat uživatele');
             } finally {
                 setIsLoading(false);
             }
@@ -99,7 +110,7 @@ const UserDetailPage = () => {
         }
     };
 
-    // Vypočtení statistik z načtených objednávek
+    // Výpočet statistik z objednávek
     const calculateStats = () => {
         const totalCount = orders.length;
         const confirmedCount = orders.filter(order => order.status === 'confirmed').length;
@@ -127,7 +138,7 @@ const UserDetailPage = () => {
     if (isLoading) {
         return (
             <div className="max-w-4xl mx-auto p-6 flex justify-center items-center min-h-[50vh]">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-2"></div>
+                <Loader2 className="h-8 w-8 mr-2 animate-spin text-blue-600" />
                 <span>Načítání informací o uživateli...</span>
             </div>
         );
@@ -180,32 +191,32 @@ const UserDetailPage = () => {
                             </h2>
                             <div className="space-y-3">
                                 <div>
-                                    <span className="text-sm font-medium text-gray-700">Jméno</span>
+                                    <span className="text-sm font-medium text-gray-700">Jméno:</span>
                                     <p className="font-medium text-gray-900">{profile?.full_name || 'Neuvedeno'}</p>
                                 </div>
                                 <div>
-                                    <span className="text-sm font-medium text-gray-700">Email</span>
+                                    <span className="text-sm font-medium text-gray-700">Email:</span>
                                     <p className="font-medium text-gray-900 flex items-center">
                                         <Mail className="w-4 h-4 mr-1 text-gray-500" />
                                         {profile?.email}
                                     </p>
                                 </div>
                                 <div>
-                                    <span className="text-sm font-medium text-gray-700">Telefon</span>
+                                    <span className="text-sm font-medium text-gray-700">Telefon:</span>
                                     <p className="font-medium text-gray-900 flex items-center">
                                         <Phone className="w-4 h-4 mr-1 text-gray-500" />
                                         {profile?.phone || 'Neuvedeno'}
                                     </p>
                                 </div>
                                 <div>
-                                    <span className="text-sm font-medium text-gray-700">Společnost</span>
+                                    <span className="text-sm font-medium text-gray-700">Společnost:</span>
                                     <p className="font-medium text-gray-900 flex items-center">
                                         <Building className="w-4 h-4 mr-1 text-gray-500" />
                                         {profile?.company || 'Neuvedeno'}
                                     </p>
                                 </div>
                                 <div>
-                                    <span className="text-sm font-medium text-gray-700">Registrace</span>
+                                    <span className="text-sm font-medium text-gray-700">Registrace:</span>
                                     <p className="font-medium text-gray-900 flex items-center">
                                         <Calendar className="w-4 h-4 mr-1 text-gray-500" />
                                         {formatDate(profile?.created_at)}
@@ -222,15 +233,15 @@ const UserDetailPage = () => {
                             </h2>
                             <div className="space-y-3">
                                 <div>
-                                    <span className="text-sm font-medium text-gray-700">Adresa</span>
+                                    <span className="text-sm font-medium text-gray-700">Adresa:</span>
                                     <p className="font-medium text-gray-900">{profile?.address || 'Neuvedeno'}</p>
                                 </div>
                                 <div>
-                                    <span className="text-sm font-medium text-gray-700">Město</span>
+                                    <span className="text-sm font-medium text-gray-700">Město:</span>
                                     <p className="font-medium text-gray-900">{profile?.city || 'Neuvedeno'}</p>
                                 </div>
                                 <div>
-                                    <span className="text-sm font-medium text-gray-700">PSČ</span>
+                                    <span className="text-sm font-medium text-gray-700">PSČ:</span>
                                     <p className="font-medium text-gray-900">{profile?.postal_code || 'Neuvedeno'}</p>
                                 </div>
                             </div>
