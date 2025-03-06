@@ -104,14 +104,14 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                 <button
                     onClick={() => product.in_stock && onAddToCart(product.id, volume)}
                     disabled={!product.in_stock}
-                    className={`w-full px-2 py-1 text-xs border rounded-md
-                             transition-colors duration-150 ${
-                            isInCart
-                                ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100'
-                                : product.in_stock
-                                    ? 'bg-white text-gray-900 border-gray-300 hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100'
-                                    : 'opacity-50 cursor-not-allowed text-gray-500'
-                        }`}
+                    className={`w-full px-2 py-1 text-xs border rounded-md min-w-[40px]
+             transition-colors duration-150 ${
+            isInCart
+                ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100'
+                : product.in_stock
+                    ? 'bg-white text-gray-900 border-gray-300 hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100'
+                    : 'opacity-50 cursor-not-allowed text-gray-500'
+        }`}    
                 >
                     {label}
                 </button>
