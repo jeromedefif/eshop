@@ -86,6 +86,7 @@ export interface AdminOrdersProps {
     orders: Order[];
     onOrdersChange: () => Promise<void>;
     onExportOrders: () => Promise<void>;
+    onSearch?: (query: string) => void;
 }
 
 export interface OrderConfirmationProps {
@@ -130,4 +131,16 @@ export interface AddProductFormProps {
     onSave: (formData: ProductFormData) => void;
     onCancel: () => void;
     isLoading: boolean;
+}
+
+export interface PaginationInfo {
+    page: number;
+    pageSize: number;
+    totalOrders: number;
+    hasMore: boolean;
+}
+
+export interface OrdersApiResponse {
+    orders: Order[];
+    pagination: PaginationInfo;
 }

@@ -1,26 +1,62 @@
-// Úprava v souboru app/components/AdminOrders.tsx
-
 'use client';
 
-import React, { useState } from 'react';
-import { Search, X, Download, RefreshCw, FileSpreadsheet } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, X, Download, RefreshCw, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 import type { Order, AdminOrdersProps } from '../types/orders';
 
-export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: AdminOrdersProps) {
+export default function AdminOrders({
+  orders,
+  onOrdersChange,
+  onExportOrders,
+  onSearch  // Callback funkce pro vyhledávání
+}: AdminOrdersProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isSearching, setIsSearching] = useState(false); // Nový stav pro indikátor vyhledávání
     const [isExportingExcel, setIsExportingExcel] = useState(false);
     const [isExportingCsv, setIsExportingCsv] = useState(false);
     const router = useRouter();
 
-    const filteredOrders = orders.filter(order =>
-        order.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customer_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.id.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Použijeme useRef pro předchozí hodnotu searchQuery
+    const prevSearchQueryRef = useRef('');
+
+    // Debounce timer reference
+    const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Upravená implementace vyhledávání s debounce - zvýšený interval na 1200ms
+    useEffect(() => {
+        // Zrušit předchozí timeout pokud existuje
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+
+        // Nastavení nového timeoutu s delším intervalem
+        searchTimeoutRef.current = setTimeout(() => {
+            // Pouze pokud se query skutečně změnila
+            if (searchQuery !== prevSearchQueryRef.current) {
+                setIsSearching(true); // Začátek vyhledávání
+                if (onSearch) {
+                    onSearch(searchQuery).finally(() => {
+                        setIsSearching(false); // Konec vyhledávání
+                    });
+                } else {
+                    setIsSearching(false);
+                }
+                // Aktualizujeme referenci na předchozí hodnotu
+                prevSearchQueryRef.current = searchQuery;
+            }
+        }, 1200); // Zvýšeno z 500ms na 1200ms pro lepší UX
+
+        // Čištění při unmount
+        return () => {
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+            }
+        };
+    }, [searchQuery, onSearch]);
 
     const handleRefreshOrders = async () => {
         if (isRefreshing) return;
@@ -235,30 +271,44 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
             <div className="mb-6">
                 <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Search className="h-5 w-5 text-gray-400" />
+                        {isSearching ? (
+                            <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
+                        ) : (
+                            <Search className="h-5 w-5 text-gray-400" />
+                        )}
                     </div>
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Vyhledat objednávku..."
-                        className="block w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg
-                                 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                        className={`block w-full pl-10 pr-4 py-2 border rounded-lg
+                                 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900
+                                 ${isSearching ? 'border-blue-300 bg-blue-50' : ''}`}
                     />
                     {searchQuery && (
                         <button
-                            onClick={() => setSearchQuery('')}
+                            onClick={() => {
+                                setSearchQuery('');
+                                // Resetujeme vyhledávání při smazání dotazu
+                                if (onSearch) onSearch('');
+                            }}
                             className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
                         >
                             <X className="h-5 w-5" />
                         </button>
                     )}
                 </div>
+                {isSearching && (
+                    <div className="mt-1 text-xs text-blue-600">
+                        Vyhledávání...
+                    </div>
+                )}
             </div>
 
             {/* Mobilní zobrazení - karty */}
             <div className="md:hidden">
-                {filteredOrders.length === 0 ? (
+                {orders.length === 0 ? (
                     <div className="bg-white rounded-lg p-8 text-center">
                         <Search className="h-10 w-10 text-gray-400 mx-auto mb-2" />
                         <p className="text-gray-600 text-base">
@@ -268,7 +318,10 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
                         </p>
                         {searchQuery && (
                             <button
-                                onClick={() => setSearchQuery('')}
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    if (onSearch) onSearch('');
+                                }}
                                 className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
                             >
                                 Zobrazit všechny objednávky
@@ -277,7 +330,7 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {filteredOrders.map((order) => (
+                        {orders.map((order) => (
                             <OrderCard key={order.id} order={order} />
                         ))}
                     </div>
@@ -297,7 +350,7 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredOrders.length === 0 ? (
+                            {orders.length === 0 ? (
                                 <tr>
                                     <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
                                         {searchQuery
@@ -306,7 +359,7 @@ export default function AdminOrders({ orders, onOrdersChange, onExportOrders }: 
                                     </td>
                                 </tr>
                             ) : (
-                                filteredOrders.map((order) => {
+                                orders.map((order) => {
                                     const dateTime = formatDateTime(order.created_at);
                                     return (
                                         <tr key={order.id} className="hover:bg-gray-50">
