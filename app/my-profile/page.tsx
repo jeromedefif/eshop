@@ -92,9 +92,8 @@ export default function MyProfilePage() {
             await updateProfile(formData);
             await refreshProfile();
 
-            // Zobrazíme zprávu o úspěchu
+            // Zobrazíme zprávu o úspěchu - pouze interní zprávu, ne toast
             setSuccessMessage('Profil byl úspěšně aktualizován');
-            toast.success('Profil byl úspěšně aktualizován');
 
             // Aktualizujeme originalData - důležité pro reset stavu tlačítka
             setOriginalData({...formData});
@@ -107,7 +106,7 @@ export default function MyProfilePage() {
         } catch (error) {
             console.error('Error updating profile:', error);
             setError(error instanceof Error ? error.message : 'Chyba při aktualizaci profilu');
-            toast.error('Nepodařilo se aktualizovat profil');
+            // Odstranili jsme toast notifikaci při chybě
         } finally {
             setIsLoading(false);
         }
@@ -140,7 +139,7 @@ export default function MyProfilePage() {
 
                 <div className="mb-8 border-b pb-4">
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">Můj profil</h1>
-                    <p className="text-gray-600">Aktualizujte své kontaktní údaje a dodací adresu pro objednávky.</p>
+                    <p className="text-gray-600">Aktualizujte své kontaktní údaje a adresu pro objednávky.</p>
                 </div>
 
                 {/* Email uživatele - needitovatelné pole */}
