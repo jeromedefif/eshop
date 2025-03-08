@@ -18,52 +18,57 @@ export default function LoginPage() {
     const searchParams = useSearchParams();
 
     // Detekce URL parametru verified=true a nastavení zobrazení zprávy
-    // Hook pro detekci verifikace emailu a přesměrování přihlášeného uživatele
-  useEffect(() => {
-      // Ověříme, zda přicházíme z verifikačního emailu
-      const isVerified = searchParams.get('verified') === 'true';
+    // Hook pro detekci verifikace emailu a načtení uloženého emailu
+useEffect(() => {
+    // Ověříme, zda přicházíme z verifikačního emailu
+    const isVerified = searchParams.get('verified') === 'true';
 
-      if (isVerified) {
-          // Zobrazit zprávu o úspěšné verifikaci
-          setShowVerificationMessage(true);
-      }
+    if (isVerified) {
+        // Zobrazit zprávu o úspěšné verifikaci
+        setShowVerificationMessage(true);
+    }
 
-      // Načtení uloženého emailu z localStorage, pokud existuje
-      const savedEmail = localStorage.getItem('lastLoginEmail');
-      if (savedEmail) {
-          setEmail(savedEmail);
-      }
-  }, [searchParams]);
+    // Načtení uloženého emailu z localStorage, pokud existuje
+    const savedEmail = localStorage.getItem('lastLoginEmail');
+    if (savedEmail) {
+        setEmail(savedEmail);
+    }
+}, [searchParams]);
 
-  // Oddělený hook pro přesměrování, který respektuje verifikační parametr
-  useEffect(() => {
-      // Ověříme, zda přicházíme z verifikačního emailu
-      const isVerified = searchParams.get('verified') === 'true';
+// Sledování stavu přihlášení a přesměrování po úspěšném přihlášení
+useEffect(() => {
+    // Pokud je uživatel přihlášen, je čas přesměrovat
+    if (user) {
+        // Přidáme malé zpoždění pro zobrazení úspěšného přihlášení
+        const redirectTimer = setTimeout(() => {
+            router.push('/');
+        }, 1000); // 1 sekunda zpoždění pro zobrazení zprávy o úspěšném přihlášení
 
-      // Přesměrujeme pouze pokud je uživatel přihlášen a NENÍ z verifikačního emailu
-      if (user && !isVerified) {
-          router.push('/');
-      }
-  }, [user, router, searchParams]);
+        // Uklidit časovač, pokud se komponenta odmontuje
+        return () => clearTimeout(redirectTimer);
+    }
+}, [user, router]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setIsLoading(true);
+// Funkce pro přihlášení
+const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
 
-        try {
-            await signIn(email, password);
-            // Uložíme email pro příští přihlášení
-            localStorage.setItem('lastLoginEmail', email);
-            // Uživatel bude automaticky přesměrován díky useEffect výše
-        } catch (error) {
-            console.error('Sign in error:', error);
-            setError(error instanceof Error ? error.message : 'Chyba při přihlašování');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    try {
+        await signIn(email, password);
+        // Uložíme email pro příští přihlášení
+        localStorage.setItem('lastLoginEmail', email);
 
+        // Přidáme explicitní přesměrování přímo zde
+        router.push('/');
+    } catch (error) {
+        console.error('Sign in error:', error);
+        setError(error instanceof Error ? error.message : 'Chyba při přihlašování');
+    } finally {
+        setIsLoading(false);
+    }
+};
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
     };
