@@ -100,7 +100,7 @@ export default function RegisterPage() {
         try {
             // KLÍČOVÁ ZMĚNA: Úprava URL pro přesměrování po verifikaci emailu
             // Přesměruje na přihlašovací stránku místo automatického přihlášení
-            const redirectUrl = `${window.location.origin}/login?verified=true`;
+            const redirectUrl = `https://www.beginy.cz/login?verified=true`;
 
             const signUpData: SignUpData = {
                 email: formData.email,
