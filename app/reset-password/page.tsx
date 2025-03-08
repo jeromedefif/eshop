@@ -25,8 +25,55 @@ export default function ResetPasswordPage() {
         }
     }, [password, confirmPassword]);
 
-    // KLÍČOVÁ ZMĚNA: Odstraníme kontrolu session, která nás přesměrovává zpět na login
-    // Místo toho necháme uživatele pracovat se stránkou i bez aktivní session
+    // Upravíme zpracování změny hesla - jednodušší implementace
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (password !== confirmPassword) {
+            setError('Hesla se neshodují');
+            return;
+        }
+
+        if (password.length < 6) {
+            setError('Heslo musí obsahovat alespoň 6 znaků');
+            return;
+        }
+
+        setIsLoading(true);
+        setError('');
+
+        try {
+            // Aktualizace hesla přes Supabase API
+            const { error } = await supabase.auth.updateUser({
+                password: password
+            });
+
+            if (error) throw error;
+
+            // Při úspěchu zobrazíme potvrzení
+            setIsSuccess(true);
+
+            // Po 3 sekundách přesměrujeme na přihlášení
+            setTimeout(() => {
+                router.push('/login');
+            }, 3000);
+        } catch (error) {
+            console.error('Error updating password:', error);
+
+            // Přesnější informace o chybě pro uživatele
+            if (error instanceof Error) {
+                if (error.message.includes('session')) {
+                    setError('Relace pro reset hesla vypršela nebo chybí. Zkuste prosím znovu požádat o reset hesla.');
+                } else {
+                    setError(error.message);
+                }
+            } else {
+                setError('Nepodařilo se změnit heslo');
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
