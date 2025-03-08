@@ -25,7 +25,10 @@ export default function ResetPasswordPage() {
         }
     }, [password, confirmPassword]);
 
-    // Upravíme zpracování změny hesla - jednodušší implementace
+    const togglePasswordVisibility = () => {
+        setShowPassword(!showPassword);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -70,49 +73,6 @@ export default function ResetPasswordPage() {
             } else {
                 setError('Nepodařilo se změnit heslo');
             }
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const togglePasswordVisibility = () => {
-        setShowPassword(!showPassword);
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (password !== confirmPassword) {
-            setError('Hesla se neshodují');
-            return;
-        }
-
-        if (password.length < 6) {
-            setError('Heslo musí obsahovat alespoň 6 znaků');
-            return;
-        }
-
-        setIsLoading(true);
-        setError('');
-
-        try {
-            // Aktualizace hesla přes Supabase API
-            const { error } = await supabase.auth.updateUser({
-                password: password
-            });
-
-            if (error) throw error;
-
-            // Při úspěchu zobrazíme potvrzení
-            setIsSuccess(true);
-
-            // Po 3 sekundách přesměrujeme na přihlášení
-            setTimeout(() => {
-                router.push('/login');
-            }, 3000);
-        } catch (error) {
-            console.error('Error updating password:', error);
-            setError(error instanceof Error ? error.message : 'Nepodařilo se změnit heslo');
         } finally {
             setIsLoading(false);
         }
