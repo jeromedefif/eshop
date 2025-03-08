@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle, Mail, Lock, LogIn, User, Eye, EyeOff, Wine } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Mail, Lock, LogIn, Eye, EyeOff, Wine, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -18,57 +18,57 @@ export default function LoginPage() {
     const searchParams = useSearchParams();
 
     // Detekce URL parametru verified=true a nastavení zobrazení zprávy
-    // Hook pro detekci verifikace emailu a načtení uloženého emailu
-useEffect(() => {
-    // Ověříme, zda přicházíme z verifikačního emailu
-    const isVerified = searchParams.get('verified') === 'true';
+    useEffect(() => {
+        // Ověříme, zda přicházíme z verifikačního emailu
+        const isVerified = searchParams.get('verified') === 'true';
 
-    if (isVerified) {
-        // Zobrazit zprávu o úspěšné verifikaci
-        setShowVerificationMessage(true);
-    }
+        if (isVerified) {
+            // Zobrazit zprávu o úspěšné verifikaci
+            setShowVerificationMessage(true);
+        }
 
-    // Načtení uloženého emailu z localStorage, pokud existuje
-    const savedEmail = localStorage.getItem('lastLoginEmail');
-    if (savedEmail) {
-        setEmail(savedEmail);
-    }
-}, [searchParams]);
+        // Načtení uloženého emailu z localStorage, pokud existuje
+        const savedEmail = localStorage.getItem('lastLoginEmail');
+        if (savedEmail) {
+            setEmail(savedEmail);
+        }
+    }, [searchParams]);
 
-// Sledování stavu přihlášení a přesměrování po úspěšném přihlášení
-useEffect(() => {
-    // Pokud je uživatel přihlášen, je čas přesměrovat
-    if (user) {
-        // Přidáme malé zpoždění pro zobrazení úspěšného přihlášení
-        const redirectTimer = setTimeout(() => {
+    // Sledování stavu přihlášení a přesměrování po úspěšném přihlášení
+    useEffect(() => {
+        // Pokud je uživatel přihlášen, je čas přesměrovat
+        if (user) {
+            // Přidáme malé zpoždění pro zobrazení úspěšného přihlášení
+            const redirectTimer = setTimeout(() => {
+                router.push('/');
+            }, 1000); // 1 sekunda zpoždění pro zobrazení zprávy o úspěšném přihlášení
+
+            // Uklidit časovač, pokud se komponenta odmontuje
+            return () => clearTimeout(redirectTimer);
+        }
+    }, [user, router]);
+
+    // Funkce pro přihlášení
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+
+        try {
+            await signIn(email, password);
+            // Uložíme email pro příští přihlášení
+            localStorage.setItem('lastLoginEmail', email);
+
+            // Přidáme explicitní přesměrování přímo zde
             router.push('/');
-        }, 1000); // 1 sekunda zpoždění pro zobrazení zprávy o úspěšném přihlášení
+        } catch (error) {
+            console.error('Sign in error:', error);
+            setError(error instanceof Error ? error.message : 'Chyba při přihlašování');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-        // Uklidit časovač, pokud se komponenta odmontuje
-        return () => clearTimeout(redirectTimer);
-    }
-}, [user, router]);
-
-// Funkce pro přihlášení
-const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    try {
-        await signIn(email, password);
-        // Uložíme email pro příští přihlášení
-        localStorage.setItem('lastLoginEmail', email);
-
-        // Přidáme explicitní přesměrování přímo zde
-        router.push('/');
-    } catch (error) {
-        console.error('Sign in error:', error);
-        setError(error instanceof Error ? error.message : 'Chyba při přihlašování');
-    } finally {
-        setIsLoading(false);
-    }
-};
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
     };
@@ -157,14 +157,15 @@ const handleSubmit = async (e: React.FormEvent) => {
 
                     {error && (
                         <div className="p-4 bg-red-50 text-red-600 rounded-lg text-sm flex items-start">
-                            <div className="flex-shrink-0 w-5 h-5 mr-2 text-red-500">⚠️</div>
+                            <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
                             <div>{error}</div>
                         </div>
                     )}
 
                     <div className="flex justify-between items-center">
                         <div className="text-sm">
-                            <Link href="/reset-password" className="text-blue-600 hover:text-blue-800 font-medium">
+                            {/* Odkaz na obnovení hesla */}
+                            <Link href="/forgot-password" className="text-blue-600 hover:text-blue-800 font-medium">
                                 Zapomenuté heslo?
                             </Link>
                         </div>
