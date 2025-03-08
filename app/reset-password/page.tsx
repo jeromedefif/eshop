@@ -17,7 +17,7 @@ export default function ResetPasswordPage() {
     const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState('');
     const [passwordsMatch, setPasswordsMatch] = useState<boolean | null>(null);
-    const [sessionEstablished, setSessionEstablished] = useState(false);
+    const [hasValidToken, setHasValidToken] = useState(false);
 
     // Detekce, zda se hesla shodují
     useEffect(() => {
@@ -30,63 +30,90 @@ export default function ResetPasswordPage() {
 
     // Zpracování tokenu z URL
     useEffect(() => {
-        const processToken = async () => {
+        async function checkTokenAndSession() {
             setIsProcessingToken(true);
+
             try {
-                // Zkontrolujeme, zda není v URL token pro reset hesla
-                const hashParams = new URLSearchParams(window.location.hash.substring(1));
-                const queryParams = new URLSearchParams(window.location.search);
+                // Zjistíme, zda máme platnou session nebo token
+                const { data: { session } } = await supabase.auth.getSession();
 
-                // Token může být v hash části URL nebo v query parametrech
-                const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
-                const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
-                const type = hashParams.get('type') || queryParams.get('type');
+                // Získáme parametry z URL
+                // Supabase posílá:
+                // 1. flow_token (klíčový pro flow recovery)
+                // 2. token_hash
+                // 3. type=recovery (pokud jde o reset hesla)
+                // 4. error (pokud došlo k chybě)
+                const flowToken = searchParams.get('flow_token');
+                const tokenHash = searchParams.get('token_hash');
+                const type = searchParams.get('type');
+                const errorParam = searchParams.get('error');
+                const errorDescription = searchParams.get('error_description');
 
-                console.log("URL parametry:", {
-                    hasAccessToken: !!accessToken,
-                    hasRefreshToken: !!refreshToken,
+                // Logování pro diagnostiku
+                console.log('URL parametry pro reset hesla:', {
+                    flowToken: !!flowToken,
+                    tokenHash: !!tokenHash,
                     type,
-                    hash: window.location.hash,
-                    search: window.location.search
+                    errorParam,
+                    errorDescription,
+                    hasSession: !!session
                 });
 
-                // Pokud máme token, nastavíme session
-                if (accessToken && type === 'recovery') {
-                    const { data, error } = await supabase.auth.setSession({
-                        access_token: accessToken,
-                        refresh_token: refreshToken || ''
-                    });
-
-                    if (error) {
-                        console.error("Chyba při nastavení session:", error);
-                        setError("Chyba při nastavení session. Zkuste znovu požádat o reset hesla.");
-                        return;
-                    }
-
-                    if (data.session) {
-                        console.log("Session byla nastavena");
-                        setSessionEstablished(true);
-                    }
+                // Kontrola, zda máme chybu z Supabase
+                if (errorParam) {
+                    setError(`Chyba z autentizace: ${errorParam}${errorDescription ? `: ${errorDescription}` : ''}`);
+                    console.error('Chyba autentizace:', { error: errorParam, description: errorDescription });
+                    setHasValidToken(false);
+                    setIsProcessingToken(false);
+                    return;
                 }
 
-                // Pokud nemáme token, zkontrolujeme, zda máme platnou session
-                const { data } = await supabase.auth.getSession();
-                if (data.session) {
-                    console.log("Máme platnou session");
-                    setSessionEstablished(true);
+                // Situace, kdy máme aktivní session (uživatel je přihlášený)
+                if (session) {
+                    console.log('Máme platnou session, povolíme reset hesla');
+                    setHasValidToken(true);
+                    setIsProcessingToken(false);
+                    return;
+                }
+
+                // Situace, kdy máme flow token a typ je recovery
+                if (flowToken && type === 'recovery') {
+                    // Pokusíme se ověřit flow token
+                    try {
+                        const { data, error } = await supabase.auth.verifyOtp({
+                            token_hash: tokenHash || '',
+                            type: 'recovery',
+                        });
+
+                        if (error) {
+                            console.error('Chyba při ověřování flow tokenu:', error);
+                            setError('Odkaz pro obnovení hesla je neplatný nebo vypršel. Zkuste to prosím znovu.');
+                            setHasValidToken(false);
+                        } else {
+                            console.log('Flow token byl úspěšně ověřen:', data);
+                            setHasValidToken(true);
+                        }
+                    } catch (e) {
+                        console.error('Výjimka při ověřování flow tokenu:', e);
+                        setError('Nastala chyba při zpracování tokenu pro obnovení hesla.');
+                        setHasValidToken(false);
+                    }
                 } else {
-                    console.log("Nemáme platnou session");
-                    setError("Pro nastavení nového hesla je nutné mít platný odkaz z emailu.");
+                    // Nemáme platný token ani session
+                    console.warn('Chybí platný token nebo session pro reset hesla');
+                    setError('Pro nastavení nového hesla je nutné mít platný odkaz z emailu.');
+                    setHasValidToken(false);
                 }
             } catch (e) {
-                console.error("Chyba při zpracování tokenu:", e);
-                setError("Došlo k chybě při zpracování přihlašovacích údajů.");
+                console.error('Chyba při kontrole tokenu a session:', e);
+                setError('Došlo k chybě při zpracování požadavku na reset hesla.');
+                setHasValidToken(false);
             } finally {
                 setIsProcessingToken(false);
             }
-        };
+        }
 
-        processToken();
+        checkTokenAndSession();
     }, [searchParams]);
 
     const togglePasswordVisibility = () => {
@@ -181,13 +208,13 @@ export default function ResetPasswordPage() {
                             </div>
                         </div>
                     </div>
-                ) : error && !sessionEstablished ? (
+                ) : !hasValidToken ? (
                     <div className="bg-red-50 p-6 rounded-lg">
                         <div className="flex items-start">
                             <AlertCircle className="w-6 h-6 text-red-500 mr-3 mt-0.5 flex-shrink-0" />
                             <div>
                                 <h2 className="text-lg font-semibold text-gray-900 mb-2">Chyba při zpracování požadavku</h2>
-                                <p className="text-gray-700 mb-4">{error}</p>
+                                <p className="text-gray-700 mb-4">{error || 'Pro nastavení nového hesla je nutné mít platný odkaz z emailu.'}</p>
                                 <Link
                                     href="/forgot-password"
                                     className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"

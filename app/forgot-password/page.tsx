@@ -23,10 +23,24 @@ export default function ForgotPasswordPage() {
         setError('');
 
         try {
-            // Přesměrování přímo na stránku pro reset hesla
-            // ⚠️ DŮLEŽITÉ! Toto obchází callback handler a zpracuje token přímo na stránce reset-password
+            // Nejprve získáme aktuální adresu webu
+            let siteUrl = '';
+
+            // V produkci použijeme SITE_URL z env, jinak použijeme aktuální origin
+            if (process.env.NEXT_PUBLIC_SITE_URL) {
+                siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+            } else {
+                siteUrl = window.location.origin;
+            }
+
+            console.log('Odesílání žádosti o reset hesla:', {
+                email,
+                redirectUrl: `${siteUrl}/reset-password`
+            });
+
+            // Použití oficiálního API pro reset hesla
             const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/reset-password`,
+                redirectTo: `${siteUrl}/reset-password`
             });
 
             if (error) throw error;
