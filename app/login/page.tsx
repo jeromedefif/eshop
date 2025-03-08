@@ -18,26 +18,33 @@ export default function LoginPage() {
     const searchParams = useSearchParams();
 
     // Detekce URL parametru verified=true a nastavení zobrazení zprávy
-    useEffect(() => {
-        // Pokud je parametr verified=true, zobrazíme zprávu o úspěšné verifikaci
-        const isVerified = searchParams.get('verified') === 'true';
-        if (isVerified) {
-            setShowVerificationMessage(true);
-        }
+    // Hook pro detekci verifikace emailu a přesměrování přihlášeného uživatele
+  useEffect(() => {
+      // Ověříme, zda přicházíme z verifikačního emailu
+      const isVerified = searchParams.get('verified') === 'true';
 
-        // Načtení uloženého emailu z localStorage, pokud existuje
-        const savedEmail = localStorage.getItem('lastLoginEmail');
-        if (savedEmail) {
-            setEmail(savedEmail);
-        }
-    }, [searchParams]);
+      if (isVerified) {
+          // Zobrazit zprávu o úspěšné verifikaci
+          setShowVerificationMessage(true);
+      }
 
-    // Přesměrování přihlášeného uživatele na hlavní stránku
-    useEffect(() => {
-        if (user) {
-            router.push('/');
-        }
-    }, [user, router]);
+      // Načtení uloženého emailu z localStorage, pokud existuje
+      const savedEmail = localStorage.getItem('lastLoginEmail');
+      if (savedEmail) {
+          setEmail(savedEmail);
+      }
+  }, [searchParams]);
+
+  // Oddělený hook pro přesměrování, který respektuje verifikační parametr
+  useEffect(() => {
+      // Ověříme, zda přicházíme z verifikačního emailu
+      const isVerified = searchParams.get('verified') === 'true';
+
+      // Přesměrujeme pouze pokud je uživatel přihlášen a NENÍ z verifikačního emailu
+      if (user && !isVerified) {
+          router.push('/');
+      }
+  }, [user, router, searchParams]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
