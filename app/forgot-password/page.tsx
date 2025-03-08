@@ -23,10 +23,10 @@ export default function ForgotPasswordPage() {
         setError('');
 
         try {
-            // KLÍČOVÁ ZMĚNA: Přesměrujeme na /auth/callback namísto přímo na /reset-password
-            // Toto je důležité, protože /auth/callback zpracuje autentizační token a vytvoří session
+            // Přesměrování přímo na stránku pro reset hesla
+            // ⚠️ DŮLEŽITÉ! Toto obchází callback handler a zpracuje token přímo na stránce reset-password
             const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+                redirectTo: `${window.location.origin}/reset-password`,
             });
 
             if (error) throw error;

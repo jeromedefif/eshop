@@ -2,19 +2,22 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Lock, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function ResetPasswordPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isProcessingToken, setIsProcessingToken] = useState(true);
     const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState('');
     const [passwordsMatch, setPasswordsMatch] = useState<boolean | null>(null);
+    const [sessionEstablished, setSessionEstablished] = useState(false);
 
     // Detekce, zda se hesla shodují
     useEffect(() => {
@@ -24,6 +27,67 @@ export default function ResetPasswordPage() {
             setPasswordsMatch(null);
         }
     }, [password, confirmPassword]);
+
+    // Zpracování tokenu z URL
+    useEffect(() => {
+        const processToken = async () => {
+            setIsProcessingToken(true);
+            try {
+                // Zkontrolujeme, zda není v URL token pro reset hesla
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                const queryParams = new URLSearchParams(window.location.search);
+
+                // Token může být v hash části URL nebo v query parametrech
+                const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
+                const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
+                const type = hashParams.get('type') || queryParams.get('type');
+
+                console.log("URL parametry:", {
+                    hasAccessToken: !!accessToken,
+                    hasRefreshToken: !!refreshToken,
+                    type,
+                    hash: window.location.hash,
+                    search: window.location.search
+                });
+
+                // Pokud máme token, nastavíme session
+                if (accessToken && type === 'recovery') {
+                    const { data, error } = await supabase.auth.setSession({
+                        access_token: accessToken,
+                        refresh_token: refreshToken || ''
+                    });
+
+                    if (error) {
+                        console.error("Chyba při nastavení session:", error);
+                        setError("Chyba při nastavení session. Zkuste znovu požádat o reset hesla.");
+                        return;
+                    }
+
+                    if (data.session) {
+                        console.log("Session byla nastavena");
+                        setSessionEstablished(true);
+                    }
+                }
+
+                // Pokud nemáme token, zkontrolujeme, zda máme platnou session
+                const { data } = await supabase.auth.getSession();
+                if (data.session) {
+                    console.log("Máme platnou session");
+                    setSessionEstablished(true);
+                } else {
+                    console.log("Nemáme platnou session");
+                    setError("Pro nastavení nového hesla je nutné mít platný odkaz z emailu.");
+                }
+            } catch (e) {
+                console.error("Chyba při zpracování tokenu:", e);
+                setError("Došlo k chybě při zpracování přihlašovacích údajů.");
+            } finally {
+                setIsProcessingToken(false);
+            }
+        };
+
+        processToken();
+    }, [searchParams]);
 
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
@@ -78,6 +142,18 @@ export default function ResetPasswordPage() {
         }
     };
 
+    // Zobrazíme loading stav během zpracování tokenu
+    if (isProcessingToken) {
+        return (
+            <div className="min-h-screen bg-gray-50 py-12 flex items-center justify-center">
+                <div className="bg-white p-8 rounded-lg shadow-md text-center">
+                    <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
+                    <p className="text-lg text-gray-700">Zpracování požadavku pro obnovení hesla...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gray-50 py-12">
             <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
@@ -102,6 +178,22 @@ export default function ResetPasswordPage() {
                                 <p className="text-gray-700">
                                     Vaše heslo bylo úspěšně změněno. Nyní budete přesměrováni na přihlašovací stránku.
                                 </p>
+                            </div>
+                        </div>
+                    </div>
+                ) : error && !sessionEstablished ? (
+                    <div className="bg-red-50 p-6 rounded-lg">
+                        <div className="flex items-start">
+                            <AlertCircle className="w-6 h-6 text-red-500 mr-3 mt-0.5 flex-shrink-0" />
+                            <div>
+                                <h2 className="text-lg font-semibold text-gray-900 mb-2">Chyba při zpracování požadavku</h2>
+                                <p className="text-gray-700 mb-4">{error}</p>
+                                <Link
+                                    href="/forgot-password"
+                                    className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                >
+                                    Zkusit znovu
+                                </Link>
                             </div>
                         </div>
                     </div>
