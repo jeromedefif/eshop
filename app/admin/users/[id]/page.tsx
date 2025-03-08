@@ -43,27 +43,36 @@ const UserDetailPage = () => {
 
                 setProfile(profileData);
 
-                // 2. Načtení všech objednávek přes API a následná filtrace
-                // Použijeme stejný přístup jako v admin/orders/page.tsx
-                const timestamp = Date.now();
-                const ordersResponse = await fetch(`/api/orders?t=${timestamp}`, {
-                    cache: 'no-store',
-                    headers: {
-                        'Pragma': 'no-cache',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate'
-                    }
-                });
+                // 2. Načtení objednávek tohoto uživatele přímo přes API s filtrováním na serveru
+                try {
+    const timestamp = Date.now();
+    const ordersResponse = await fetch(`/api/orders?t=${timestamp}&userId=${userId}`, {
+        cache: 'no-store',
+        headers: {
+            'Pragma': 'no-cache',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+    });
 
-                if (!ordersResponse.ok) {
-                    throw new Error(`API error: ${ordersResponse.status}`);
-                }
+    if (!ordersResponse.ok) {
+        throw new Error(`API error: ${ordersResponse.status}`);
+    }
 
-                const allOrders = await ordersResponse.json();
+    const userOrders = await ordersResponse.json();
 
-                // Filtrujeme objednávky pro konkrétního uživatele
-                const userOrders = allOrders.filter((order: any) => order.user_id === userId);
-                console.log(`Nalezeno ${userOrders.length} objednávek pro uživatele ${userId}`);
-                setOrders(userOrders);
+    if (Array.isArray(userOrders)) {
+        setOrders(userOrders);
+        console.log(`Načteno ${userOrders.length} objednávek pro uživatele ${userId}`);
+    } else {
+        console.warn('Neočekávaný formát dat z API:', userOrders);
+        setOrders([]);
+    }
+} catch (apiError) {
+    console.error('Chyba při načítání objednávek:', apiError);
+    setOrders([]);
+    // Zobrazíme varování, ale nezastavíme načítání profilu
+    toast.warning('Nepodařilo se načíst objednávky uživatele');
+}
 
             } catch (err) {
                 console.error('Chyba při načítání dat uživatele:', err);

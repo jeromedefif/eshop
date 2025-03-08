@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, Download, RefreshCw, FileSpreadsheet, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, X, Download, RefreshCw, FileSpreadsheet } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
@@ -10,53 +10,39 @@ import type { Order, AdminOrdersProps } from '../types/orders';
 export default function AdminOrders({
   orders,
   onOrdersChange,
-  onExportOrders,
-  onSearch  // Callback funkce pro vyhledávání
+  onExportOrders
 }: AdminOrdersProps) {
     const [searchQuery, setSearchQuery] = useState('');
+    const [filteredOrders, setFilteredOrders] = useState<Order[]>(orders);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [isSearching, setIsSearching] = useState(false); // Nový stav pro indikátor vyhledávání
     const [isExportingExcel, setIsExportingExcel] = useState(false);
     const [isExportingCsv, setIsExportingCsv] = useState(false);
     const router = useRouter();
 
-    // Použijeme useRef pro předchozí hodnotu searchQuery
-    const prevSearchQueryRef = useRef('');
-
-    // Debounce timer reference
-    const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    // Upravená implementace vyhledávání s debounce - zvýšený interval na 1200ms
+    // Při změně vstupních orders aktualizujeme i filtrované orders
     useEffect(() => {
-        // Zrušit předchozí timeout pokud existuje
-        if (searchTimeoutRef.current) {
-            clearTimeout(searchTimeoutRef.current);
+        setFilteredOrders(orders);
+    }, [orders]);
+
+    // Efekt pro vyhledávání - při změně searchQuery filtrujeme orders
+    useEffect(() => {
+        if (!searchQuery.trim()) {
+            // Pokud je dotaz prázdný, zobrazíme všechny objednávky
+            setFilteredOrders(orders);
+            return;
         }
 
-        // Nastavení nového timeoutu s delším intervalem
-        searchTimeoutRef.current = setTimeout(() => {
-            // Pouze pokud se query skutečně změnila
-            if (searchQuery !== prevSearchQueryRef.current) {
-                setIsSearching(true); // Začátek vyhledávání
-                if (onSearch) {
-                    onSearch(searchQuery).finally(() => {
-                        setIsSearching(false); // Konec vyhledávání
-                    });
-                } else {
-                    setIsSearching(false);
-                }
-                // Aktualizujeme referenci na předchozí hodnotu
-                prevSearchQueryRef.current = searchQuery;
-            }
-        }, 1200); // Zvýšeno z 500ms na 1200ms pro lepší UX
+        // Filtrujeme objednávky na klientské straně
+        const lowercaseQuery = searchQuery.toLowerCase();
+        const filtered = orders.filter(order =>
+            order.customer_name.toLowerCase().includes(lowercaseQuery) ||
+            order.customer_email.toLowerCase().includes(lowercaseQuery) ||
+            (order.customer_company && order.customer_company.toLowerCase().includes(lowercaseQuery)) ||
+            order.id.toLowerCase().includes(lowercaseQuery)
+        );
 
-        // Čištění při unmount
-        return () => {
-            if (searchTimeoutRef.current) {
-                clearTimeout(searchTimeoutRef.current);
-            }
-        };
-    }, [searchQuery, onSearch]);
+        setFilteredOrders(filtered);
+    }, [searchQuery, orders]);
 
     const handleRefreshOrders = async () => {
         if (isRefreshing) return;
@@ -71,7 +57,7 @@ export default function AdminOrders({
         }
     };
 
-    // Upravený export do CSV s anti-cache opatřeními
+    // Export do CSV s anti-cache opatřeními
     const handleExportToCsv = async () => {
         if (isExportingCsv) return;
 
@@ -113,7 +99,7 @@ export default function AdminOrders({
         }
     };
 
-    // Upravený export do Excelu s anti-cache opatřeními
+    // Export do Excelu s anti-cache opatřeními
     const handleExportToExcel = async () => {
         if (isExportingExcel) return;
 
@@ -227,7 +213,7 @@ export default function AdminOrders({
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Správa objednávek</h2>
 
-                {/* Přepracovaná nástrojová lišta pro lepší mobilní zobrazení */}
+                {/* Nástrojová lišta */}
                 <div className="flex gap-2 w-full sm:w-auto justify-end">
                     <button
                         onClick={handleRefreshOrders}
@@ -271,44 +257,35 @@ export default function AdminOrders({
             <div className="mb-6">
                 <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        {isSearching ? (
-                            <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
-                        ) : (
-                            <Search className="h-5 w-5 text-gray-400" />
-                        )}
+                        <Search className="h-5 w-5 text-gray-400" />
                     </div>
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Vyhledat objednávku..."
-                        className={`block w-full pl-10 pr-4 py-2 border rounded-lg
-                                 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900
-                                 ${isSearching ? 'border-blue-300 bg-blue-50' : ''}`}
+                        className="block w-full pl-10 pr-4 py-2 border rounded-lg
+                                 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                     />
                     {searchQuery && (
                         <button
-                            onClick={() => {
-                                setSearchQuery('');
-                                // Resetujeme vyhledávání při smazání dotazu
-                                if (onSearch) onSearch('');
-                            }}
+                            onClick={() => setSearchQuery('')}
                             className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
                         >
                             <X className="h-5 w-5" />
                         </button>
                     )}
                 </div>
-                {isSearching && (
-                    <div className="mt-1 text-xs text-blue-600">
-                        Vyhledávání...
+                {searchQuery && (
+                    <div className="mt-1 text-xs text-gray-600">
+                        Nalezeno {filteredOrders.length} objednávek
                     </div>
                 )}
             </div>
 
             {/* Mobilní zobrazení - karty */}
             <div className="md:hidden">
-                {orders.length === 0 ? (
+                {filteredOrders.length === 0 ? (
                     <div className="bg-white rounded-lg p-8 text-center">
                         <Search className="h-10 w-10 text-gray-400 mx-auto mb-2" />
                         <p className="text-gray-600 text-base">
@@ -318,10 +295,7 @@ export default function AdminOrders({
                         </p>
                         {searchQuery && (
                             <button
-                                onClick={() => {
-                                    setSearchQuery('');
-                                    if (onSearch) onSearch('');
-                                }}
+                                onClick={() => setSearchQuery('')}
                                 className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
                             >
                                 Zobrazit všechny objednávky
@@ -330,7 +304,7 @@ export default function AdminOrders({
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {orders.map((order) => (
+                        {filteredOrders.map((order) => (
                             <OrderCard key={order.id} order={order} />
                         ))}
                     </div>
@@ -350,7 +324,7 @@ export default function AdminOrders({
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {orders.length === 0 ? (
+                            {filteredOrders.length === 0 ? (
                                 <tr>
                                     <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
                                         {searchQuery
@@ -359,7 +333,7 @@ export default function AdminOrders({
                                     </td>
                                 </tr>
                             ) : (
-                                orders.map((order) => {
+                                filteredOrders.map((order) => {
                                     const dateTime = formatDateTime(order.created_at);
                                     return (
                                         <tr key={order.id} className="hover:bg-gray-50">
