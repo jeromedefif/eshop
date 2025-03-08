@@ -22,6 +22,10 @@ export default function MyProfilePage() {
         postal_code: ''
     });
 
+    // Přidané stavy pro sledování změn formuláře
+    const [hasChanges, setHasChanges] = useState(false);
+    const [originalData, setOriginalData] = useState<typeof formData | null>(null);
+
     // Přesměrování nepřihlášeného uživatele
     useEffect(() => {
         if (!user) {
@@ -32,16 +36,41 @@ export default function MyProfilePage() {
     // Načtení dat profilu
     useEffect(() => {
         if (profile) {
-            setFormData({
+            const profileData = {
                 full_name: profile.full_name || '',
                 company: profile.company || '',
                 phone: profile.phone || '',
                 address: profile.address || '',
                 city: profile.city || '',
                 postal_code: profile.postal_code || ''
-            });
+            };
+
+            // Nastavení dat formuláře
+            setFormData(profileData);
+
+            // Uložení původních dat pro porovnání změn
+            setOriginalData(profileData);
+
+            // Reset stavu změn
+            setHasChanges(false);
         }
     }, [profile]);
+
+    // Effect pro detekci změn ve formuláři
+    useEffect(() => {
+        if (originalData) {
+            // Porovnání aktuálních hodnot s původními
+            const isDifferent =
+                formData.full_name !== originalData.full_name ||
+                formData.company !== originalData.company ||
+                formData.phone !== originalData.phone ||
+                formData.address !== originalData.address ||
+                formData.city !== originalData.city ||
+                formData.postal_code !== originalData.postal_code;
+
+            setHasChanges(isDifferent);
+        }
+    }, [formData, originalData]);
 
     // Aktualizace dat při změně v inputech
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,6 +95,10 @@ export default function MyProfilePage() {
             // Zobrazíme zprávu o úspěchu
             setSuccessMessage('Profil byl úspěšně aktualizován');
             toast.success('Profil byl úspěšně aktualizován');
+
+            // Aktualizujeme originalData - důležité pro reset stavu tlačítka
+            setOriginalData({...formData});
+            setHasChanges(false);
 
             // Zpráva zmizí po 3 sekundách
             setTimeout(() => {
@@ -107,7 +140,7 @@ export default function MyProfilePage() {
 
                 <div className="mb-8 border-b pb-4">
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">Můj profil</h1>
-                    <p className="text-gray-600">Aktualizujte své kontaktní údaje a adresu pro objednávky.</p>
+                    <p className="text-gray-600">Aktualizujte své kontaktní údaje a dodací adresu pro objednávky.</p>
                 </div>
 
                 {/* Email uživatele - needitovatelné pole */}
@@ -257,12 +290,24 @@ export default function MyProfilePage() {
                         </div>
                     )}
 
-                    <div className="flex justify-end pt-4 border-t">
+                    <div className="flex justify-between pt-4 border-t">
+                        {/* Přidané tlačítko "Zpět na katalog" */}
+                        <Link
+                            href="/"
+                            className="px-6 py-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+                        >
+                            <ArrowLeft className="w-5 h-5" />
+                            Zpět na katalog
+                        </Link>
+
                         <button
                             type="submit"
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700
-                                    transition-colors disabled:bg-blue-300 flex items-center gap-2"
-                            disabled={isLoading}
+                            className={`px-6 py-3 rounded-lg transition-colors flex items-center gap-2 ${
+                                hasChanges
+                                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                                    : "bg-blue-300 text-white cursor-not-allowed"
+                            }`}
+                            disabled={isLoading || !hasChanges}
                         >
                             {isLoading ? (
                                 <>
