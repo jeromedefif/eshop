@@ -25,18 +25,8 @@ export default function ResetPasswordPage() {
         }
     }, [password, confirmPassword]);
 
-    // Kontrola, jestli je uživatel v procesu resetování hesla
-    useEffect(() => {
-        const checkSession = async () => {
-            const { data } = await supabase.auth.getSession();
-            if (!data.session) {
-                // Uživatel není přihlášen, pravděpodobně přišel přímo na stránku
-                router.push('/login');
-            }
-        };
-
-        checkSession();
-    }, [router]);
+    // KLÍČOVÁ ZMĚNA: Odstraníme kontrolu session, která nás přesměrovává zpět na login
+    // Místo toho necháme uživatele pracovat se stránkou i bez aktivní session
 
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
