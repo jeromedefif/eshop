@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle, Mail, Lock, LogIn, Eye, EyeOff, Wine, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Mail, Lock, LogIn, Eye, EyeOff, Wine, AlertCircle, RefreshCw } from 'lucide-react';
+import { supabase } from '@/lib/supabase/client';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -13,18 +14,58 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showVerificationMessage, setShowVerificationMessage] = useState(false);
+    const [showResetMessage, setShowResetMessage] = useState(false);
+    const [isFormDisabled, setIsFormDisabled] = useState(false);
     const { signIn, user } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    // Detekce URL parametru verified=true a nastavení zobrazení zprávy
+    // Detekce URL parametrů
     useEffect(() => {
         // Ověříme, zda přicházíme z verifikačního emailu
         const isVerified = searchParams.get('verified') === 'true';
+        // Ověříme, zda přicházíme z resetu hesla
+        const isReset = searchParams.get('reset') === 'true';
 
         if (isVerified) {
             // Zobrazit zprávu o úspěšné verifikaci
             setShowVerificationMessage(true);
+        }
+
+        if (isReset) {
+            // Zobrazit zprávu o úspěšném resetu hesla
+            setShowResetMessage(true);
+
+            // Dočasně zakážeme formulář
+            setIsFormDisabled(true);
+
+            // Na jistotu provedeme lokální odhlášení
+            const forceLocalSignOut = async () => {
+                try {
+                    console.log('Vynucené lokální odhlášení po resetu hesla');
+                    // Explicitní odhlášení pro jistotu
+                    await supabase.auth.signOut();
+
+                    // Vyčištění localStorage a cookies pro Supabase
+                    const keysToRemove = Object.keys(localStorage).filter(key =>
+                        key.startsWith('sb-') || key.includes('supabase')
+                    );
+                    keysToRemove.forEach(key => localStorage.removeItem(key));
+
+                    // Po 2 sekundách povolíme formulář
+                    setTimeout(() => {
+                        setIsFormDisabled(false);
+                    }, 2000);
+                } catch (e) {
+                    console.error('Chyba při vynuceném odhlášení:', e);
+                    // I v případě chyby po 2 sekundách povolíme formulář
+                    setTimeout(() => {
+                        setIsFormDisabled(false);
+                    }, 2000);
+                }
+            };
+
+            forceLocalSignOut();
         }
 
         // Načtení uloženého emailu z localStorage, pokud existuje
@@ -73,6 +114,30 @@ export default function LoginPage() {
         setShowPassword(!showPassword);
     };
 
+    const ResetPasswordMessage = () => (
+        <div className="mb-6 p-4 bg-orange-50 rounded-lg">
+            <div className="flex items-start">
+                <RefreshCw className="w-5 h-5 text-orange-500 mr-2 mt-0.5" />
+                <div>
+                    <h3 className="font-medium text-gray-900">Heslo bylo úspěšně změněno</h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                        {isFormDisabled ? (
+                            <>
+                                Připravujeme přihlašovací formulář, prosím počkejte chvilku...
+                                <div className="flex items-center mt-2">
+                                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                                    <span className="text-blue-600 text-xs">Připravuje se</span>
+                                </div>
+                            </>
+                        ) : (
+                            'Nyní se můžete přihlásit s novým heslem.'
+                        )}
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <div className="min-h-screen bg-gray-50 py-12">
             <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
@@ -102,6 +167,9 @@ export default function LoginPage() {
                     </div>
                 )}
 
+                {/* Zobrazení oznámení o resetování hesla */}
+                {showResetMessage && <ResetPasswordMessage />}
+
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="bg-blue-50 p-5 rounded-lg">
                         <div className="space-y-4">
@@ -117,7 +185,7 @@ export default function LoginPage() {
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900"
                                     required
-                                    disabled={isLoading}
+                                    disabled={isLoading || isFormDisabled}
                                     placeholder="vas@email.cz"
                                 />
                             </div>
@@ -135,7 +203,7 @@ export default function LoginPage() {
                                         onChange={(e) => setPassword(e.target.value)}
                                         className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900 pr-10"
                                         required
-                                        disabled={isLoading}
+                                        disabled={isLoading || isFormDisabled}
                                         placeholder="Zadejte heslo"
                                     />
                                     <button
@@ -143,6 +211,7 @@ export default function LoginPage() {
                                         onClick={togglePasswordVisibility}
                                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                                         tabIndex={-1}
+                                        disabled={isFormDisabled}
                                     >
                                         {showPassword ? (
                                             <EyeOff className="h-5 w-5" />
@@ -175,7 +244,7 @@ export default function LoginPage() {
                         type="submit"
                         className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700
                                 transition-colors disabled:bg-blue-300 flex items-center justify-center"
-                        disabled={isLoading}
+                        disabled={isLoading || isFormDisabled}
                     >
                         {isLoading ? (
                             <>
