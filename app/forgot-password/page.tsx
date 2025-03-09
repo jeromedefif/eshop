@@ -21,7 +21,7 @@ export default function ForgotPasswordPage() {
 
         try {
             // KLÍČOVÁ ZMĚNA: Použijeme explicitní URL vedoucí na callback handler
-            // Musí obsahovat ?type=recovery parametr
+            // Musí obsahovat ?type=recovery parametr, který zajistí správné přesměrování
             const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.beginy.cz';
             const redirectUrl = `${baseUrl}/auth/callback?type=recovery`;
 

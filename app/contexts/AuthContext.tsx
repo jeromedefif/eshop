@@ -448,8 +448,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // 2. Úprava v contexts/AuthContext.tsx - kompletně přepracovaná funkce resetPassword
-
   // DŮLEŽITÉ: Tuto funkci resetPassword už nebudeme používat z AuthContext
   // Místo toho použijeme přímé volání Supabase API na stránce reset-password
 
