@@ -1,3 +1,5 @@
+// 4. Úplně nová implementace stránky app/reset-password/page.tsx
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -5,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Wine } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase/client';
 
 export default function ResetPasswordPage() {
     const [password, setPassword] = useState('');
@@ -17,15 +19,49 @@ export default function ResetPasswordPage() {
     const [passwordsMatch, setPasswordsMatch] = useState<boolean | null>(null);
     const [isReset, setIsReset] = useState(false);
     const router = useRouter();
-    const { resetPassword } = useAuth();
 
-    // Kontrola přítomnosti parametrů v URL při načtení stránky
+    // Zpracování tokenu při načtení stránky
     useEffect(() => {
-        console.log('Kontroluji parametry v URL pro reset hesla');
+        const initializeResetSession = async () => {
+            try {
+                console.log('Kontroluji parametry v URL pro reset hesla');
 
-        // Resetování hesla funguje automaticky skrze Supabase SDK
-        // Samotná přítomnost na této stránce znamená, že Supabase již zpracoval token
-        setSessionStatus('valid');
+                // Získáme hash fragment z URL (vše za #), který obsahuje tokeny od Supabase
+                if (typeof window !== 'undefined') {
+                    // Log pro diagnostiku
+                    console.log('URL hash:', window.location.hash);
+                    console.log('URL search params:', window.location.search);
+
+                    // Explicitně vynutit zpracování hash fragmentu bez ohledu na jeho obsah
+                    // Supabase SDK zpracuje parametry z URL automaticky
+                    const { data, error } = await supabase.auth.getSession();
+
+                    if (error) {
+                        console.error('Chyba při získávání session:', error);
+                        setSessionStatus('invalid');
+                        setError('Neplatný nebo expirovaný odkaz pro reset hesla.');
+                        return;
+                    }
+
+                    if (data?.session) {
+                        // Máme platnou reset session
+                        console.log('Platná session pro reset hesla nalezena');
+                        setSessionStatus('valid');
+                    } else {
+                        // Bez platné session
+                        console.error('Žádná platná session pro reset hesla');
+                        setSessionStatus('invalid');
+                        setError('Neplatný nebo expirovaný odkaz pro reset hesla.');
+                    }
+                }
+            } catch (err) {
+                console.error('Chyba při inicializaci reset session:', err);
+                setSessionStatus('invalid');
+                setError('Došlo k neočekávané chybě při zpracování odkazu pro reset hesla.');
+            }
+        };
+
+        initializeResetSession();
     }, []);
 
     // Kontrola shody hesel
@@ -59,10 +95,18 @@ export default function ResetPasswordPage() {
         setIsLoading(true);
 
         try {
-            // Použití funkce z AuthContext místo přímého volání Supabase
-            await resetPassword(password);
+            // Aktualizace hesla přímo přes Supabase API
+            const { error } = await supabase.auth.updateUser({
+                password: password
+            });
+
+            if (error) {
+                console.error('Chyba při aktualizaci hesla:', error);
+                throw error;
+            }
 
             console.log('Heslo úspěšně aktualizováno');
+            toast.success('Heslo bylo úspěšně změněno');
             setIsReset(true);
 
             // Přesměrování na login po úspěšném resetu
@@ -73,7 +117,7 @@ export default function ResetPasswordPage() {
             console.error('Chyba při resetu hesla:', error);
 
             if (error instanceof Error) {
-                if (error.message.includes('Invalid')) {
+                if (error.message.includes('Invalid') || error.message.includes('JWT') || error.message.includes('session')) {
                     setError('Platnost odkazu pro reset hesla vypršela. Vyžádejte si nový odkaz.');
                     setSessionStatus('invalid');
                 } else {
