@@ -448,42 +448,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // DŮLEŽITÉ: Tuto funkci resetPassword už nebudeme používat z AuthContext
-  // Místo toho použijeme přímé volání Supabase API na stránce reset-password
 
-  // Funkce zůstává v AuthContext pouze pro zpětnou kompatibilitu
-  const resetPassword = async (newPassword: string) => {
-    if (!newPassword) {
-      throw new Error('Heslo nemůže být prázdné');
-    }
-
-    if (newPassword.length < 6) {
-      throw new Error('Heslo musí mít alespoň 6 znaků');
-    }
-
-    if (inProgressRef.current) {
-      toast.info('Operace již probíhá, čekejte prosím...');
-      return;
-    }
-
-    inProgressRef.current = true;
-    setIsLoading(true);
-
-    try {
-      console.log('[Auth] UPOZORNĚNÍ: Používáte resetPassword z AuthContext - tato funkce by neměla být používána');
-      console.log('[Auth] Použijte místo toho přímé volání updateUser na stránce reset hesla');
-
-      // Tato funkce už není používána - veškerá logika je nyní přímo na stránce reset-password
-      throw new Error('Tato funkce je zastaralá. Použijte přímé volání Supabase API.');
-    } catch (error) {
-      console.error('[Auth] Chyba v resetPassword:', error);
-      toast.error(error instanceof Error ? error.message : 'Chyba při resetování hesla');
-      throw error;
-    } finally {
-      setIsLoading(false);
-      inProgressRef.current = false;
-    }
-  };
 
 
   // KLÍČOVÁ OPTIMALIZACE: Zjednodušená implementace refreshProfile
@@ -758,7 +723,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     updateProfile,
     refreshProfile,
     forgotPassword,
-    resetPassword
+    
   };
 
   return (

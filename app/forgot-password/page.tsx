@@ -20,18 +20,18 @@ export default function ForgotPasswordPage() {
         setIsLoading(true);
 
         try {
-            // KLÍČOVÁ ZMĚNA: Použijeme explicitní URL vedoucí na callback handler
-            // Musí obsahovat ?type=recovery parametr, který zajistí správné přesměrování
-            const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.beginy.cz';
-            const redirectUrl = `${baseUrl}/auth/callback?type=recovery`;
+          // KLÍČOVÁ ZMĚNA: Použijeme hardcoded URL místo detekce z window.location
+// Tímto zajistíme konzistenci i při nasazení
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.beginy.cz';
+const redirectUrl = `${baseUrl}/auth/callback?type=recovery`;
 
-            console.log('Odesílám email pro reset hesla na:', email);
-            console.log('Redirect URL:', redirectUrl);
+console.log('Odesílám email pro reset hesla na:', email);
+console.log('Redirect URL:', redirectUrl);
 
-            // Odeslání emailu pro reset hesla
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: redirectUrl
-            });
+// Odeslání emailu pro reset hesla
+const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  redirectTo: redirectUrl
+});
 
             if (error) {
                 console.error('Chyba při odesílání emailu pro reset hesla:', error);

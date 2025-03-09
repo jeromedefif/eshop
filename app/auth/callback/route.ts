@@ -9,8 +9,8 @@ export async function GET(request: Request) {
   const type = requestUrl.searchParams.get('type')
 
   // Definice pevné základní URL pro přesměrování
-  // Prioritně používá proměnnou prostředí, s fallbackem na www.beginy.cz
-  const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.beginy.cz'
+  // Prioritně používá proměnnou prostředí, s fallbackem na localhost
+  const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
   console.log(`Auth callback processing - type: ${type}, code present: ${Boolean(code)}`)
   console.log(`Using base URL for redirects: ${BASE_URL}`)
@@ -47,16 +47,17 @@ export async function GET(request: Request) {
 
       console.log('Session exchange successful, user ID:', data?.session?.user.id)
 
+      // DŮLEŽITÉ: Pokud jde o reset hesla, přesměrujeme přímo bez ohledu na typ
+      // To vyřeší případy, kdy typ není správně předán v URL
+      if (type === 'recovery' || requestUrl.toString().includes('recovery')) {
+        console.log('Redirecting to reset-password page')
+        return NextResponse.redirect(`${BASE_URL}/reset-password`)
+      }
+
       // Pokud je typ verifikace email nebo signup (registrace), přesměrujeme na přihlašovací stránku s verified=true
       if (type === 'signup' || type === 'email') {
         console.log('Redirecting to login with verified=true')
         return NextResponse.redirect(`${BASE_URL}/login?verified=true`)
-      }
-
-      // Pokud jde o reset hesla
-      if (type === 'recovery') {
-        console.log('Redirecting to reset-password')
-        return NextResponse.redirect(`${BASE_URL}/reset-password`)
       }
     } catch (error) {
       console.error('Unexpected error in auth callback:', error)
