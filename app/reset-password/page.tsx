@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Wine } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -13,77 +13,43 @@ export default function ResetPasswordPage() {
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [isVerifying, setIsVerifying] = useState(true);
     const [passwordsMatch, setPasswordsMatch] = useState<boolean | null>(null);
     const [isReset, setIsReset] = useState(false);
-    const [hasValidSession, setHasValidSession] = useState(false);
+    const [sessionCheck, setSessionCheck] = useState<string>('checking');
 
     const router = useRouter();
-    const searchParams = useSearchParams();
 
-    // Zpracování kódu z URL a ověření session
+    // Kontrola jestli máme platnou session - zjednodušená logika
     useEffect(() => {
-        const verifyRecoveryCode = async () => {
+        const checkSession = async () => {
             try {
-                // 1. Kontrola existující session
-                const { data: sessionData } = await supabase.auth.getSession();
-                if (sessionData.session) {
-                    console.log('Existující session nalezena');
-                    setHasValidSession(true);
-                    setIsVerifying(false);
+                console.log('Kontrola session...');
+                const { data, error } = await supabase.auth.getSession();
+
+                if (error) {
+                    console.error('Chyba při kontrole session:', error);
+                    setSessionCheck('error');
+                    setError('Nepodařilo se ověřit vaši identitu');
                     return;
                 }
 
-                // 2. Získání kódu z URL
-                const code = searchParams?.get('code');
-
-                if (!code) {
-                    console.error('Chybí kód v URL');
-                    setError('Chybí kód pro reset hesla');
-                    setIsVerifying(false);
-                    return;
-                }
-
-                console.log('Ověřuji recovery kód');
-
-                // 3. Ověření kódu pomocí verifyOtp (KLÍČOVÁ ČÁST)
-                const { data, error: verifyError } = await supabase.auth.verifyOtp({
-                    token_hash: code,
-                    type: 'recovery'
-                });
-
-                if (verifyError) {
-                    console.error('Ověření selhalo:', verifyError);
-                    setError(`Neplatný nebo vypršený kód: ${verifyError.message}`);
-                    setIsVerifying(false);
-                    return;
-                }
-
-                if (!data.session) {
-                    console.error('Kód ověřen, ale žádná session nevytvořena');
-                    setError('Kód byl platný, ale nepodařilo se vytvořit session');
-                    setIsVerifying(false);
-                    return;
-                }
-
-                console.log('Recovery kód úspěšně ověřen, session vytvořena');
-                setHasValidSession(true);
-
-                // 4. Očištění URL pro bezpečnost
-                if (typeof window !== 'undefined') {
-                    const cleanUrl = window.location.pathname;
-                    window.history.replaceState({}, document.title, cleanUrl);
+                if (data.session) {
+                    console.log('Platná session nalezena');
+                    setSessionCheck('valid');
+                } else {
+                    console.log('Žádná platná session');
+                    setSessionCheck('invalid');
+                    setError('Nemáte platné oprávnění pro reset hesla. Odkaz mohl vypršet.');
                 }
             } catch (err) {
-                console.error('Chyba při ověřování recovery kódu:', err);
-                setError('Neočekávaná chyba při ověřování kódu');
-            } finally {
-                setIsVerifying(false);
+                console.error('Neočekávaná chyba:', err);
+                setSessionCheck('error');
+                setError('Došlo k neočekávané chybě');
             }
         };
 
-        verifyRecoveryCode();
-    }, [searchParams]);
+        checkSession();
+    }, []);
 
     // Kontrola shody hesel
     useEffect(() => {
@@ -116,8 +82,7 @@ export default function ResetPasswordPage() {
         setIsLoading(true);
 
         try {
-            // Aktualizace hesla
-            console.log('Aktualizuji heslo');
+            // Jednoduchý požadavek na aktualizaci hesla
             const { error: updateError } = await supabase.auth.updateUser({
                 password: password
             });
@@ -127,11 +92,10 @@ export default function ResetPasswordPage() {
                 throw updateError;
             }
 
-            console.log('Heslo úspěšně aktualizováno');
             toast.success('Heslo bylo úspěšně změněno');
             setIsReset(true);
 
-            // Přesměrovat zpět na login po úspěšném resetu
+            // Přesměrování na přihlašovací stránku
             setTimeout(() => {
                 router.push('/login');
             }, 3000);
@@ -143,22 +107,22 @@ export default function ResetPasswordPage() {
         }
     };
 
-    // Zobrazení načítání při ověřování kódu
-    if (isVerifying) {
+    // Zobrazení načítání
+    if (sessionCheck === 'checking') {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
                 <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4 inline-block"></div>
-                        <p className="text-gray-900">Ověřování odkazu pro reset hesla...</p>
+                        <p className="text-gray-900">Ověřování identity...</p>
                     </div>
                 </div>
             </div>
         );
     }
 
-    // Zobrazení chybového stavu, pokud není platná session
-    if (!hasValidSession && !isReset) {
+    // Zobrazení chyby, pokud nemáme platnou session
+    if (sessionCheck === 'invalid' || sessionCheck === 'error') {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
                 <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
