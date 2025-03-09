@@ -13,46 +13,38 @@ export default function ResetPasswordPage() {
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [checkingSession, setCheckingSession] = useState(true);
+    const [sessionStatus, setSessionStatus] = useState<'checking' | 'valid' | 'invalid'>('checking');
     const [passwordsMatch, setPasswordsMatch] = useState<boolean | null>(null);
     const [isReset, setIsReset] = useState(false);
-    const [hasRecoverySession, setHasRecoverySession] = useState(false);
 
     const router = useRouter();
 
-    // Kontrola, zda uživatel má aktivní recovery session
+    // Kontrola session při načtení stránky
     useEffect(() => {
         const checkSession = async () => {
             try {
-                setCheckingSession(true);
-
-                // Získání session ze Supabase
+                console.log('Kontroluji session pro reset hesla');
                 const { data, error } = await supabase.auth.getSession();
 
                 if (error) {
-                    console.error('Chyba při kontrole session:', error);
-                    setError('Nepodařilo se ověřit vaši session');
+                    console.error('Chyba při získávání session:', error);
+                    setSessionStatus('invalid');
+                    setError('Chyba při ověřování vaší identity');
                     return;
                 }
 
-                // Pokud nemáme session, uživatel nebyl správně přesměrován
-                if (!data.session) {
-                    console.log('Žádná aktivní session nebyla nalezena');
+                if (data?.session) {
+                    console.log('Session nalezena, lze resetovat heslo');
+                    setSessionStatus('valid');
+                } else {
+                    console.error('Žádná platná session nenalezena');
+                    setSessionStatus('invalid');
                     setError('K této stránce nelze přistupovat přímo. Použijte odkaz zaslaný na váš email.');
-                    return;
                 }
-
-                // Pokud máme platnou session, můžeme pokračovat
-                console.log('Aktivní session nalezena');
-
-                // Zde neověřujeme, zda je session recovery typu, protože
-                // Supabase to již ověřil před přesměrováním
-                setHasRecoverySession(true);
             } catch (err) {
                 console.error('Neočekávaná chyba při kontrole session:', err);
-                setError('Došlo k neočekávané chybě při ověřování vašeho přístupu');
-            } finally {
-                setCheckingSession(false);
+                setSessionStatus('invalid');
+                setError('Došlo k neočekávané chybě');
             }
         };
 
@@ -90,8 +82,7 @@ export default function ResetPasswordPage() {
         setIsLoading(true);
 
         try {
-            // DŮLEŽITÉ: Tady používáme standardní updateUser bez žádných zvláštních parametrů
-            // Supabase automaticky aktualizuje heslo pro aktivní recovery session
+            // Aktualizace hesla přes Supabase API
             console.log('Aktualizuji heslo');
             const { error: updateError } = await supabase.auth.updateUser({
                 password: password
@@ -106,34 +97,45 @@ export default function ResetPasswordPage() {
             toast.success('Heslo bylo úspěšně změněno');
             setIsReset(true);
 
-            // Přesměrovat zpět na login po úspěšném resetu
+            // Přesměrování na login po úspěšném resetu
             setTimeout(() => {
                 router.push('/login');
             }, 3000);
         } catch (error) {
             console.error('Chyba při resetu hesla:', error);
-            setError(error instanceof Error ? error.message : 'Chyba při resetování hesla');
+
+            // Zobrazení srozumitelné chybové zprávy
+            if (error instanceof Error) {
+                // Zpracování specifických chyb
+                if (error.message.includes('User not found') || error.message.includes('JWT')) {
+                    setError('Platnost vaší relace vypršela. Vyžádejte si nový odkaz pro reset hesla.');
+                } else {
+                    setError(error.message);
+                }
+            } else {
+                setError('Chyba při resetování hesla');
+            }
         } finally {
             setIsLoading(false);
         }
     };
 
-    // Zobrazení stavu načítání při kontrole session
-    if (checkingSession) {
+    // Zobrazení načítání při kontrole session
+    if (sessionStatus === 'checking') {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
                 <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4 inline-block"></div>
-                        <p className="text-gray-900">Ověřování session...</p>
+                        <p className="text-gray-900">Ověřování přístupu...</p>
                     </div>
                 </div>
             </div>
         );
     }
 
-    // Zobrazení chyby, pokud uživatel nemá recovery session
-    if (!hasRecoverySession && !isReset) {
+    // Zobrazení chyby, pokud není platná session
+    if (sessionStatus === 'invalid' && !isReset) {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
                 <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">

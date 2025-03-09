@@ -409,7 +409,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 // Funkce pro vyžádání resetovacího emailu - výrazně zjednodušená
 // Aktualizované funkce pro reset hesla v AuthContext.tsx
 
-// Funkce pro vyžádání resetovacího emailu - zjednodušená verze
+// Aktualizovaná funkce forgotPassword v AuthContext.tsx
+
 const forgotPassword = async (email: string) => {
   if (inProgressRef.current) {
     toast.info('Operace již probíhá, čekejte prosím...');
@@ -422,11 +423,11 @@ const forgotPassword = async (email: string) => {
   try {
     console.log('[Auth] Odesílám email pro reset hesla na:', email);
 
-    // Získání base URL pro přesměrování
+    // Používáme /auth/callback jako URL pro přesměrování, protože
+    // tato URL je již správně nastavena a implementována
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.beginy.cz';
+    const redirectURL = `${baseUrl}/auth/callback`;
 
-    // Nastavení URL pro přesměrování - musí být přesně stejná jako v Supabase nastavení
-    const redirectURL = `${baseUrl}/reset-password`;
     console.log('[Auth] Redirect URL:', redirectURL);
 
     // Odeslání emailu pro reset hesla
@@ -457,6 +458,7 @@ const forgotPassword = async (email: string) => {
     inProgressRef.current = false;
   }
 };
+
 
 // Funkce pro nastavení nového hesla - zjednodušená verze
 const resetPassword = async (newPassword: string) => {
