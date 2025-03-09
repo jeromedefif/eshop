@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Wine } from 'lucide-react';
@@ -16,81 +15,77 @@ export default function ResetPasswordPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [passwordsMatch, setPasswordsMatch] = useState<boolean | null>(null);
     const [isReset, setIsReset] = useState(false);
-    const [isValidSession, setIsValidSession] = useState(false);
-    const [checkingSession, setCheckingSession] = useState(true);
-    const { resetPassword } = useAuth();
+    const [isClientLoaded, setIsClientLoaded] = useState(false);
+    const [accessToken, setAccessToken] = useState<string | null>(null);
     const router = useRouter();
 
-    // Kontrola, zda je platná resetovací session
+    // Důležité - detekujeme, kdy je klient načtený
     useEffect(() => {
-        const checkSession = async () => {
+        setIsClientLoaded(true);
+    }, []);
+
+    // Zpracování URL parametrů z hash fragmentu IHNED po načtení stránky na klientovi
+    useEffect(() => {
+        if (!isClientLoaded) return;
+
+        console.log('Client loaded, checking URL hash');
+
+        const handleHashParams = async () => {
+            // Získej hash část URL (část za #)
+            const hash = window.location.hash;
+            console.log('Hash fragment:', hash);
+
+            if (!hash) {
+                console.log('No hash parameters found');
+                setError('Chybí parametry pro reset hesla');
+                return;
+            }
+
             try {
-                setCheckingSession(true);
+                // Extrahuj access_token z URL
+                const hashParams = new URLSearchParams(hash.substring(1));
+                const token = hashParams.get('access_token');
+                const type = hashParams.get('type');
 
-                // Zjištění, zda máme platnou session ze Supabase
-                const { data, error } = await supabase.auth.getSession();
-                console.log('Session check:', { data, error });
+                console.log('Extracted parameters:', { token: token ? '✓' : '✗', type });
 
-                if (error) {
-                    console.error('Session error:', error);
-                    setIsValidSession(false);
-                    setError('Chyba při ověřování resetovacího odkazu. Zkuste požádat o nový.');
+                if (!token) {
+                    console.log('No access token found in URL');
+                    setError('Chybí přístupový token pro reset hesla');
                     return;
                 }
 
-                // Zkontrolujeme, zda máme aktivní session a typ akce je recovery
-                if (data.session) {
-                    // Pokud je user dostupný, odkaz je validní
-                    setIsValidSession(true);
-                } else {
-                    // Když nemáme session, musíme zpracovat parametry v URL
-                    // Zkontrolujeme, zda URL obsahuje potřebné parametry
-                    const hasResetParams = window.location.hash &&
-                                         (window.location.hash.includes('type=recovery') ||
-                                          window.location.hash.includes('type=invite'));
-
-                    console.log('URL hash check:', {
-                        hash: window.location.hash,
-                        hasResetParams
-                    });
-
-                    if (hasResetParams) {
-                        // Pokus o aplikování resetovacích parametrů
-                        try {
-                            // Pokusíme se získat session z URL parametrů
-                            const { data: authData, error: authError } = await supabase.auth.getSession();
-
-                            if (authError) {
-                                console.error('Auth error:', authError);
-                                setIsValidSession(false);
-                                setError('Neplatný nebo expirovaný odkaz pro reset hesla. Zkuste požádat o nový.');
-                            } else if (authData.session) {
-                                setIsValidSession(true);
-                            } else {
-                                setIsValidSession(false);
-                                setError('Neplatný odkaz pro reset hesla. Zkuste požádat o nový.');
-                            }
-                        } catch (e) {
-                            console.error('Error parsing auth params:', e);
-                            setIsValidSession(false);
-                            setError('Chyba při zpracování odkazu pro reset hesla. Zkuste požádat o nový.');
-                        }
-                    } else {
-                        setIsValidSession(false);
-                        setError('Neplatný odkaz pro reset hesla. Zkuste požádat o nový.');
-                    }
+                // Ověř, že typ akce je recovery
+                if (type !== 'recovery') {
+                    console.log('Invalid action type:', type);
+                    setError('Neplatný typ akce pro reset hesla');
+                    return;
                 }
-            } catch (e) {
-                console.error('Unexpected error checking session:', e);
-                setIsValidSession(false);
-                setError('Neočekávaná chyba při ověřování odkazu. Zkuste požádat o nový odkaz.');
-            } finally {
-                setCheckingSession(false);
+
+                // Ulož token pro pozdější použití
+                setAccessToken(token);
+
+                // Explicitně nastav supabase session pomocí tokenu
+                const { error } = await supabase.auth.setSession({
+                    access_token: token,
+                    refresh_token: '',
+                });
+
+                if (error) {
+                    console.error('Error setting session:', error);
+                    setError('Nelze nastavit session. Token může být neplatný nebo vypršel jeho platnost.');
+                    return;
+                }
+
+                console.log('Session set successfully');
+            } catch (err) {
+                console.error('Error processing hash parameters:', err);
+                setError('Chyba při zpracování parametrů v URL');
             }
         };
 
-        checkSession();
-    }, []);
+        handleHashParams();
+    }, [isClientLoaded]);
 
     // Kontrola shody hesel
     useEffect(() => {
@@ -120,10 +115,28 @@ export default function ResetPasswordPage() {
             return;
         }
 
+        if (!accessToken) {
+            setError('Chybí přístupový token pro reset hesla');
+            return;
+        }
+
         setIsLoading(true);
 
         try {
-            await resetPassword(password);
+            console.log('Updating password...');
+
+            // Aktualizace hesla pomocí Supabase API
+            const { error } = await supabase.auth.updateUser({
+                password: password
+            });
+
+            if (error) {
+                console.error('Error updating password:', error);
+                throw error;
+            }
+
+            console.log('Password updated successfully');
+            toast.success('Heslo bylo úspěšně změněno');
             setIsReset(true);
 
             // Přesměrovat zpět na login po úspěšném resetu
@@ -138,22 +151,23 @@ export default function ResetPasswordPage() {
         }
     };
 
-    // Zobrazení načítání při kontrole session
-    if (checkingSession) {
+    // Pokud stránka není načtená na klientovi, zobrazíme načítání
+    // Tím zabráníme problémům s rozdíly mezi SSR a CSR
+    if (!isClientLoaded) {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
                 <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4 inline-block"></div>
-                        <p className="text-gray-900">Ověřování odkazu pro reset hesla...</p>
+                        <p className="text-gray-900">Načítání...</p>
                     </div>
                 </div>
             </div>
         );
     }
 
-    // Zobrazení chybového stavu, pokud není platná session
-    if (!isValidSession && !isReset) {
+    // Zobrazení chybového stavu, pokud není nalezen přístupový token
+    if (error && !accessToken && !isReset) {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
                 <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
@@ -161,13 +175,13 @@ export default function ResetPasswordPage() {
                         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
                         <h1 className="text-xl font-bold text-gray-900 mb-2">Neplatný odkaz pro reset hesla</h1>
                         <p className="text-gray-600 mb-6">
-                            {error || 'Odkaz je neplatný nebo vypršela jeho platnost. Prosím, vyžádejte si nový odkaz pro reset hesla.'}
+                            {error || 'Odkaz je neplatný nebo vypršela jeho platnost.'}
                         </p>
                         <Link
                             href="/forgot-password"
                             className="inline-block px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
                         >
-                            Zapomenuté heslo
+                            Vyžádat nový odkaz
                         </Link>
                     </div>
                 </div>
@@ -297,7 +311,7 @@ export default function ResetPasswordPage() {
                             type="submit"
                             className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700
                                     transition-colors disabled:bg-blue-300 flex items-center justify-center"
-                            disabled={isLoading}
+                            disabled={isLoading || !accessToken}
                         >
                             {isLoading ? (
                                 <>
@@ -307,6 +321,8 @@ export default function ResetPasswordPage() {
                                     </svg>
                                     Resetuji heslo...
                                 </>
+                            ) : !accessToken ? (
+                                'Načítání...'
                             ) : (
                                 'Nastavit nové heslo'
                             )}

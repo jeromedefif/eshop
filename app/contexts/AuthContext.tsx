@@ -405,45 +405,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Opravená implementace ve funkci forgotPassword v AuthContext.tsx
-const forgotPassword = async (email: string) => {
-  if (inProgressRef.current) {
-    toast.info('Operace již probíhá, čekejte prosím...');
-    return;
-  }
+  // Spolehlivá implementace funkce forgotPassword v AuthContext.tsx
+  const forgotPassword = async (email: string) => {
+    if (inProgressRef.current) {
+      toast.info('Operace již probíhá, čekejte prosím...');
+      return;
+    }
 
-  inProgressRef.current = true;
-  authOperationCounterRef.current += 1;
-  const currentOperationId = authOperationCounterRef.current;
+    inProgressRef.current = true;
+    authOperationCounterRef.current += 1;
+    const currentOperationId = authOperationCounterRef.current;
 
-  setIsLoading(true);
+    setIsLoading(true);
 
-  try {
-    console.log('[Auth] Sending password reset email to:', email);
+    try {
+      console.log('[Auth] Sending password reset email to:', email);
 
-    // Použijeme absolutní URL včetně domény - DŮLEŽITÁ ZMĚNA
-    const redirectURL = `${window.location.origin}/reset-password`;
-    console.log('[Auth] Using redirect URL:', redirectURL);
+      // Absolutní cesta včetně origin pro přesměrování
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.beginy.cz';
 
-    // Supabase vyžaduje kompletní URL včetně domény
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectURL
-    });
+      // Použijeme přesnou URL pro resetovací stránku
+      const redirectURL = `${baseUrl}/reset-password`;
+      console.log('[Auth] Using redirect URL:', redirectURL);
 
-    // Kontrola přerušení operace
-    if (currentOperationId !== authOperationCounterRef.current) return;
+      // Vyvoláme Supabase API pro resetování hesla
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectURL
+      });
 
-    if (error) throw error;
+      // Kontrola přerušení operace
+      if (currentOperationId !== authOperationCounterRef.current) return;
 
-    toast.success('Na váš email byl odeslán odkaz pro reset hesla');
-  } catch (error) {
-    console.error('[Auth] Error in forgotPassword:', error);
-    toast.error(error instanceof Error ? error.message : 'Chyba při odesílání žádosti o reset hesla');
-    throw error;
-  } finally {
-    setIsLoading(false);
-    inProgressRef.current = false;
-  }
-};
+      if (error) {
+        console.error('[Auth] Reset password error:', error);
+        throw error;
+      }
+
+      toast.success('Na váš email byl odeslán odkaz pro reset hesla');
+    } catch (error) {
+      console.error('[Auth] Error in forgotPassword:', error);
+
+      // Zobrazíme specifické chybové zprávy podle typu chyby
+      if (error instanceof Error) {
+        if (error.message.includes('rate limit')) {
+          toast.error('Příliš mnoho pokusů. Zkuste to prosím později.');
+        } else if (error.message.includes('User not found')) {
+          // Pro bezpečnost stále indikujeme úspěch i když email neexistuje
+          toast.success('Na váš email byl odeslán odkaz pro reset hesla (pokud účet existuje)');
+          return; // Vracíme se ihned, není to chyba
+        } else {
+          toast.error(`Chyba: ${error.message}`);
+        }
+      } else {
+        toast.error('Chyba při odesílání žádosti o reset hesla');
+      }
+
+      throw error;
+    } finally {
+      setIsLoading(false);
+      inProgressRef.current = false;
+    }
+  };
 
 // Opravená implementace funkce resetPassword v AuthContext.tsx
 const resetPassword = async (newPassword: string) => {
