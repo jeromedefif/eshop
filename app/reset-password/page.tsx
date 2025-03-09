@@ -20,7 +20,7 @@ export default function ResetPasswordPage() {
         setShowPassword(!showPassword);
     };
 
-    // Jednoduchá funkce pro reset hesla
+    // Funkce pro reset hesla s odhlášením
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -55,9 +55,19 @@ export default function ResetPasswordPage() {
             toast.success('Heslo bylo úspěšně změněno');
             setIsReset(true);
 
-            // Přesměrování na login po úspěšném resetu
+            // KLÍČOVÁ ZMĚNA: Explicitní odhlášení po změně hesla
+            try {
+                console.log('Odhlašování uživatele po změně hesla');
+                await supabase.auth.signOut({ scope: 'global' });
+                console.log('Uživatel byl úspěšně odhlášen');
+            } catch (signOutError) {
+                console.error('Chyba při odhlašování po resetu hesla:', signOutError);
+                // Pokračujeme i v případě chyby při odhlašování
+            }
+
+            // Přesměrování na login po úspěšném resetu a odhlášení
             setTimeout(() => {
-                router.push('/login');
+                router.push('/login?reset=true');
             }, 3000);
         } catch (error) {
             console.error('Chyba při resetování hesla:', error);
@@ -106,7 +116,7 @@ export default function ResetPasswordPage() {
                         <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
                         <h2 className="text-xl font-semibold text-gray-900 mb-2">Heslo úspěšně změněno!</h2>
                         <p className="text-gray-700 mb-4">
-                            Vaše heslo bylo úspěšně resetováno. Nyní budete přesměrováni na přihlašovací stránku.
+                            Vaše heslo bylo úspěšně resetováno a byli jste odhlášeni. Nyní budete přesměrováni na přihlašovací stránku, kde se můžete přihlásit s novým heslem.
                         </p>
                         <Link
                             href="/login"
