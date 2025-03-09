@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Wine } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { supabase } from '@/lib/supabase/client';
 
 export default function ResetPasswordPage() {
     const [password, setPassword] = useState('');
@@ -16,27 +17,79 @@ export default function ResetPasswordPage() {
     const [passwordsMatch, setPasswordsMatch] = useState<boolean | null>(null);
     const [isReset, setIsReset] = useState(false);
     const [isValidSession, setIsValidSession] = useState(false);
+    const [checkingSession, setCheckingSession] = useState(true);
     const { resetPassword } = useAuth();
     const router = useRouter();
 
-    // Kontrola, zda máme v URL hash token od Supabase
+    // Kontrola, zda je platná resetovací session
     useEffect(() => {
-        // Když se stránka načte, zkontrolujeme URL pro ověření, že jsme na správném místě
-        const checkHashParams = () => {
-            const hash = window.location.hash;
-            // Supabase přidává do URL hash parametry pro autentizaci
-            // Musíme ověřit, zda URL obsahuje token a parametr type=recovery
-            if (hash && hash.includes('type=recovery') && hash.includes('access_token=')) {
-                setIsValidSession(true);
-            } else {
+        const checkSession = async () => {
+            try {
+                setCheckingSession(true);
+
+                // Zjištění, zda máme platnou session ze Supabase
+                const { data, error } = await supabase.auth.getSession();
+                console.log('Session check:', { data, error });
+
+                if (error) {
+                    console.error('Session error:', error);
+                    setIsValidSession(false);
+                    setError('Chyba při ověřování resetovacího odkazu. Zkuste požádat o nový.');
+                    return;
+                }
+
+                // Zkontrolujeme, zda máme aktivní session a typ akce je recovery
+                if (data.session) {
+                    // Pokud je user dostupný, odkaz je validní
+                    setIsValidSession(true);
+                } else {
+                    // Když nemáme session, musíme zpracovat parametry v URL
+                    // Zkontrolujeme, zda URL obsahuje potřebné parametry
+                    const hasResetParams = window.location.hash &&
+                                         (window.location.hash.includes('type=recovery') ||
+                                          window.location.hash.includes('type=invite'));
+
+                    console.log('URL hash check:', {
+                        hash: window.location.hash,
+                        hasResetParams
+                    });
+
+                    if (hasResetParams) {
+                        // Pokus o aplikování resetovacích parametrů
+                        try {
+                            // Pokusíme se získat session z URL parametrů
+                            const { data: authData, error: authError } = await supabase.auth.getSession();
+
+                            if (authError) {
+                                console.error('Auth error:', authError);
+                                setIsValidSession(false);
+                                setError('Neplatný nebo expirovaný odkaz pro reset hesla. Zkuste požádat o nový.');
+                            } else if (authData.session) {
+                                setIsValidSession(true);
+                            } else {
+                                setIsValidSession(false);
+                                setError('Neplatný odkaz pro reset hesla. Zkuste požádat o nový.');
+                            }
+                        } catch (e) {
+                            console.error('Error parsing auth params:', e);
+                            setIsValidSession(false);
+                            setError('Chyba při zpracování odkazu pro reset hesla. Zkuste požádat o nový.');
+                        }
+                    } else {
+                        setIsValidSession(false);
+                        setError('Neplatný odkaz pro reset hesla. Zkuste požádat o nový.');
+                    }
+                }
+            } catch (e) {
+                console.error('Unexpected error checking session:', e);
                 setIsValidSession(false);
-                setError('Neplatný nebo expirovaný odkaz pro reset hesla');
-                // Pouze informujeme uživatele, ale nepřesměrováváme automaticky
-                toast.error('Neplatný odkaz pro reset hesla. Zkuste požádat o nový.');
+                setError('Neočekávaná chyba při ověřování odkazu. Zkuste požádat o nový odkaz.');
+            } finally {
+                setCheckingSession(false);
             }
         };
 
-        checkHashParams();
+        checkSession();
     }, []);
 
     // Kontrola shody hesel
@@ -85,6 +138,20 @@ export default function ResetPasswordPage() {
         }
     };
 
+    // Zobrazení načítání při kontrole session
+    if (checkingSession) {
+        return (
+            <div className="min-h-screen bg-gray-50 py-12">
+                <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4 inline-block"></div>
+                        <p className="text-gray-900">Ověřování odkazu pro reset hesla...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     // Zobrazení chybového stavu, pokud není platná session
     if (!isValidSession && !isReset) {
         return (
@@ -94,7 +161,7 @@ export default function ResetPasswordPage() {
                         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
                         <h1 className="text-xl font-bold text-gray-900 mb-2">Neplatný odkaz pro reset hesla</h1>
                         <p className="text-gray-600 mb-6">
-                            Odkaz je neplatný nebo vypršela jeho platnost. Prosím, vyžádejte si nový odkaz pro reset hesla.
+                            {error || 'Odkaz je neplatný nebo vypršela jeho platnost. Prosím, vyžádejte si nový odkaz pro reset hesla.'}
                         </p>
                         <Link
                             href="/forgot-password"

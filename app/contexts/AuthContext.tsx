@@ -404,103 +404,121 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // NOVÁ FUNKCE: Metoda pro vyžádání resetovacího emailu
-  const forgotPassword = async (email: string) => {
-    if (inProgressRef.current) {
-      toast.info('Operace již probíhá, čekejte prosím...');
-      return;
+  // Opravená implementace ve funkci forgotPassword v AuthContext.tsx
+const forgotPassword = async (email: string) => {
+  if (inProgressRef.current) {
+    toast.info('Operace již probíhá, čekejte prosím...');
+    return;
+  }
+
+  inProgressRef.current = true;
+  authOperationCounterRef.current += 1;
+  const currentOperationId = authOperationCounterRef.current;
+
+  setIsLoading(true);
+
+  try {
+    console.log('[Auth] Sending password reset email to:', email);
+
+    // Použijeme absolutní URL včetně domény - DŮLEŽITÁ ZMĚNA
+    const redirectURL = `${window.location.origin}/reset-password`;
+    console.log('[Auth] Using redirect URL:', redirectURL);
+
+    // Supabase vyžaduje kompletní URL včetně domény
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectURL
+    });
+
+    // Kontrola přerušení operace
+    if (currentOperationId !== authOperationCounterRef.current) return;
+
+    if (error) throw error;
+
+    toast.success('Na váš email byl odeslán odkaz pro reset hesla');
+  } catch (error) {
+    console.error('[Auth] Error in forgotPassword:', error);
+    toast.error(error instanceof Error ? error.message : 'Chyba při odesílání žádosti o reset hesla');
+    throw error;
+  } finally {
+    setIsLoading(false);
+    inProgressRef.current = false;
+  }
+};
+
+// Opravená implementace funkce resetPassword v AuthContext.tsx
+const resetPassword = async (newPassword: string) => {
+  if (!newPassword) {
+    throw new Error('Heslo nemůže být prázdné');
+  }
+
+  if (newPassword.length < 6) {
+    throw new Error('Heslo musí mít alespoň 6 znaků');
+  }
+
+  if (inProgressRef.current) {
+    toast.info('Operace již probíhá, čekejte prosím...');
+    return;
+  }
+
+  inProgressRef.current = true;
+  authOperationCounterRef.current += 1;
+  const currentOperationId = authOperationCounterRef.current;
+
+  setIsLoading(true);
+
+  try {
+    console.log('[Auth] Resetting password');
+
+    // Pokus o získání aktuální session - důležité pro ověření, že máme validní session pro reset
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      console.error('[Auth] Session error before password reset:', sessionError);
+      throw new Error('Nelze ověřit vaši identitu. Zkuste znovu načíst stránku.');
     }
 
-    inProgressRef.current = true;
-    authOperationCounterRef.current += 1;
-    const currentOperationId = authOperationCounterRef.current;
+    if (!sessionData.session) {
+      console.error('[Auth] No active session for password reset');
+      throw new Error('Neplatná session pro resetování hesla. Zkuste požádat o nový reset odkaz.');
+    }
 
-    setIsLoading(true);
+    // Pokud máme platnou session, resetujeme heslo
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
 
-    try {
-      console.log('[Auth] Sending password reset email to:', email);
+    // Kontrola přerušení operace
+    if (currentOperationId !== authOperationCounterRef.current) return;
 
-      // Zajištění správné base URL pro redirect
-      const redirectURL = `${window.location.origin}/reset-password`;
-      console.log('[Auth] Using redirect URL:', redirectURL);
-
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectURL
-      });
-
-      // Kontrola přerušení operace
-      if (currentOperationId !== authOperationCounterRef.current) return;
-
-      if (error) throw error;
-
-      toast.success('Na váš email byl odeslán odkaz pro reset hesla');
-    } catch (error) {
-      console.error('[Auth] Error in forgotPassword:', error);
-      toast.error(error instanceof Error ? error.message : 'Chyba při odesílání žádosti o reset hesla');
+    if (error) {
+      console.error('[Auth] Password update error:', error);
       throw error;
-    } finally {
-      setIsLoading(false);
-      inProgressRef.current = false;
-    }
-  };
-
-  // NOVÁ FUNKCE: Metoda pro nastavení nového hesla
-  const resetPassword = async (newPassword: string) => {
-    if (!newPassword) {
-      throw new Error('Heslo nemůže být prázdné');
     }
 
-    if (newPassword.length < 6) {
-      throw new Error('Heslo musí mít alespoň 6 znaků');
-    }
+    toast.success('Heslo bylo úspěšně změněno');
 
-    if (inProgressRef.current) {
-      toast.info('Operace již probíhá, čekejte prosím...');
-      return;
-    }
+    // Po úspěšném resetování hesla aktualizujeme stavové proměnné
+    const { data, error: refreshError } = await supabase.auth.getSession();
 
-    inProgressRef.current = true;
-    authOperationCounterRef.current += 1;
-    const currentOperationId = authOperationCounterRef.current;
+    if (!refreshError && data.session) {
+      setUser(data.session.user);
 
-    setIsLoading(true);
-
-    try {
-      console.log('[Auth] Resetting password');
-
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      // Kontrola přerušení operace
-      if (currentOperationId !== authOperationCounterRef.current) return;
-
-      if (error) throw error;
-
-      toast.success('Heslo bylo úspěšně změněno');
-
-      // Po úspěšném resetování hesla aktualizujeme stavové proměnné
-      const { data, error: sessionError } = await supabase.auth.getSession();
-
-      if (!sessionError && data.session) {
-        setUser(data.session.user);
-
-        // Načtení profilu uživatele
-        const profileData = await fetchProfile(data.session.user.id);
-        if (profileData) {
-          setProfile(profileData);
-          setIsAdmin(profileData.is_admin);
-        }
+      // Načtení profilu uživatele
+      const profileData = await fetchProfile(data.session.user.id);
+      if (profileData) {
+        setProfile(profileData);
+        setIsAdmin(profileData.is_admin);
       }
-    } catch (error) {
-      console.error('[Auth] Error in resetPassword:', error);
-      toast.error(error instanceof Error ? error.message : 'Chyba při resetování hesla');
-      throw error;
-    } finally {
-      setIsLoading(false);
-      inProgressRef.current = false;
     }
-  };
+  } catch (error) {
+    console.error('[Auth] Error in resetPassword:', error);
+    toast.error(error instanceof Error ? error.message : 'Chyba při resetování hesla');
+    throw error;
+  } finally {
+    setIsLoading(false);
+    inProgressRef.current = false;
+  }
+};
 
   // KLÍČOVÁ OPTIMALIZACE: Zjednodušená implementace refreshProfile
   // Tato implementace používá cache a předchází zbytečným dotazům na server
