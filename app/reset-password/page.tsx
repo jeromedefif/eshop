@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Wine } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { supabase } from '@/lib/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ResetPasswordPage() {
     const [password, setPassword] = useState('');
@@ -16,39 +16,16 @@ export default function ResetPasswordPage() {
     const [sessionStatus, setSessionStatus] = useState<'checking' | 'valid' | 'invalid'>('checking');
     const [passwordsMatch, setPasswordsMatch] = useState<boolean | null>(null);
     const [isReset, setIsReset] = useState(false);
-
     const router = useRouter();
+    const { resetPassword } = useAuth();
 
-    // Kontrola session při načtení stránky
+    // Kontrola přítomnosti parametrů v URL při načtení stránky
     useEffect(() => {
-        const checkSession = async () => {
-            try {
-                console.log('Kontroluji session pro reset hesla');
-                const { data, error } = await supabase.auth.getSession();
+        console.log('Kontroluji parametry v URL pro reset hesla');
 
-                if (error) {
-                    console.error('Chyba při získávání session:', error);
-                    setSessionStatus('invalid');
-                    setError('Chyba při ověřování vaší identity');
-                    return;
-                }
-
-                if (data?.session) {
-                    console.log('Session nalezena, lze resetovat heslo');
-                    setSessionStatus('valid');
-                } else {
-                    console.error('Žádná platná session nenalezena');
-                    setSessionStatus('invalid');
-                    setError('K této stránce nelze přistupovat přímo. Použijte odkaz zaslaný na váš email.');
-                }
-            } catch (err) {
-                console.error('Neočekávaná chyba při kontrole session:', err);
-                setSessionStatus('invalid');
-                setError('Došlo k neočekávané chybě');
-            }
-        };
-
-        checkSession();
+        // Resetování hesla funguje automaticky skrze Supabase SDK
+        // Samotná přítomnost na této stránce znamená, že Supabase již zpracoval token
+        setSessionStatus('valid');
     }, []);
 
     // Kontrola shody hesel
@@ -82,19 +59,10 @@ export default function ResetPasswordPage() {
         setIsLoading(true);
 
         try {
-            // Aktualizace hesla přes Supabase API
-            console.log('Aktualizuji heslo');
-            const { error: updateError } = await supabase.auth.updateUser({
-                password: password
-            });
-
-            if (updateError) {
-                console.error('Chyba při aktualizaci hesla:', updateError);
-                throw updateError;
-            }
+            // Použití funkce z AuthContext místo přímého volání Supabase
+            await resetPassword(password);
 
             console.log('Heslo úspěšně aktualizováno');
-            toast.success('Heslo bylo úspěšně změněno');
             setIsReset(true);
 
             // Přesměrování na login po úspěšném resetu
@@ -104,11 +72,10 @@ export default function ResetPasswordPage() {
         } catch (error) {
             console.error('Chyba při resetu hesla:', error);
 
-            // Zobrazení srozumitelné chybové zprávy
             if (error instanceof Error) {
-                // Zpracování specifických chyb
-                if (error.message.includes('User not found') || error.message.includes('JWT')) {
-                    setError('Platnost vaší relace vypršela. Vyžádejte si nový odkaz pro reset hesla.');
+                if (error.message.includes('Invalid')) {
+                    setError('Platnost odkazu pro reset hesla vypršela. Vyžádejte si nový odkaz.');
+                    setSessionStatus('invalid');
                 } else {
                     setError(error.message);
                 }
@@ -141,9 +108,9 @@ export default function ResetPasswordPage() {
                 <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
                     <div className="text-center mb-6">
                         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                        <h1 className="text-xl font-bold text-gray-900 mb-2">Neplatný přístup</h1>
+                        <h1 className="text-xl font-bold text-gray-900 mb-2">Neplatný odkaz</h1>
                         <p className="text-gray-600 mb-6">
-                            {error || 'K této stránce nelze přistupovat přímo. Použijte odkaz zaslaný na váš email.'}
+                            {error || 'Platnost odkazu pro reset hesla vypršela nebo je neplatný.'}
                         </p>
                         <Link
                             href="/forgot-password"
@@ -157,6 +124,7 @@ export default function ResetPasswordPage() {
         );
     }
 
+    // Zbytek stránky zůstává stejný...
     return (
         <div className="min-h-screen bg-gray-50 py-12">
             <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">

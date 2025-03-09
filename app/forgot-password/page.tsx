@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Mail, Send, AlertCircle, Wine } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { supabase } from '@/lib/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
@@ -13,6 +13,7 @@ export default function ForgotPasswordPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const router = useRouter();
+    const { forgotPassword } = useAuth();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -20,32 +21,16 @@ export default function ForgotPasswordPage() {
         setIsLoading(true);
 
         try {
-            // Dle dokumentace, zadáme přesnou URL pro přesměrování
-            // DŮLEŽITÉ: Tato URL musí být nastavena v Supabase v sekci URL přesměrování
-            const redirectUrl = `${window.location.origin}/reset-password`;
-
-            console.log('Sending reset password request to:', email);
-            console.log('Redirect URL:', redirectUrl);
-
-            // Voláme Supabase API pro reset hesla
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: redirectUrl
-            });
-
-            if (error) throw error;
-
-            console.log('Reset password email sent');
+            // Použití funkce z AuthContext místo přímého volání Supabase
+            await forgotPassword(email);
             setIsSubmitted(true);
-            toast.success('Na váš email byl odeslán odkaz pro reset hesla');
         } catch (error) {
             console.error('Forgot password error:', error);
 
-            // Pro bezpečnost nezobrazujeme, zda email existuje nebo ne
             if (error instanceof Error && error.message.includes('rate limit')) {
                 setError('Příliš mnoho pokusů. Zkuste to prosím později.');
             } else {
-                // Dokonce i při neexistujícím emailu nastavíme stav jako odeslán
-                // Toto je bezpečnostní opatření proti útokům na zjištění existujících emailů
+                // I při chybě zobrazíme úspěšný stav z bezpečnostních důvodů
                 setIsSubmitted(true);
             }
         } finally {
