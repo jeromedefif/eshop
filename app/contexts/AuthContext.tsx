@@ -404,70 +404,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Opravená implementace ve funkci forgotPassword v AuthContext.tsx
-  // Spolehlivá implementace funkce forgotPassword v AuthContext.tsx
-  const forgotPassword = async (email: string) => {
-    if (inProgressRef.current) {
-      toast.info('Operace již probíhá, čekejte prosím...');
-      return;
-    }
+  // Zjednodušená implementace resetPassword a forgotPassword v AuthContext.tsx
 
-    inProgressRef.current = true;
-    authOperationCounterRef.current += 1;
-    const currentOperationId = authOperationCounterRef.current;
+// Funkce pro vyžádání resetovacího emailu - výrazně zjednodušená
+const forgotPassword = async (email: string) => {
+  if (inProgressRef.current) {
+    toast.info('Operace již probíhá, čekejte prosím...');
+    return;
+  }
 
-    setIsLoading(true);
+  inProgressRef.current = true;
+  setIsLoading(true);
 
-    try {
-      console.log('[Auth] Sending password reset email to:', email);
+  try {
+    console.log('[Auth] Sending password reset email to:', email);
 
-      // Absolutní cesta včetně origin pro přesměrování
-      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.beginy.cz';
+    // Získání base URL pro přesměrování
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.beginy.cz';
+    const redirectURL = `${baseUrl}/reset-password`;
 
-      // Použijeme přesnou URL pro resetovací stránku
-      const redirectURL = `${baseUrl}/reset-password`;
-      console.log('[Auth] Using redirect URL:', redirectURL);
+    console.log('[Auth] Using redirect URL:', redirectURL);
 
-      // Vyvoláme Supabase API pro resetování hesla
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectURL
-      });
+    // Jednoduchý přímý požadavek podle dokumentace Supabase
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectURL
+    });
 
-      // Kontrola přerušení operace
-      if (currentOperationId !== authOperationCounterRef.current) return;
+    if (error) throw error;
 
-      if (error) {
-        console.error('[Auth] Reset password error:', error);
-        throw error;
-      }
+    toast.success('Na váš email byl odeslán odkaz pro reset hesla');
+  } catch (error) {
+    console.error('[Auth] Error in forgotPassword:', error);
 
-      toast.success('Na váš email byl odeslán odkaz pro reset hesla');
-    } catch (error) {
-      console.error('[Auth] Error in forgotPassword:', error);
+    // Pro bezpečnost nezobrazujeme konkrétní zprávy
+    // (aby nebylo možné zjistit, zda email existuje)
+    toast.success('Pokud email existuje v databázi, byl odeslán odkaz pro reset hesla');
+  } finally {
+    setIsLoading(false);
+    inProgressRef.current = false;
+  }
+};
 
-      // Zobrazíme specifické chybové zprávy podle typu chyby
-      if (error instanceof Error) {
-        if (error.message.includes('rate limit')) {
-          toast.error('Příliš mnoho pokusů. Zkuste to prosím později.');
-        } else if (error.message.includes('User not found')) {
-          // Pro bezpečnost stále indikujeme úspěch i když email neexistuje
-          toast.success('Na váš email byl odeslán odkaz pro reset hesla (pokud účet existuje)');
-          return; // Vracíme se ihned, není to chyba
-        } else {
-          toast.error(`Chyba: ${error.message}`);
-        }
-      } else {
-        toast.error('Chyba při odesílání žádosti o reset hesla');
-      }
-
-      throw error;
-    } finally {
-      setIsLoading(false);
-      inProgressRef.current = false;
-    }
-  };
-
-// Opravená implementace funkce resetPassword v AuthContext.tsx
+// Funkce pro nastavení nového hesla - výrazně zjednodušená
 const resetPassword = async (newPassword: string) => {
   if (!newPassword) {
     throw new Error('Heslo nemůže být prázdné');
@@ -483,46 +461,24 @@ const resetPassword = async (newPassword: string) => {
   }
 
   inProgressRef.current = true;
-  authOperationCounterRef.current += 1;
-  const currentOperationId = authOperationCounterRef.current;
-
   setIsLoading(true);
 
   try {
     console.log('[Auth] Resetting password');
 
-    // Pokus o získání aktuální session - důležité pro ověření, že máme validní session pro reset
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-
-    if (sessionError) {
-      console.error('[Auth] Session error before password reset:', sessionError);
-      throw new Error('Nelze ověřit vaši identitu. Zkuste znovu načíst stránku.');
-    }
-
-    if (!sessionData.session) {
-      console.error('[Auth] No active session for password reset');
-      throw new Error('Neplatná session pro resetování hesla. Zkuste požádat o nový reset odkaz.');
-    }
-
-    // Pokud máme platnou session, resetujeme heslo
+    // Jednoduchý přímý požadavek podle dokumentace Supabase
     const { error } = await supabase.auth.updateUser({
       password: newPassword
     });
 
-    // Kontrola přerušení operace
-    if (currentOperationId !== authOperationCounterRef.current) return;
-
-    if (error) {
-      console.error('[Auth] Password update error:', error);
-      throw error;
-    }
+    if (error) throw error;
 
     toast.success('Heslo bylo úspěšně změněno');
 
-    // Po úspěšném resetování hesla aktualizujeme stavové proměnné
-    const { data, error: refreshError } = await supabase.auth.getSession();
+    // Aktualizace session a uživatelských dat po změně hesla
+    const { data, error: sessionError } = await supabase.auth.getSession();
 
-    if (!refreshError && data.session) {
+    if (!sessionError && data.session) {
       setUser(data.session.user);
 
       // Načtení profilu uživatele
@@ -534,14 +490,13 @@ const resetPassword = async (newPassword: string) => {
     }
   } catch (error) {
     console.error('[Auth] Error in resetPassword:', error);
-    toast.error(error instanceof Error ? error.message : 'Chyba při resetování hesla');
+    toast.error('Chyba při resetování hesla. Zkuste to prosím znovu.');
     throw error;
   } finally {
     setIsLoading(false);
     inProgressRef.current = false;
   }
 };
-
   // KLÍČOVÁ OPTIMALIZACE: Zjednodušená implementace refreshProfile
   // Tato implementace používá cache a předchází zbytečným dotazům na server
   const refreshProfile = async () => {

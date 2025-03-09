@@ -15,77 +15,34 @@ export default function ResetPasswordPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [passwordsMatch, setPasswordsMatch] = useState<boolean | null>(null);
     const [isReset, setIsReset] = useState(false);
-    const [isClientLoaded, setIsClientLoaded] = useState(false);
-    const [accessToken, setAccessToken] = useState<string | null>(null);
+    const [isSessionLoaded, setIsSessionLoaded] = useState(false);
+    const [hasSession, setHasSession] = useState(false);
     const router = useRouter();
 
-    // Důležité - detekujeme, kdy je klient načtený
+    // Kontrola, zda máme platnou session - důležité pro reset hesla
     useEffect(() => {
-        setIsClientLoaded(true);
-    }, []);
-
-    // Zpracování URL parametrů z hash fragmentu IHNED po načtení stránky na klientovi
-    useEffect(() => {
-        if (!isClientLoaded) return;
-
-        console.log('Client loaded, checking URL hash');
-
-        const handleHashParams = async () => {
-            // Získej hash část URL (část za #)
-            const hash = window.location.hash;
-            console.log('Hash fragment:', hash);
-
-            if (!hash) {
-                console.log('No hash parameters found');
-                setError('Chybí parametry pro reset hesla');
-                return;
-            }
-
+        const checkSession = async () => {
             try {
-                // Extrahuj access_token z URL
-                const hashParams = new URLSearchParams(hash.substring(1));
-                const token = hashParams.get('access_token');
-                const type = hashParams.get('type');
-
-                console.log('Extracted parameters:', { token: token ? '✓' : '✗', type });
-
-                if (!token) {
-                    console.log('No access token found in URL');
-                    setError('Chybí přístupový token pro reset hesla');
-                    return;
-                }
-
-                // Ověř, že typ akce je recovery
-                if (type !== 'recovery') {
-                    console.log('Invalid action type:', type);
-                    setError('Neplatný typ akce pro reset hesla');
-                    return;
-                }
-
-                // Ulož token pro pozdější použití
-                setAccessToken(token);
-
-                // Explicitně nastav supabase session pomocí tokenu
-                const { error } = await supabase.auth.setSession({
-                    access_token: token,
-                    refresh_token: '',
+                // Když user klikne na reset link, hash parametry jsou automaticky
+                // zpracovány Supabase klientem a vytvoří dočasnou session
+                const { data, error } = await supabase.auth.getSession();
+                console.log("Session check:", {
+                    hasSession: !!data.session,
+                    error: error ? error.message : null
                 });
 
-                if (error) {
-                    console.error('Error setting session:', error);
-                    setError('Nelze nastavit session. Token může být neplatný nebo vypršel jeho platnost.');
-                    return;
-                }
-
-                console.log('Session set successfully');
+                // Nastavíme stav podle toho, zda máme platnou session
+                setHasSession(!!data.session);
             } catch (err) {
-                console.error('Error processing hash parameters:', err);
-                setError('Chyba při zpracování parametrů v URL');
+                console.error("Session check error:", err);
+                setHasSession(false);
+            } finally {
+                setIsSessionLoaded(true);
             }
         };
 
-        handleHashParams();
-    }, [isClientLoaded]);
+        checkSession();
+    }, []);
 
     // Kontrola shody hesel
     useEffect(() => {
@@ -115,17 +72,11 @@ export default function ResetPasswordPage() {
             return;
         }
 
-        if (!accessToken) {
-            setError('Chybí přístupový token pro reset hesla');
-            return;
-        }
-
         setIsLoading(true);
 
         try {
-            console.log('Updating password...');
-
-            // Aktualizace hesla pomocí Supabase API
+            // Využijeme Supabase SDK pro aktualizaci hesla
+            // Nepotřebujeme explicitně vkládat token, SDK ho získá z aktuální session
             const { error } = await supabase.auth.updateUser({
                 password: password
             });
@@ -151,9 +102,8 @@ export default function ResetPasswordPage() {
         }
     };
 
-    // Pokud stránka není načtená na klientovi, zobrazíme načítání
-    // Tím zabráníme problémům s rozdíly mezi SSR a CSR
-    if (!isClientLoaded) {
+    // Zobrazení načítání, dokud nezjistíme stav session
+    if (!isSessionLoaded) {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
                 <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
@@ -166,8 +116,8 @@ export default function ResetPasswordPage() {
         );
     }
 
-    // Zobrazení chybového stavu, pokud není nalezen přístupový token
-    if (error && !accessToken && !isReset) {
+    // Zobrazení chybového stavu, pokud nemáme platnou session
+    if (!hasSession && isSessionLoaded && !isReset) {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
                 <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
@@ -175,7 +125,7 @@ export default function ResetPasswordPage() {
                         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
                         <h1 className="text-xl font-bold text-gray-900 mb-2">Neplatný odkaz pro reset hesla</h1>
                         <p className="text-gray-600 mb-6">
-                            {error || 'Odkaz je neplatný nebo vypršela jeho platnost.'}
+                            Odkaz je neplatný nebo vypršela jeho platnost. Prosím, vyžádejte si nový odkaz pro reset hesla.
                         </p>
                         <Link
                             href="/forgot-password"
@@ -311,7 +261,7 @@ export default function ResetPasswordPage() {
                             type="submit"
                             className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700
                                     transition-colors disabled:bg-blue-300 flex items-center justify-center"
-                            disabled={isLoading || !accessToken}
+                            disabled={isLoading}
                         >
                             {isLoading ? (
                                 <>
@@ -321,8 +271,6 @@ export default function ResetPasswordPage() {
                                     </svg>
                                     Resetuji heslo...
                                 </>
-                            ) : !accessToken ? (
-                                'Načítání...'
                             ) : (
                                 'Nastavit nové heslo'
                             )}
