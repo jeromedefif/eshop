@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Wine } from 'lucide-react';
+import { ArrowLeft, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Wine, ExternalLink } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { supabase } from '@/lib/supabase/client';
 
@@ -20,7 +20,35 @@ export default function ResetPasswordPage() {
         setShowPassword(!showPassword);
     };
 
-    // Funkce pro reset hesla s odhlášením
+    // Radikální čištění Supabase dat z prohlížeče
+    const clearSupabaseData = () => {
+        try {
+            console.log('Čištění Supabase dat z prohlížeče');
+
+            // 1. Vyčištění localStorage
+            for (const key of Object.keys(localStorage)) {
+                if (key.startsWith('sb-') || key.includes('supabase')) {
+                    console.log(`Čištění localStorage klíče: ${key}`);
+                    localStorage.removeItem(key);
+                }
+            }
+
+            // 2. Vyčištění cookies
+            document.cookie.split(';').forEach(c => {
+                const cookieName = c.trim().split('=')[0];
+                if (cookieName.includes('sb-') || cookieName.includes('supabase')) {
+                    console.log(`Čištění cookie: ${cookieName}`);
+                    document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+                }
+            });
+
+            console.log('Čištění dokončeno');
+        } catch (error) {
+            console.error('Chyba při čištění dat:', error);
+        }
+    };
+
+    // Funkce pro reset hesla
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -53,22 +81,24 @@ export default function ResetPasswordPage() {
 
             console.log('Heslo bylo úspěšně aktualizováno');
             toast.success('Heslo bylo úspěšně změněno');
-            setIsReset(true);
 
-            // KLÍČOVÁ ZMĚNA: Explicitní odhlášení po změně hesla
+            // Odhlášení nejen z tohoto zařízení, ale globálně
             try {
-                console.log('Odhlašování uživatele po změně hesla');
+                console.log('Explicitní globální odhlášení po resetu hesla');
                 await supabase.auth.signOut({ scope: 'global' });
                 console.log('Uživatel byl úspěšně odhlášen');
+
+                // Radikální vyčištění dat
+                clearSupabaseData();
             } catch (signOutError) {
                 console.error('Chyba při odhlašování po resetu hesla:', signOutError);
-                // Pokračujeme i v případě chyby při odhlašování
+                // I při chybě provedeme čištění
+                clearSupabaseData();
             }
 
-            // KLÍČOVÁ ZMĚNA: Přesměrování na speciální přihlašovací stránku
-            setTimeout(() => {
-                router.push('/login-after-reset');
-            }, 3000);
+            // Nastavení stavu na dokončeno
+            setIsReset(true);
+
         } catch (error) {
             console.error('Chyba při resetování hesla:', error);
 
@@ -86,6 +116,15 @@ export default function ResetPasswordPage() {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    // Funkce pro návrat na hlavní stránku s čistým stavem
+    const handleGoToHome = () => {
+        // Ještě jednou vyčistíme data pro jistotu
+        clearSupabaseData();
+
+        // Přesměrování na hlavní stránku
+        window.location.href = '/';
     };
 
     return (
@@ -115,15 +154,31 @@ export default function ResetPasswordPage() {
                     <div className="bg-green-50 p-6 rounded-lg text-center">
                         <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
                         <h2 className="text-xl font-semibold text-gray-900 mb-2">Heslo úspěšně změněno!</h2>
-                        <p className="text-gray-700 mb-4">
-                            Vaše heslo bylo úspěšně resetováno. Nyní budete přesměrováni na přihlašovací stránku, kde se můžete přihlásit s novým heslem.
+                        <p className="text-gray-700 mb-6">
+                            Vaše heslo bylo úspěšně resetováno a byli jste bezpečně odhlášeni ze všech zařízení.
                         </p>
-                        <Link
-                            href="/login-after-reset"
-                            className="inline-block px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                            Přejít na přihlášení
-                        </Link>
+
+                        <div className="flex flex-col space-y-3">
+                            <button
+                                onClick={handleGoToHome}
+                                className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                                <ExternalLink className="w-4 h-4 mr-2" />
+                                Přejít na hlavní stránku
+                            </button>
+
+                            <a
+                                href="/login"
+                                className="inline-flex items-center justify-center px-4 py-2 border border-blue-600 text-blue-600 font-medium rounded-lg hover:bg-blue-50 transition-colors"
+                                onClick={clearSupabaseData}
+                            >
+                                Přejít na přihlášení
+                            </a>
+
+                            <p className="text-sm text-gray-500 mt-2">
+                                Pro přihlášení s novým heslem prosím klikněte na "Přejít na přihlášení" a zadejte své přihlašovací údaje.
+                            </p>
+                        </div>
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit} className="space-y-5">
