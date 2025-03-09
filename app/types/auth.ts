@@ -52,6 +52,8 @@ export interface AuthContextType {
    signOut: () => Promise<void>;
    updateProfile: (data: UpdateProfileData) => Promise<void>;
    refreshProfile: () => Promise<void>;
+   forgotPassword: (email: string) => Promise<void>;
+   resetPassword: (newPassword: string) => Promise<void>;
 }
 
 export interface ProfileDialogProps {

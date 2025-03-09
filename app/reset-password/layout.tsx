@@ -1,7 +1,8 @@
+// app/reset-password/layout.tsx
 import React from 'react';
 
 export const metadata = {
-  title: 'Reset hesla | VINARIA s.r.o.',
+  title: 'Resetování hesla | VINARIA s.r.o.',
   description: 'Nastavení nového hesla k vašemu účtu',
 }
 

@@ -1,59 +1,81 @@
 'use client';
 
-import React, { useState } from 'react';
-import { supabase } from '@/lib/supabase/client';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Mail, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Mail, Send, AlertCircle, Wine } from 'lucide-react';
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSubmitted, setIsSubmitted] = useState(false);
+    const { forgotPassword, user } = useAuth();
+    const router = useRouter();
+
+    // Přesměrování přihlášeného uživatele
+    useEffect(() => {
+        if (user) {
+            router.push('/');
+        }
+    }, [user, router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        if (!email) {
-            setError('Zadejte prosím emailovou adresu');
-            return;
-        }
-
-        setIsLoading(true);
         setError('');
+        setIsLoading(true);
 
         try {
-            // Nejprve získáme aktuální adresu webu
-            let siteUrl = '';
-
-            // V produkci použijeme SITE_URL z env, jinak použijeme aktuální origin
-            if (process.env.NEXT_PUBLIC_SITE_URL) {
-                siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-            } else {
-                siteUrl = window.location.origin;
-            }
-
-            console.log('Odesílání žádosti o reset hesla:', {
-                email,
-                redirectUrl: `${siteUrl}/reset-password`
-            });
-
-            // Použití oficiálního API pro reset hesla
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${siteUrl}/reset-password`
-            });
-
-            if (error) throw error;
-
-            // Při úspěchu zobrazíme potvrzení a skryjeme formulář
-            setIsSuccess(true);
+            await forgotPassword(email);
+            setIsSubmitted(true);
         } catch (error) {
-            console.error('Error requesting password reset:', error);
-            setError(error instanceof Error ? error.message : 'Nepodařilo se odeslat žádost o reset hesla');
+            console.error('Forgot password error:', error);
+            setError(error instanceof Error ? error.message : 'Chyba při odesílání požadavku na reset hesla');
         } finally {
             setIsLoading(false);
         }
     };
+
+    // Zobrazení potvrzení po odeslání emailu
+    if (isSubmitted) {
+        return (
+            <div className="min-h-screen bg-gray-50 py-12">
+                <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
+                    <div className="text-center mb-6">
+                        <div className="inline-flex items-center justify-center h-16 w-16 bg-green-100 rounded-full mb-4">
+                            <Send className="h-8 w-8 text-green-600" />
+                        </div>
+                        <h1 className="text-2xl font-bold text-gray-900 mb-2">Email odeslán!</h1>
+                        <p className="text-gray-600">
+                            Pokud účet s touto emailovou adresou existuje, obdržíte odkaz pro resetování hesla.
+                        </p>
+                    </div>
+
+                    <div className="bg-blue-50 p-4 rounded-lg mb-6">
+                        <p className="text-gray-800">
+                            Zkontrolujte svou emailovou schránku a klikněte na odkaz v emailu pro nastavení nového hesla.
+                        </p>
+                    </div>
+
+                    <div className="flex justify-between">
+                        <Link
+                            href="/login"
+                            className="px-4 py-2 text-blue-600 font-medium rounded-lg hover:bg-blue-50 transition-colors"
+                        >
+                            Zpět na přihlášení
+                        </Link>
+                        <button
+                            onClick={() => setIsSubmitted(false)}
+                            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+                        >
+                            Zkusit jiný email
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 py-12">
@@ -68,75 +90,62 @@ export default function ForgotPasswordPage() {
                     </Link>
                 </div>
 
-                <h1 className="text-2xl font-bold text-gray-900 mb-6">Obnovení hesla</h1>
+                <div className="text-center mb-8">
+                    <div className="inline-flex items-center justify-center h-16 w-16 bg-blue-100 rounded-full text-blue-600 mb-4">
+                        <Wine className="h-8 w-8" />
+                    </div>
+                    <h1 className="text-2xl font-bold text-gray-900">Zapomenuté heslo</h1>
+                    <p className="text-gray-600 mt-2">
+                        Zadejte svůj email a my vám pošleme odkaz pro obnovení hesla.
+                    </p>
+                </div>
 
-                {isSuccess ? (
-                    <div className="bg-green-50 p-6 rounded-lg">
-                        <div className="flex items-start">
-                            <CheckCircle className="w-6 h-6 text-green-500 mr-3 mt-0.5 flex-shrink-0" />
-                            <div>
-                                <h2 className="text-lg font-semibold text-gray-900 mb-2">Email byl odeslán</h2>
-                                <p className="text-gray-700 mb-4">
-                                    Pokyny k obnovení hesla byly odeslány na adresu <strong>{email}</strong>.
-                                    Zkontrolujte svůj email a postupujte podle pokynů v emailu.
-                                </p>
-                                <p className="text-gray-700">
-                                    Pokud email neobdržíte do 5 minut, zkontrolujte prosím složku spam
-                                    nebo <Link href="/forgot-password" className="text-blue-600 hover:text-blue-800">
-                                    zkuste to znovu</Link>.
-                                </p>
-                            </div>
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    <div className="bg-blue-50 p-5 rounded-lg">
+                        <div>
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                                <Mail className="w-4 h-4 mr-2 text-gray-600" />
+                                Email
+                            </label>
+                            <input
+                                type="email"
+                                id="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900"
+                                required
+                                disabled={isLoading}
+                                placeholder="vas@email.cz"
+                            />
                         </div>
                     </div>
-                ) : (
-                    <>
-                        <p className="text-gray-600 mb-6">
-                            Zadejte svůj email a my vám zašleme pokyny k obnovení hesla.
-                        </p>
 
-                        {error && (
-                            <div className="p-4 bg-red-50 text-red-600 rounded-lg text-sm flex items-center mb-6">
-                                <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
-                                <span>{error}</span>
-                            </div>
+                    {error && (
+                        <div className="p-4 bg-red-50 text-red-600 rounded-lg text-sm flex items-start">
+                            <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+                            <div>{error}</div>
+                        </div>
+                    )}
+
+                    <button
+                        type="submit"
+                        className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700
+                                transition-colors disabled:bg-blue-300 flex items-center justify-center"
+                        disabled={isLoading}
+                    >
+                        {isLoading ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Odesílám...
+                            </>
+                        ) : (
+                            'Odeslat odkaz pro reset hesla'
                         )}
-
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label htmlFor="email" className="block text-sm font-medium text-gray-900 mb-1 flex items-center">
-                                    <Mail className="w-4 h-4 mr-1 text-gray-600" />
-                                    Email
-                                </label>
-                                <input
-                                    type="email"
-                                    id="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900"
-                                    required
-                                    disabled={isLoading}
-                                    placeholder="vas@email.cz"
-                                />
-                            </div>
-
-                            <button
-                                type="submit"
-                                className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 flex items-center justify-center"
-                                disabled={isLoading}
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        Odesílám...
-                                    </>
-                                ) : 'Odeslat pokyny pro obnovení hesla'}
-                            </button>
-                        </form>
-                    </>
-                )}
+                    </button>
+                </form>
             </div>
         </div>
     );
