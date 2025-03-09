@@ -18,55 +18,54 @@ export default function ResetPasswordPage() {
     const [isReset, setIsReset] = useState(false);
     const router = useRouter();
 
-    // Kontrola session při načtení stránky
+    // 1. Kontrola session při načtení stránky
     useEffect(() => {
-        let isMounted = true; // Pro zabránění aktualizace stavu po odmontování komponenty
+        let isMounted = true;
 
         const checkSession = async () => {
             try {
-                console.log('Kontroluji session pro reset hesla');
+                console.log('Checking session for password reset');
 
                 // Získáme aktuální session
                 const { data, error } = await supabase.auth.getSession();
 
-                // Pokud komponenta už není namontovaná, nepokračujeme
                 if (!isMounted) return;
 
+                console.log('Session check result:', {
+                    hasSession: !!data.session,
+                    error: !!error
+                });
+
                 if (error) {
-                    console.error('Chyba při získávání session:', error);
+                    console.error('Session check error:', error);
                     setSessionStatus('invalid');
                     setError('Chyba při ověřování vaší identity. Zkuste to znovu později.');
                     return;
                 }
 
-                console.log('Session status:', data?.session ? 'Session existuje' : 'Žádná session');
-
                 if (data?.session) {
                     setSessionStatus('valid');
                 } else {
-                    console.error('Žádná platná session pro reset hesla');
+                    console.error('No valid session for password reset');
                     setSessionStatus('invalid');
-                    setError('Neplatný nebo expirovaný odkaz pro reset hesla. Vyžádejte si nový odkaz.');
+                    setError('Pro resetování hesla je potřeba platný odkaz z emailu. Vyžádejte si prosím nový odkaz.');
                 }
             } catch (err) {
-                // Pokud komponenta už není namontovaná, nepokračujeme
                 if (!isMounted) return;
-
-                console.error('Chyba při kontrole session:', err);
+                console.error('Session check unexpected error:', err);
                 setSessionStatus('invalid');
-                setError('Došlo k neočekávané chybě.');
+                setError('Došlo k neočekávané chybě při zpracování požadavku.');
             }
         };
 
         checkSession();
 
-        // Cleanup funkce
         return () => {
             isMounted = false;
         };
     }, []);
 
-    // Kontrola shody hesel
+    // 2. Kontrola shody hesel
     useEffect(() => {
         if (password && confirmPassword) {
             setPasswordsMatch(password === confirmPassword);
@@ -79,6 +78,7 @@ export default function ResetPasswordPage() {
         setShowPassword(!showPassword);
     };
 
+    // 3. Funkce pro reset hesla
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -97,19 +97,19 @@ export default function ResetPasswordPage() {
         setIsLoading(true);
 
         try {
-            // Aktualizace hesla přímo přes Supabase API
-            console.log('Zahajuji aktualizaci hesla');
+            console.log('Attempting to update password');
 
+            // Přímé volání Supabase API pro aktualizaci hesla
             const { error } = await supabase.auth.updateUser({
                 password: password
             });
 
             if (error) {
-                console.error('Chyba při aktualizaci hesla:', error);
+                console.error('Password update error:', error);
                 throw error;
             }
 
-            console.log('Heslo úspěšně aktualizováno');
+            console.log('Password updated successfully');
             toast.success('Heslo bylo úspěšně změněno');
             setIsReset(true);
 
@@ -118,11 +118,13 @@ export default function ResetPasswordPage() {
                 router.push('/login');
             }, 3000);
         } catch (error) {
-            console.error('Chyba při resetu hesla:', error);
+            console.error('Password reset error:', error);
 
             if (error instanceof Error) {
-                if (error.message.includes('session') || error.message.includes('JWT') || error.message.includes('token')) {
-                    setError('Platnost odkazu pro reset hesla vypršela. Vyžádejte si nový odkaz.');
+                if (error.message.includes('session') ||
+                    error.message.includes('JWT') ||
+                    error.message.includes('token')) {
+                    setError('Platnost relace pro resetování hesla již vypršela. Vyžádejte si nový odkaz.');
                     setSessionStatus('invalid');
                 } else {
                     setError(error.message);
@@ -135,7 +137,7 @@ export default function ResetPasswordPage() {
         }
     };
 
-    // Zobrazení načítání při kontrole session
+    // 4. Zobrazení načítání při kontrole session
     if (sessionStatus === 'checking') {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
@@ -149,7 +151,7 @@ export default function ResetPasswordPage() {
         );
     }
 
-    // Zobrazení chyby, pokud není platná session
+    // 5. Zobrazení chyby, pokud není platná session
     if (sessionStatus === 'invalid' && !isReset) {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
@@ -172,6 +174,7 @@ export default function ResetPasswordPage() {
         );
     }
 
+    // 6. Hlavní formulář pro reset hesla nebo potvrzení úspěchu
     return (
         <div className="min-h-screen bg-gray-50 py-12">
             <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
