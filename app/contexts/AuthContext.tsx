@@ -407,6 +407,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Zjednodušená implementace resetPassword a forgotPassword v AuthContext.tsx
 
 // Funkce pro vyžádání resetovacího emailu - výrazně zjednodušená
+// Aktualizované funkce pro reset hesla v AuthContext.tsx
+
+// Funkce pro vyžádání resetovacího emailu - zjednodušená verze
 const forgotPassword = async (email: string) => {
   if (inProgressRef.current) {
     toast.info('Operace již probíhá, čekejte prosím...');
@@ -417,27 +420,37 @@ const forgotPassword = async (email: string) => {
   setIsLoading(true);
 
   try {
-    console.log('[Auth] Sending password reset email to:', email);
+    console.log('[Auth] Odesílám email pro reset hesla na:', email);
 
     // Získání base URL pro přesměrování
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.beginy.cz';
+
+    // Nastavení URL pro přesměrování - musí být přesně stejná jako v Supabase nastavení
     const redirectURL = `${baseUrl}/reset-password`;
+    console.log('[Auth] Redirect URL:', redirectURL);
 
-    console.log('[Auth] Using redirect URL:', redirectURL);
-
-    // Jednoduchý přímý požadavek podle dokumentace Supabase
+    // Odeslání emailu pro reset hesla
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectURL
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('[Auth] Chyba při odesílání emailu pro reset hesla:', error);
 
-    toast.success('Na váš email byl odeslán odkaz pro reset hesla');
+      // Pro bezpečnost nezobrazujeme specifické chyby - kromě rate limitu
+      if (error.message.includes('rate limit')) {
+        toast.error('Příliš mnoho pokusů. Zkuste to prosím později.');
+      } else {
+        // Neprozrazujeme, zda email existuje
+        toast.success('Pokud email existuje v databázi, byl odeslán odkaz pro reset hesla');
+      }
+    } else {
+      toast.success('Na váš email byl odeslán odkaz pro reset hesla');
+    }
   } catch (error) {
-    console.error('[Auth] Error in forgotPassword:', error);
+    console.error('[Auth] Neočekávaná chyba v forgotPassword:', error);
 
-    // Pro bezpečnost nezobrazujeme konkrétní zprávy
-    // (aby nebylo možné zjistit, zda email existuje)
+    // I při chybě předstíráme úspěch z bezpečnostních důvodů
     toast.success('Pokud email existuje v databázi, byl odeslán odkaz pro reset hesla');
   } finally {
     setIsLoading(false);
@@ -445,7 +458,7 @@ const forgotPassword = async (email: string) => {
   }
 };
 
-// Funkce pro nastavení nového hesla - výrazně zjednodušená
+// Funkce pro nastavení nového hesla - zjednodušená verze
 const resetPassword = async (newPassword: string) => {
   if (!newPassword) {
     throw new Error('Heslo nemůže být prázdné');
@@ -464,21 +477,37 @@ const resetPassword = async (newPassword: string) => {
   setIsLoading(true);
 
   try {
-    console.log('[Auth] Resetting password');
+    console.log('[Auth] Resetování hesla');
 
-    // Jednoduchý přímý požadavek podle dokumentace Supabase
+    // Nejprve ověříme, že máme aktivní session
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      console.error('[Auth] Chyba při kontrole session:', sessionError);
+      throw new Error('Nelze ověřit vaši identitu. Zkuste to znovu později.');
+    }
+
+    if (!sessionData.session) {
+      console.error('[Auth] Žádná session není k dispozici pro reset hesla');
+      throw new Error('Nemáte aktivní session pro resetování hesla. Vyžádejte si nový odkaz.');
+    }
+
+    // Aktualizace hesla - jednoduchá a přímá
     const { error } = await supabase.auth.updateUser({
       password: newPassword
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('[Auth] Chyba při aktualizaci hesla:', error);
+      throw error;
+    }
 
     toast.success('Heslo bylo úspěšně změněno');
 
-    // Aktualizace session a uživatelských dat po změně hesla
-    const { data, error: sessionError } = await supabase.auth.getSession();
+    // Po úspěšném resetu aktualizujeme lokální stav
+    const { data, error: refreshError } = await supabase.auth.getSession();
 
-    if (!sessionError && data.session) {
+    if (!refreshError && data.session) {
       setUser(data.session.user);
 
       // Načtení profilu uživatele
@@ -489,8 +518,8 @@ const resetPassword = async (newPassword: string) => {
       }
     }
   } catch (error) {
-    console.error('[Auth] Error in resetPassword:', error);
-    toast.error('Chyba při resetování hesla. Zkuste to prosím znovu.');
+    console.error('[Auth] Chyba v resetPassword:', error);
+    toast.error(error instanceof Error ? error.message : 'Chyba při resetování hesla');
     throw error;
   } finally {
     setIsLoading(false);

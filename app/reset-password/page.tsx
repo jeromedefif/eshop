@@ -13,38 +13,46 @@ export default function ResetPasswordPage() {
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [checkingSession, setCheckingSession] = useState(true);
     const [passwordsMatch, setPasswordsMatch] = useState<boolean | null>(null);
     const [isReset, setIsReset] = useState(false);
-    const [sessionCheck, setSessionCheck] = useState<string>('checking');
+    const [hasRecoverySession, setHasRecoverySession] = useState(false);
 
     const router = useRouter();
 
-    // Kontrola jestli máme platnou session - zjednodušená logika
+    // Kontrola, zda uživatel má aktivní recovery session
     useEffect(() => {
         const checkSession = async () => {
             try {
-                console.log('Kontrola session...');
+                setCheckingSession(true);
+
+                // Získání session ze Supabase
                 const { data, error } = await supabase.auth.getSession();
 
                 if (error) {
                     console.error('Chyba při kontrole session:', error);
-                    setSessionCheck('error');
-                    setError('Nepodařilo se ověřit vaši identitu');
+                    setError('Nepodařilo se ověřit vaši session');
                     return;
                 }
 
-                if (data.session) {
-                    console.log('Platná session nalezena');
-                    setSessionCheck('valid');
-                } else {
-                    console.log('Žádná platná session');
-                    setSessionCheck('invalid');
-                    setError('Nemáte platné oprávnění pro reset hesla. Odkaz mohl vypršet.');
+                // Pokud nemáme session, uživatel nebyl správně přesměrován
+                if (!data.session) {
+                    console.log('Žádná aktivní session nebyla nalezena');
+                    setError('K této stránce nelze přistupovat přímo. Použijte odkaz zaslaný na váš email.');
+                    return;
                 }
+
+                // Pokud máme platnou session, můžeme pokračovat
+                console.log('Aktivní session nalezena');
+
+                // Zde neověřujeme, zda je session recovery typu, protože
+                // Supabase to již ověřil před přesměrováním
+                setHasRecoverySession(true);
             } catch (err) {
-                console.error('Neočekávaná chyba:', err);
-                setSessionCheck('error');
-                setError('Došlo k neočekávané chybě');
+                console.error('Neočekávaná chyba při kontrole session:', err);
+                setError('Došlo k neočekávané chybě při ověřování vašeho přístupu');
+            } finally {
+                setCheckingSession(false);
             }
         };
 
@@ -82,7 +90,9 @@ export default function ResetPasswordPage() {
         setIsLoading(true);
 
         try {
-            // Jednoduchý požadavek na aktualizaci hesla
+            // DŮLEŽITÉ: Tady používáme standardní updateUser bez žádných zvláštních parametrů
+            // Supabase automaticky aktualizuje heslo pro aktivní recovery session
+            console.log('Aktualizuji heslo');
             const { error: updateError } = await supabase.auth.updateUser({
                 password: password
             });
@@ -92,10 +102,11 @@ export default function ResetPasswordPage() {
                 throw updateError;
             }
 
+            console.log('Heslo úspěšně aktualizováno');
             toast.success('Heslo bylo úspěšně změněno');
             setIsReset(true);
 
-            // Přesměrování na přihlašovací stránku
+            // Přesměrovat zpět na login po úspěšném resetu
             setTimeout(() => {
                 router.push('/login');
             }, 3000);
@@ -107,30 +118,30 @@ export default function ResetPasswordPage() {
         }
     };
 
-    // Zobrazení načítání
-    if (sessionCheck === 'checking') {
+    // Zobrazení stavu načítání při kontrole session
+    if (checkingSession) {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
                 <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4 inline-block"></div>
-                        <p className="text-gray-900">Ověřování identity...</p>
+                        <p className="text-gray-900">Ověřování session...</p>
                     </div>
                 </div>
             </div>
         );
     }
 
-    // Zobrazení chyby, pokud nemáme platnou session
-    if (sessionCheck === 'invalid' || sessionCheck === 'error') {
+    // Zobrazení chyby, pokud uživatel nemá recovery session
+    if (!hasRecoverySession && !isReset) {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
                 <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
                     <div className="text-center mb-6">
                         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                        <h1 className="text-xl font-bold text-gray-900 mb-2">Neplatný odkaz pro reset hesla</h1>
+                        <h1 className="text-xl font-bold text-gray-900 mb-2">Neplatný přístup</h1>
                         <p className="text-gray-600 mb-6">
-                            {error || 'Odkaz je neplatný nebo vypršela jeho platnost. Prosím, vyžádejte si nový odkaz pro reset hesla.'}
+                            {error || 'K této stránce nelze přistupovat přímo. Použijte odkaz zaslaný na váš email.'}
                         </p>
                         <Link
                             href="/forgot-password"
