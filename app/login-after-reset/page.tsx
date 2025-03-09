@@ -1,65 +1,43 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle, Mail, Lock, LogIn, Eye, EyeOff, Wine, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, LogIn, Eye, EyeOff, Wine, AlertCircle, CheckCircle } from 'lucide-react';
+import { supabase } from '@/lib/supabase/client';
 
-export default function LoginPage() {
+// Jednoduchá samostatná přihlašovací stránka bez závislostí na AuthContext
+export default function LoginAfterResetPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [showVerificationMessage, setShowVerificationMessage] = useState(false);
-    const { signIn, user } = useAuth();
+    const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
-    const searchParams = useSearchParams();
 
-    // Detekce URL parametru verified=true a nastavení zobrazení zprávy
-    useEffect(() => {
-        // Ověříme, zda přicházíme z verifikačního emailu
-        const isVerified = searchParams.get('verified') === 'true';
+    const togglePasswordVisibility = () => {
+        setShowPassword(!showPassword);
+    };
 
-        if (isVerified) {
-            // Zobrazit zprávu o úspěšné verifikaci
-            setShowVerificationMessage(true);
-        }
-
-        // Načtení uloženého emailu z localStorage, pokud existuje
-        const savedEmail = localStorage.getItem('lastLoginEmail');
-        if (savedEmail) {
-            setEmail(savedEmail);
-        }
-    }, [searchParams]);
-
-    // Sledování stavu přihlášení a přesměrování po úspěšném přihlášení
-    useEffect(() => {
-        // Pokud je uživatel přihlášen, je čas přesměrovat
-        if (user) {
-            // Přidáme malé zpoždění pro zobrazení úspěšného přihlášení
-            const redirectTimer = setTimeout(() => {
-                router.push('/');
-            }, 1000); // 1 sekunda zpoždění pro zobrazení zprávy o úspěšném přihlášení
-
-            // Uklidit časovač, pokud se komponenta odmontuje
-            return () => clearTimeout(redirectTimer);
-        }
-    }, [user, router]);
-
-    // Funkce pro přihlášení
+    // Jednoduchá funkce pro přihlášení přímo přes Supabase API
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
 
         try {
-            await signIn(email, password);
-            // Uložíme email pro příští přihlášení
-            localStorage.setItem('lastLoginEmail', email);
+            // Přímé přihlášení přes Supabase API
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password
+            });
 
-            // Přidáme explicitní přesměrování přímo zde
+            if (error) {
+                throw error;
+            }
+
+            // Úspěšné přihlášení, přesměrování na hlavní stránku
+            localStorage.setItem('lastLoginEmail', email);
             router.push('/');
         } catch (error) {
             console.error('Sign in error:', error);
@@ -67,10 +45,6 @@ export default function LoginPage() {
         } finally {
             setIsLoading(false);
         }
-    };
-
-    const togglePasswordVisibility = () => {
-        setShowPassword(!showPassword);
     };
 
     return (
@@ -86,21 +60,22 @@ export default function LoginPage() {
                     </Link>
                 </div>
 
-                <div className="text-center mb-8">
+                <div className="text-center mb-6">
                     <div className="inline-flex items-center justify-center h-16 w-16 bg-blue-100 rounded-full text-blue-600 mb-4">
                         <Wine className="h-8 w-8" />
                     </div>
                     <h1 className="text-2xl font-bold text-gray-900">Přihlášení</h1>
-                    <p className="text-gray-600 mt-2">Přihlaste se k přístupu do svého B2B účtu VINARIA s.r.o.</p>
+                    <p className="text-gray-600 mt-2">Přihlaste se s novým heslem</p>
                 </div>
 
-                {/* Zobrazení oznámení o úspěšném ověření emailu */}
-                {showVerificationMessage && (
-                    <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-lg flex items-center">
-                        <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0" />
-                        <span>Váš email byl úspěšně ověřen! Nyní se můžete přihlásit.</span>
+                {/* Informace o resetu hesla */}
+                <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-lg flex items-start">
+                    <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <h3 className="font-medium">Vaše heslo bylo úspěšně změněno</h3>
+                        <p className="text-sm mt-1">Pro pokračování se přihlaste s novým heslem.</p>
                     </div>
-                )}
+                </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="bg-blue-50 p-5 rounded-lg">
@@ -125,7 +100,7 @@ export default function LoginPage() {
                             <div>
                                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
                                     <Lock className="w-4 h-4 mr-2 text-gray-600" />
-                                    Heslo
+                                    Nové heslo
                                 </label>
                                 <div className="relative">
                                     <input
@@ -136,7 +111,7 @@ export default function LoginPage() {
                                         className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900 pr-10"
                                         required
                                         disabled={isLoading}
-                                        placeholder="Zadejte heslo"
+                                        placeholder="Zadejte vaše nové heslo"
                                     />
                                     <button
                                         type="button"
@@ -162,15 +137,6 @@ export default function LoginPage() {
                         </div>
                     )}
 
-                    <div className="flex justify-between items-center">
-                        <div className="text-sm">
-                            {/* Odkaz na obnovení hesla */}
-                            <Link href="/forgot-password" className="text-blue-600 hover:text-blue-800 font-medium">
-                                Zapomenuté heslo?
-                            </Link>
-                        </div>
-                    </div>
-
                     <button
                         type="submit"
                         className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700
@@ -192,14 +158,13 @@ export default function LoginPage() {
                             </>
                         )}
                     </button>
-
-                    <div className="mt-6 text-center text-sm text-gray-600">
-                        Nemáte účet?{' '}
-                        <Link href="/register" className="text-blue-600 hover:text-blue-800 font-medium">
-                            Registrujte se
-                        </Link>
-                    </div>
                 </form>
+
+                <div className="mt-6 text-center text-sm text-gray-600">
+                    <Link href="/login" className="text-blue-600 hover:text-blue-800 font-medium">
+                        Zpět na standardní přihlášení
+                    </Link>
+                </div>
             </div>
         </div>
     );
