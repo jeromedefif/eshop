@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Wine } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -13,36 +13,78 @@ export default function ResetPasswordPage() {
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isProcessingCode, setIsProcessingCode] = useState(false);
     const [passwordsMatch, setPasswordsMatch] = useState<boolean | null>(null);
     const [isReset, setIsReset] = useState(false);
-    const [isSessionLoaded, setIsSessionLoaded] = useState(false);
-    const [hasSession, setHasSession] = useState(false);
+    const [hasValidSession, setHasValidSession] = useState(false);
+
     const router = useRouter();
+    const searchParams = useSearchParams();
 
-    // Kontrola, zda máme platnou session - důležité pro reset hesla
+    // Získáme code z URL, pokud existuje
+    const code = searchParams.get('code');
+
+    // Po načtení stránky zpracujeme kód z URL
     useEffect(() => {
-        const checkSession = async () => {
-            try {
-                // Když user klikne na reset link, hash parametry jsou automaticky
-                // zpracovány Supabase klientem a vytvoří dočasnou session
-                const { data, error } = await supabase.auth.getSession();
-                console.log("Session check:", {
-                    hasSession: !!data.session,
-                    error: error ? error.message : null
-                });
+        const verifyCodeAndSetSession = async () => {
+            // Pokud nemáme kód, zkontrolujeme, zda již máme platnou session
+            if (!code) {
+                try {
+                    const { data } = await supabase.auth.getSession();
+                    if (data.session) {
+                        console.log("User already has valid session");
+                        setHasValidSession(true);
+                        return;
+                    } else {
+                        console.log("No code provided and no valid session");
+                        setError('Chybí kód pro reset hesla');
+                        return;
+                    }
+                } catch (err) {
+                    console.error("Error checking session:", err);
+                    setError('Chyba při ověřování session');
+                    return;
+                }
+            }
 
-                // Nastavíme stav podle toho, zda máme platnou session
-                setHasSession(!!data.session);
+            console.log("Processing reset password code from URL");
+            setIsProcessingCode(true);
+
+            try {
+                // Vyměníme kód za platnou session
+                const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+                if (error) {
+                    console.error("Code verification failed:", error);
+                    setError('Neplatný nebo expirovaný kód pro reset hesla');
+                    return;
+                }
+
+                if (!data.session) {
+                    console.error("No session returned from code exchange");
+                    setError('Nepodařilo se vytvořit session pro reset hesla');
+                    return;
+                }
+
+                console.log("Code verified successfully, session established");
+                // Po úspěšné výměně kódu nastavíme, že máme platnou session
+                setHasValidSession(true);
+
+                // Odstranění kódu z URL bez přesměrování
+                if (typeof window !== 'undefined') {
+                    const cleanUrl = window.location.pathname;
+                    window.history.replaceState({}, document.title, cleanUrl);
+                }
             } catch (err) {
-                console.error("Session check error:", err);
-                setHasSession(false);
+                console.error("Error processing code:", err);
+                setError('Chyba při zpracování kódu pro reset hesla');
             } finally {
-                setIsSessionLoaded(true);
+                setIsProcessingCode(false);
             }
         };
 
-        checkSession();
-    }, []);
+        verifyCodeAndSetSession();
+    }, [code]);
 
     // Kontrola shody hesel
     useEffect(() => {
@@ -75,8 +117,7 @@ export default function ResetPasswordPage() {
         setIsLoading(true);
 
         try {
-            // Využijeme Supabase SDK pro aktualizaci hesla
-            // Nepotřebujeme explicitně vkládat token, SDK ho získá z aktuální session
+            // Aktualizace hesla pomocí Supabase API
             const { error } = await supabase.auth.updateUser({
                 password: password
             });
@@ -102,22 +143,22 @@ export default function ResetPasswordPage() {
         }
     };
 
-    // Zobrazení načítání, dokud nezjistíme stav session
-    if (!isSessionLoaded) {
+    // Zobrazení načítání při zpracování kódu
+    if (isProcessingCode) {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
                 <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4 inline-block"></div>
-                        <p className="text-gray-900">Načítání...</p>
+                        <p className="text-gray-900">Ověřování odkazu pro reset hesla...</p>
                     </div>
                 </div>
             </div>
         );
     }
 
-    // Zobrazení chybového stavu, pokud nemáme platnou session
-    if (!hasSession && isSessionLoaded && !isReset) {
+    // Zobrazení chybového stavu, pokud není platná session
+    if (!hasValidSession && !isReset) {
         return (
             <div className="min-h-screen bg-gray-50 py-12">
                 <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
@@ -125,7 +166,7 @@ export default function ResetPasswordPage() {
                         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
                         <h1 className="text-xl font-bold text-gray-900 mb-2">Neplatný odkaz pro reset hesla</h1>
                         <p className="text-gray-600 mb-6">
-                            Odkaz je neplatný nebo vypršela jeho platnost. Prosím, vyžádejte si nový odkaz pro reset hesla.
+                            {error || 'Odkaz je neplatný nebo vypršela jeho platnost. Prosím, vyžádejte si nový odkaz pro reset hesla.'}
                         </p>
                         <Link
                             href="/forgot-password"
