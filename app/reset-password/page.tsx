@@ -13,7 +13,7 @@ export default function ResetPasswordPage() {
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [isProcessingCode, setIsProcessingCode] = useState(false);
+    const [debugInfo, setDebugInfo] = useState<any>({});
     const [passwordsMatch, setPasswordsMatch] = useState<boolean | null>(null);
     const [isReset, setIsReset] = useState(false);
     const [hasValidSession, setHasValidSession] = useState(false);
@@ -21,70 +21,110 @@ export default function ResetPasswordPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    // Získáme code z URL, pokud existuje
-    const code = searchParams.get('code');
-
-    // Po načtení stránky zpracujeme kód z URL
     useEffect(() => {
-        const verifyCodeAndSetSession = async () => {
-            // Pokud nemáme kód, zkontrolujeme, zda již máme platnou session
-            if (!code) {
-                try {
-                    const { data } = await supabase.auth.getSession();
-                    if (data.session) {
-                        console.log("User already has valid session");
-                        setHasValidSession(true);
-                        return;
-                    } else {
-                        console.log("No code provided and no valid session");
-                        setError('Chybí kód pro reset hesla');
-                        return;
-                    }
-                } catch (err) {
-                    console.error("Error checking session:", err);
-                    setError('Chyba při ověřování session');
-                    return;
-                }
+        const processCodeAndDebug = async () => {
+            // Shromažďujeme diagnostické informace
+            const diagnosticInfo: any = {
+                timestamp: new Date().toISOString(),
+                hasSearchParams: !!searchParams,
+                url: typeof window !== 'undefined' ? window.location.href : 'Not available',
+                userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'Not available'
+            };
+
+            // Získáme všechny parametry pro diagnostiku
+            if (searchParams) {
+                const params: Record<string, string> = {};
+                searchParams.forEach((value, key) => {
+                    params[key] = value;
+                });
+                diagnosticInfo.params = params;
+                diagnosticInfo.hasCodeParam = !!params.code;
             }
 
-            console.log("Processing reset password code from URL");
-            setIsProcessingCode(true);
+            // Získáme code z URL
+            const code = searchParams?.get('code');
+            diagnosticInfo.code = code ? `${code.substring(0, 5)}...` : null;
 
+            if (!code) {
+                diagnosticInfo.error = 'No code parameter found in URL';
+                setDebugInfo(diagnosticInfo);
+                setError('Chybí kód pro reset hesla v URL. Zkontrolujte odkaz nebo požádejte o nový.');
+                return;
+            }
+
+            // Zkontrolujeme existující session
             try {
-                // Vyměníme kód za platnou session
+                const { data: sessionData } = await supabase.auth.getSession();
+                diagnosticInfo.hasExistingSession = !!sessionData.session;
+
+                if (sessionData.session) {
+                    diagnosticInfo.sessionInfo = {
+                        userId: sessionData.session.user.id,
+                        expires: new Date(sessionData.session.expires_at! * 1000).toISOString()
+                    };
+
+                    // Pokud již máme session, nastavíme stav a vrátíme se
+                    setHasValidSession(true);
+                    setDebugInfo(diagnosticInfo);
+                    return;
+                }
+            } catch (sessionError) {
+                diagnosticInfo.sessionCheckError = sessionError instanceof Error
+                    ? sessionError.message
+                    : 'Unknown session check error';
+            }
+
+            // Pokus o použití kódu z URL
+            try {
+                diagnosticInfo.attemptingCodeExchange = true;
+
+                // KLÍČOVÁ ZMĚNA: Před výměnou kódu za session jasně logujeme, co děláme
+                console.log(`Attempting to exchange code: ${code.substring(0, 5)}...`);
+
+                // Přímé volání supabase API pro výměnu kódu za session
                 const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
+                diagnosticInfo.exchangeCodeResult = {
+                    success: !error,
+                    errorMessage: error?.message,
+                    hasData: !!data,
+                    hasSession: !!data?.session
+                };
+
                 if (error) {
-                    console.error("Code verification failed:", error);
-                    setError('Neplatný nebo expirovaný kód pro reset hesla');
-                    return;
-                }
-
-                if (!data.session) {
+                    console.error("Code exchange error:", error);
+                    diagnosticInfo.error = error.message;
+                    setError(`Neplatný nebo vypršený kód pro reset hesla: ${error.message}`);
+                } else if (!data.session) {
                     console.error("No session returned from code exchange");
-                    setError('Nepodařilo se vytvořit session pro reset hesla');
-                    return;
-                }
+                    diagnosticInfo.error = 'No session returned from valid code';
+                    setError('Kód byl platný, ale nepodařilo se vytvořit session');
+                } else {
+                    // ALTERNATIVNÍ PŘÍSTUP: Zkusíme použít PKCEAuthResponseEvent
+                    // Toto je pro případ, že je problém ve způsobu, jakým Supabase pracuje s kódy
+                    console.log("Session created from code exchange:", data.session.user.id);
+                    setHasValidSession(true);
 
-                console.log("Code verified successfully, session established");
-                // Po úspěšné výměně kódu nastavíme, že máme platnou session
-                setHasValidSession(true);
-
-                // Odstranění kódu z URL bez přesměrování
-                if (typeof window !== 'undefined') {
-                    const cleanUrl = window.location.pathname;
-                    window.history.replaceState({}, document.title, cleanUrl);
+                    // Odstranění kódu z URL bez přesměrování
+                    if (typeof window !== 'undefined') {
+                        const cleanUrl = window.location.pathname;
+                        window.history.replaceState({}, document.title, cleanUrl);
+                    }
                 }
-            } catch (err) {
-                console.error("Error processing code:", err);
+            } catch (codeError) {
+                console.error("Error exchanging code for session:", codeError);
+                diagnosticInfo.codeExchangeError = codeError instanceof Error
+                    ? codeError.message
+                    : 'Unknown code exchange error';
                 setError('Chyba při zpracování kódu pro reset hesla');
-            } finally {
-                setIsProcessingCode(false);
             }
+
+            // Aktualizujeme diagnostické informace
+            setDebugInfo(diagnosticInfo);
         };
 
-        verifyCodeAndSetSession();
-    }, [code]);
+        processCodeAndDebug();
+    }, [searchParams]);
 
     // Kontrola shody hesel
     useEffect(() => {
@@ -115,16 +155,37 @@ export default function ResetPasswordPage() {
         }
 
         setIsLoading(true);
+        const resetInfo: any = {
+            timestamp: new Date().toISOString(),
+            passwordLength: password.length
+        };
 
         try {
-            // Aktualizace hesla pomocí Supabase API
-            const { error } = await supabase.auth.updateUser({
+            // Kontrola session před pokusem o změnu hesla
+            const { data: sessionCheck } = await supabase.auth.getSession();
+            resetInfo.hasSessionBeforeUpdate = !!sessionCheck.session;
+
+            if (!sessionCheck.session) {
+                resetInfo.error = 'No valid session before password update';
+                setError('Nemáte platnou session pro změnu hesla. Zkuste požádat o nový odkaz.');
+                throw new Error('No valid session before password update');
+            }
+
+            // Pokus o aktualizaci hesla
+            console.log("Attempting to update password");
+            const { error: updateError } = await supabase.auth.updateUser({
                 password: password
             });
 
-            if (error) {
-                console.error('Error updating password:', error);
-                throw error;
+            resetInfo.updateResult = {
+                success: !updateError,
+                errorMessage: updateError?.message
+            };
+
+            if (updateError) {
+                console.error('Error updating password:', updateError);
+                resetInfo.error = updateError.message;
+                throw updateError;
             }
 
             console.log('Password updated successfully');
@@ -137,25 +198,26 @@ export default function ResetPasswordPage() {
             }, 3000);
         } catch (error) {
             console.error('Password reset error:', error);
+            resetInfo.error = error instanceof Error ? error.message : 'Unknown error';
             setError(error instanceof Error ? error.message : 'Chyba při resetování hesla');
         } finally {
             setIsLoading(false);
+            // Aktualizujeme diagnostické informace o resetu hesla
+            setDebugInfo(prev => ({ ...prev, resetAttempt: resetInfo }));
         }
     };
 
-    // Zobrazení načítání při zpracování kódu
-    if (isProcessingCode) {
-        return (
-            <div className="min-h-screen bg-gray-50 py-12">
-                <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
-                    <div className="text-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4 inline-block"></div>
-                        <p className="text-gray-900">Ověřování odkazu pro reset hesla...</p>
-                    </div>
+    // Vytvoření komponenty pro zobrazení diagnostických informací
+    const DebugPanel = () => (
+        <div className="mt-8 border-t pt-4">
+            <details>
+                <summary className="cursor-pointer text-sm text-gray-500">Diagnostické informace (pro vývojáře)</summary>
+                <div className="p-4 mt-2 bg-gray-100 rounded-lg text-xs overflow-auto max-h-64">
+                    <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
                 </div>
-            </div>
-        );
-    }
+            </details>
+        </div>
+    );
 
     // Zobrazení chybového stavu, pokud není platná session
     if (!hasValidSession && !isReset) {
@@ -175,6 +237,7 @@ export default function ResetPasswordPage() {
                             Vyžádat nový odkaz
                         </Link>
                     </div>
+                    <DebugPanel />
                 </div>
             </div>
         );
@@ -318,6 +381,7 @@ export default function ResetPasswordPage() {
                         </button>
                     </form>
                 )}
+                <DebugPanel />
             </div>
         </div>
     );
