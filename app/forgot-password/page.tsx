@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Mail, Send, AlertCircle, Wine } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase/client';
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
@@ -13,7 +13,6 @@ export default function ForgotPasswordPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const router = useRouter();
-    const { forgotPassword } = useAuth();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -21,16 +20,44 @@ export default function ForgotPasswordPage() {
         setIsLoading(true);
 
         try {
-            // Použití funkce z AuthContext místo přímého volání Supabase
-            await forgotPassword(email);
+            // KLÍČOVÁ ZMĚNA: Použijeme explicitní URL vedoucí na callback handler
+            // Musí obsahovat ?type=recovery parametr
+            const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.beginy.cz';
+            const redirectUrl = `${baseUrl}/auth/callback?type=recovery`;
+
+            console.log('Odesílám email pro reset hesla na:', email);
+            console.log('Redirect URL:', redirectUrl);
+
+            // Odeslání emailu pro reset hesla
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: redirectUrl
+            });
+
+            if (error) {
+                console.error('Chyba při odesílání emailu pro reset hesla:', error);
+
+                // Pro bezpečnost nezobrazujeme specifické chyby - kromě rate limitu
+                if (error.message.includes('rate limit')) {
+                    toast.error('Příliš mnoho pokusů. Zkuste to prosím později.');
+                } else {
+                    // Neprozrazujeme, zda email existuje
+                    toast.success('Pokud email existuje v databázi, byl odeslán odkaz pro reset hesla');
+                }
+            } else {
+                toast.success('Na váš email byl odeslán odkaz pro reset hesla');
+            }
+
+            // Vždy zobrazíme úspěšnou zprávu z bezpečnostních důvodů
             setIsSubmitted(true);
         } catch (error) {
             console.error('Forgot password error:', error);
 
+            // Pro bezpečnost nezobrazujeme, zda email existuje nebo ne
             if (error instanceof Error && error.message.includes('rate limit')) {
                 setError('Příliš mnoho pokusů. Zkuste to prosím později.');
             } else {
-                // I při chybě zobrazíme úspěšný stav z bezpečnostních důvodů
+                // Dokonce i při neexistujícím emailu nastavíme stav jako odeslán
+                // Toto je bezpečnostní opatření proti útokům na zjištění existujících emailů
                 setIsSubmitted(true);
             }
         } finally {

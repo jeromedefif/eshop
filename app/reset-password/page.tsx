@@ -1,5 +1,3 @@
-// 4. Úplně nová implementace stránky app/reset-password/page.tsx
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -20,48 +18,52 @@ export default function ResetPasswordPage() {
     const [isReset, setIsReset] = useState(false);
     const router = useRouter();
 
-    // Zpracování tokenu při načtení stránky
+    // Kontrola session při načtení stránky
     useEffect(() => {
-        const initializeResetSession = async () => {
+        let isMounted = true; // Pro zabránění aktualizace stavu po odmontování komponenty
+
+        const checkSession = async () => {
             try {
-                console.log('Kontroluji parametry v URL pro reset hesla');
+                console.log('Kontroluji session pro reset hesla');
 
-                // Získáme hash fragment z URL (vše za #), který obsahuje tokeny od Supabase
-                if (typeof window !== 'undefined') {
-                    // Log pro diagnostiku
-                    console.log('URL hash:', window.location.hash);
-                    console.log('URL search params:', window.location.search);
+                // Získáme aktuální session
+                const { data, error } = await supabase.auth.getSession();
 
-                    // Explicitně vynutit zpracování hash fragmentu bez ohledu na jeho obsah
-                    // Supabase SDK zpracuje parametry z URL automaticky
-                    const { data, error } = await supabase.auth.getSession();
+                // Pokud komponenta už není namontovaná, nepokračujeme
+                if (!isMounted) return;
 
-                    if (error) {
-                        console.error('Chyba při získávání session:', error);
-                        setSessionStatus('invalid');
-                        setError('Neplatný nebo expirovaný odkaz pro reset hesla.');
-                        return;
-                    }
+                if (error) {
+                    console.error('Chyba při získávání session:', error);
+                    setSessionStatus('invalid');
+                    setError('Chyba při ověřování vaší identity. Zkuste to znovu později.');
+                    return;
+                }
 
-                    if (data?.session) {
-                        // Máme platnou reset session
-                        console.log('Platná session pro reset hesla nalezena');
-                        setSessionStatus('valid');
-                    } else {
-                        // Bez platné session
-                        console.error('Žádná platná session pro reset hesla');
-                        setSessionStatus('invalid');
-                        setError('Neplatný nebo expirovaný odkaz pro reset hesla.');
-                    }
+                console.log('Session status:', data?.session ? 'Session existuje' : 'Žádná session');
+
+                if (data?.session) {
+                    setSessionStatus('valid');
+                } else {
+                    console.error('Žádná platná session pro reset hesla');
+                    setSessionStatus('invalid');
+                    setError('Neplatný nebo expirovaný odkaz pro reset hesla. Vyžádejte si nový odkaz.');
                 }
             } catch (err) {
-                console.error('Chyba při inicializaci reset session:', err);
+                // Pokud komponenta už není namontovaná, nepokračujeme
+                if (!isMounted) return;
+
+                console.error('Chyba při kontrole session:', err);
                 setSessionStatus('invalid');
-                setError('Došlo k neočekávané chybě při zpracování odkazu pro reset hesla.');
+                setError('Došlo k neočekávané chybě.');
             }
         };
 
-        initializeResetSession();
+        checkSession();
+
+        // Cleanup funkce
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     // Kontrola shody hesel
@@ -96,6 +98,8 @@ export default function ResetPasswordPage() {
 
         try {
             // Aktualizace hesla přímo přes Supabase API
+            console.log('Zahajuji aktualizaci hesla');
+
             const { error } = await supabase.auth.updateUser({
                 password: password
             });
@@ -117,7 +121,7 @@ export default function ResetPasswordPage() {
             console.error('Chyba při resetu hesla:', error);
 
             if (error instanceof Error) {
-                if (error.message.includes('Invalid') || error.message.includes('JWT') || error.message.includes('session')) {
+                if (error.message.includes('session') || error.message.includes('JWT') || error.message.includes('token')) {
                     setError('Platnost odkazu pro reset hesla vypršela. Vyžádejte si nový odkaz.');
                     setSessionStatus('invalid');
                 } else {
@@ -168,7 +172,6 @@ export default function ResetPasswordPage() {
         );
     }
 
-    // Zbytek stránky zůstává stejný...
     return (
         <div className="min-h-screen bg-gray-50 py-12">
             <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">

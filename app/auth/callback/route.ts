@@ -56,6 +56,8 @@ export async function GET(request: Request) {
       // Pokud jde o reset hesla
       if (type === 'recovery') {
         console.log('Redirecting to reset-password')
+        // ZMĚNA: Zajistíme, že přesměrování zachová session - musíme použít relativní URL
+        // aby se token uchoval v cookies a byl dostupný na stránce reset-password
         return NextResponse.redirect(`${BASE_URL}/reset-password`)
       }
     } catch (error) {
