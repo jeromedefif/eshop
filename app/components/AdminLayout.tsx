@@ -34,10 +34,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
    }
 
    const menuItems = [
-       { icon: Package, label: 'Produkty', href: '/admin/products' },
-       { icon: FileText, label: 'Objednávky', href: '/admin/orders' },
-       { icon: Users, label: 'Uživatelé', href: '/admin/users' }
-   ];
+    { icon: FileText, label: 'Objednávky', href: '/admin/orders' },    // První
+    { icon: Package, label: 'Produkty', href: '/admin/products' },      // Druhé
+    { icon: Users, label: 'Uživatelé', href: '/admin/users' }          // Třetí
+];
 
    const toggleMobileMenu = () => {
        setMobileMenuOpen(!mobileMenuOpen);
