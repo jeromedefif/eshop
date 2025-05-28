@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, X, Download, RefreshCw, FileSpreadsheet } from 'lucide-react';
+import { Search, X, Download, RefreshCw, FileSpreadsheet, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
@@ -17,6 +17,7 @@ export default function AdminOrders({
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isExportingExcel, setIsExportingExcel] = useState(false);
     const [isExportingCsv, setIsExportingCsv] = useState(false);
+    const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year' | 'all'>('month');
     const router = useRouter();
 
     // Při změně vstupních orders aktualizujeme i filtrované orders
@@ -44,13 +45,59 @@ export default function AdminOrders({
         setFilteredOrders(filtered);
     }, [searchQuery, orders]);
 
+    // Funkce pro získání textu období
+    const getPeriodText = (period: typeof selectedPeriod) => {
+        switch (period) {
+            case 'week':
+                return 'Týden';
+            case 'month':
+                return 'Měsíc';
+            case 'year':
+                return 'Rok';
+            case 'all':
+                return 'Vše';
+            default:
+                return 'Měsíc';
+        }
+    };
+
+    // Funkce pro získání popisu období
+    const getPeriodDescription = (period: typeof selectedPeriod) => {
+        switch (period) {
+            case 'week':
+                return 'posledních 7 dnů';
+            case 'month':
+                return 'posledních 30 dnů';
+            case 'year':
+                return 'poslední rok';
+            case 'all':
+                return 'všechny objednávky';
+            default:
+                return 'posledních 30 dnů';
+        }
+    };
+
+    // Upravená funkce handleRefreshOrders s podporou období
     const handleRefreshOrders = async () => {
         if (isRefreshing) return;
 
         setIsRefreshing(true);
         try {
             if (onOrdersChange) {
-                await onOrdersChange();
+                await onOrdersChange(selectedPeriod);
+            }
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
+    // Funkce pro změnu období
+    const handlePeriodChange = async (period: typeof selectedPeriod) => {
+        setSelectedPeriod(period);
+        setIsRefreshing(true);
+        try {
+            if (onOrdersChange) {
+                await onOrdersChange(period);
             }
         } finally {
             setIsRefreshing(false);
@@ -211,10 +258,32 @@ export default function AdminOrders({
     return (
         <div className="max-w-6xl mx-auto">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Správa objednávek</h2>
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Správa objednávek</h2>
+                    <p className="text-sm text-gray-600 mt-1">
+                        Zobrazeny objednávky za {getPeriodDescription(selectedPeriod)}
+                    </p>
+                </div>
 
                 {/* Nástrojová lišta */}
                 <div className="flex gap-2 w-full sm:w-auto justify-end">
+                    {/* Dropdown pro výběr období */}
+                    <div className="relative">
+                        <select
+                            value={selectedPeriod}
+                            onChange={(e) => handlePeriodChange(e.target.value as typeof selectedPeriod)}
+                            className="appearance-none px-3 py-2 pr-10 bg-white border border-gray-300 rounded-lg text-gray-800
+                                     hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            disabled={isRefreshing}
+                        >
+                            <option value="week">Týden</option>
+                            <option value="month">Měsíc</option>
+                            <option value="year">Rok</option>
+                            <option value="all">Vše</option>
+                        </select>
+                        <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                    </div>
+
                     <button
                         onClick={handleRefreshOrders}
                         className="flex-1 sm:flex-none flex justify-center items-center px-3 py-2 bg-gray-100 text-gray-800 rounded-lg
@@ -291,7 +360,7 @@ export default function AdminOrders({
                         <p className="text-gray-600 text-base">
                             {searchQuery
                                 ? 'Nenalezeny žádné objednávky odpovídající vašemu hledání'
-                                : 'Zatím nejsou žádné objednávky'}
+                                : `Zatím nejsou žádné objednávky za ${getPeriodDescription(selectedPeriod)}`}
                         </p>
                         {searchQuery && (
                             <button
@@ -329,7 +398,7 @@ export default function AdminOrders({
                                     <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
                                         {searchQuery
                                             ? 'Nenalezeny žádné objednávky odpovídající vašemu hledání'
-                                            : 'Zatím nejsou žádné objednávky'}
+                                            : `Zatím nejsou žádné objednávky za ${getPeriodDescription(selectedPeriod)}`}
                                     </td>
                                 </tr>
                             ) : (

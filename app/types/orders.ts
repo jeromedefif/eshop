@@ -82,9 +82,10 @@ export interface OrderDetailProps {
     onStatusChange?: (orderId: string, newStatus: string) => Promise<void>;
 }
 
+// Najděte tento interface (okolo řádku 95) a upravte ho takto:
 export interface AdminOrdersProps {
     orders: Order[];
-    onOrdersChange: () => Promise<void>;
+    onOrdersChange: (period?: 'week' | 'month' | 'year' | 'all') => Promise<void>;
     onExportOrders: () => Promise<void>;
     onSearch?: (query: string) => void;
 }

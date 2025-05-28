@@ -11,18 +11,19 @@ export default function OrdersPage() {
     const [loading, setLoading] = useState(true);
     const { isAdmin } = useAuth();
 
-    // Funkce pro načtení všech objednávek
-    const fetchOrders = useCallback(async (search: string = '') => {
+    // Funkce pro načtení všech objednávek s podporou období
+    const fetchOrders = useCallback(async (search: string = '', period: 'week' | 'month' | 'year' | 'all' = 'month') => {
         try {
             setLoading(true);
-            console.log(`Načítání objednávek pro admina${search ? ' s vyhledáváním: ' + search : ''}`);
+            console.log(`Načítání objednávek pro admina${search ? ' s vyhledáváním: ' + search : ''}, období: ${period}`);
 
             // Přidáme timestamp pro zabránění cachování
             const timestamp = Date.now();
 
             // Sestavení URL s parametry
             const params = new URLSearchParams({
-                t: timestamp.toString()
+                t: timestamp.toString(),
+                period: period // Přidáme parametr období
             });
 
             // Přidáme parametr search, pokud existuje
@@ -44,7 +45,7 @@ export default function OrdersPage() {
             }
 
             const data = await response.json();
-            console.log(`Načteno ${data.length} objednávek`);
+            console.log(`Načteno ${data.length} objednávek pro období: ${period}`);
 
             // Nastavíme objednávky
             setOrders(data);
@@ -57,7 +58,7 @@ export default function OrdersPage() {
 
     // Použití useCallback pro stabilizaci funkce handleSearch
     const handleSearch = useCallback((query: string) => {
-        return fetchOrders(query);
+        return fetchOrders(query, 'month'); // Při vyhledávání zachováme aktuální období
     }, [fetchOrders]);
 
     // Export objednávek do CSV
@@ -84,10 +85,10 @@ export default function OrdersPage() {
         }
     }, []);
 
-    // Načtení objednávek při prvním renderu
+    // Načtení objednávek při prvním renderu - s výchozím obdobím "month"
     useEffect(() => {
         if (isAdmin) {
-            fetchOrders();
+            fetchOrders('', 'month'); // Výchozí období je měsíc
         }
     }, [isAdmin, fetchOrders]);
 
@@ -103,7 +104,7 @@ export default function OrdersPage() {
         <div className="p-6">
             <AdminOrders
                 orders={orders}
-                onOrdersChange={() => fetchOrders('')}
+                onOrdersChange={(period?: 'week' | 'month' | 'year' | 'all') => fetchOrders('', period || 'month')}
                 onExportOrders={handleExportOrders}
                 onSearch={handleSearch}
             />
