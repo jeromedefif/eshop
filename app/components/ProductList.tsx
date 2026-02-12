@@ -10,7 +10,7 @@ type ProductListProps = {
 };
 
 const VolumeOption = {
-    LITERS: [5, 10, 20, 30, 50],
+    LITERS: [3, 5, 10, 20, 30, 50],
     PET: [{ label: '1x balení', value: 'baleni' }],
     DUSIK: [
         { label: 'malý', value: 'maly' },
