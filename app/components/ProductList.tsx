@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Script from 'next/script';
 import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, Layout, LayoutList } from 'lucide-react';
 import { Product } from '@/types/database';
 
@@ -367,6 +368,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
 
             {isOfferModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+                    <Script src="https://www.google.com/recaptcha/api.js" strategy="lazyOnload" />
                     <div className="bg-white rounded-xl shadow-xl max-w-lg w-full relative">
                         <button
                             type="button"
@@ -444,6 +446,10 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                                         <label htmlFor="offerConsent" className="text-sm text-gray-600">
                                             Souhlasím se zpracováním osobních údajů.
                                         </label>
+                                    </div>
+
+                                    <div className="flex justify-center">
+                                        <div className="g-recaptcha" data-sitekey="6Leos2ksAAAAALgl7K8hlPM0Mn72MNjG8FxLacvS"></div>
                                     </div>
 
                                     {submitError && (
