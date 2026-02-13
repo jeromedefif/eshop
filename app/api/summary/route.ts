@@ -39,6 +39,17 @@ const normalizeCategory = (category?: string | null) => {
   return category;
 };
 
+const getMonthKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  return `${year}-${month}`;
+};
+
+const getMonthLabel = (key: string) => {
+  const [year, month] = key.split('-');
+  return `${month}/${year}`;
+};
+
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -177,6 +188,78 @@ export async function GET(request: Request) {
       }))
       .sort((a, b) => b.liters - a.liters);
 
+    const totalPackageLiters = packageShares.reduce((sum, row) => sum + row.liters, 0);
+    const topPackage = packageShares.length
+      ? {
+          pack: packageShares[0].pack,
+          liters: packageShares[0].liters,
+          percent: totalPackageLiters
+            ? Math.round((packageShares[0].liters / totalPackageLiters) * 1000) / 10
+            : 0,
+        }
+      : null;
+
+    const now = new Date();
+    const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const months: string[] = [];
+    for (let i = 5; i >= 0; i -= 1) {
+      const date = new Date(startOfCurrentMonth);
+      date.setMonth(date.getMonth() - i);
+      months.push(getMonthKey(date));
+    }
+
+    const trendStart = new Date(startOfCurrentMonth);
+    trendStart.setMonth(trendStart.getMonth() - 5);
+
+    const trendOrders = await prisma.order.findMany({
+      where: {
+        user_id: { not: null },
+        created_at: { gte: trendStart },
+      },
+      include: {
+        order_items: {
+          include: {
+            product: true,
+          },
+          where: {
+            product: {
+              category: { in: LITER_CATEGORIES },
+            },
+          },
+        },
+      },
+      orderBy: { created_at: 'asc' },
+    });
+
+    const trendTotals: Record<string, number> = {};
+    for (const key of months) {
+      trendTotals[key] = 0;
+    }
+
+    for (const order of trendOrders) {
+      const key = getMonthKey(order.created_at);
+      if (!(key in trendTotals)) continue;
+      for (const item of order.order_items) {
+        const liters = parseVolume(item.volume) * item.quantity;
+        if (!liters) continue;
+        trendTotals[key] += liters;
+      }
+    }
+
+    const monthlyTrend = months.map((key, index) => {
+      const liters = Math.round(trendTotals[key] * 10) / 10;
+      const prevKey = index > 0 ? months[index - 1] : null;
+      const prevLiters = prevKey ? Math.round(trendTotals[prevKey] * 10) / 10 : 0;
+      const changePct = prevKey && prevLiters > 0
+        ? Math.round(((liters - prevLiters) / prevLiters) * 1000) / 10
+        : null;
+      return {
+        month: getMonthLabel(key),
+        liters,
+        change_pct: changePct,
+      };
+    });
+
     return NextResponse.json({
       users_count: usersCount,
       orders_count: ordersCount,
@@ -188,6 +271,8 @@ export async function GET(request: Request) {
       top_products: topProducts,
       category_shares: categoryShares,
       package_shares: packageShares,
+      top_package: topPackage,
+      monthly_trend: monthlyTrend,
     });
   } catch (error) {
     console.error('Error building summary:', error);

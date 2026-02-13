@@ -17,6 +17,8 @@ type SummaryResponse = {
   top_products: { name: string; liters: number }[];
   category_shares: { category: string; liters: number }[];
   package_shares: { pack: string; liters: number }[];
+  top_package: { pack: string; liters: number; percent: number } | null;
+  monthly_trend: { month: string; liters: number; change_pct: number | null }[];
 };
 
 const periodDescription = (period: Period) => {
@@ -67,6 +69,11 @@ function AdminSummaryPage() {
   const totalPackageLiters = useMemo(() => {
     if (!data) return 0;
     return data.package_shares.reduce((sum, row) => sum + row.liters, 0);
+  }, [data]);
+
+  const maxTrendLiters = useMemo(() => {
+    if (!data || data.monthly_trend.length === 0) return 0;
+    return Math.max(...data.monthly_trend.map((row) => row.liters));
   }, [data]);
 
   return (
@@ -127,19 +134,25 @@ function AdminSummaryPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-white border rounded-lg p-4 text-center">
               <p className="text-sm text-gray-600">Aktivní zákazníci</p>
-              <p className="text-xl font-semibold">{data.active_customers}</p>
+              <p className="text-xl font-semibold text-gray-900">{data.active_customers}</p>
             </div>
             <div className="bg-white border rounded-lg p-4 text-center">
               <p className="text-sm text-gray-600">Průměr na objednávku</p>
-              <p className="text-xl font-semibold">{data.average_liters} L</p>
+              <p className="text-xl font-semibold text-gray-900">{data.average_liters} L</p>
             </div>
             <div className="bg-white border rounded-lg p-4 text-center">
               <p className="text-sm text-gray-600">Největší objednávka</p>
-              <p className="text-xl font-semibold">{data.max_order_liters} L</p>
+              <p className="text-xl font-semibold text-gray-900">{data.max_order_liters} L</p>
             </div>
             <div className="bg-white border rounded-lg p-4 text-center">
-              <p className="text-sm text-gray-600">Top 5 zákazníků</p>
-              <p className="text-xl font-semibold">{data.top_customers.length}</p>
+              <p className="text-sm text-gray-600">Top obal</p>
+              {data.top_package ? (
+                <p className="text-xl font-semibold text-gray-900">
+                  {data.top_package.pack} ({data.top_package.percent}%)
+                </p>
+              ) : (
+                <p className="text-xl font-semibold text-gray-900">—</p>
+              )}
             </div>
           </div>
 
@@ -215,30 +228,82 @@ function AdminSummaryPage() {
 
             <div className="bg-white shadow-md rounded-lg overflow-hidden">
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Nejprodávanější položky</h3>
-                {data.top_products.length === 0 ? (
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Vývoj objemu za posledních 6 měsíců</h3>
+                {data.monthly_trend.length === 0 ? (
                   <div className="text-center py-6 text-gray-600">Žádná data.</div>
                 ) : (
-                  <div className="max-h-80 overflow-y-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Položka</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Litry</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {data.top_products.map((row) => (
-                          <tr key={row.name} className="hover:bg-gray-50">
-                            <td className="px-4 py-2 text-sm text-gray-900">{row.name}</td>
-                            <td className="px-4 py-2 text-sm text-gray-900">{row.liters} L</td>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      {data.monthly_trend.map((row) => (
+                        <div key={row.month} className="flex items-center gap-3">
+                          <div className="w-16 text-xs text-gray-600">{row.month}</div>
+                          <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
+                            <div
+                              className="h-2 rounded-full bg-blue-500"
+                              style={{ width: `${maxTrendLiters ? Math.min(100, Math.round((row.liters / maxTrendLiters) * 100)) : 0}%` }}
+                            />
+                          </div>
+                          <div className="w-24 text-xs text-gray-700 text-right">{row.liters} L</div>
+                          <div className="w-20 text-xs text-gray-500 text-right">
+                            {row.change_pct === null ? '—' : `${row.change_pct > 0 ? '+' : ''}${row.change_pct}%`}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Měsíc</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Litry</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Změna</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {data.monthly_trend.map((row) => (
+                            <tr key={row.month} className="hover:bg-gray-50">
+                              <td className="px-4 py-2 text-sm text-gray-900">{row.month}</td>
+                              <td className="px-4 py-2 text-sm text-gray-900">{row.liters} L</td>
+                              <td className="px-4 py-2 text-sm text-gray-900">
+                                {row.change_pct === null ? '—' : `${row.change_pct > 0 ? '+' : ''}${row.change_pct}%`}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+
+          <div className="bg-white shadow-md rounded-lg overflow-hidden">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Nejprodávanější položky</h3>
+              {data.top_products.length === 0 ? (
+                <div className="text-center py-6 text-gray-600">Žádná data.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Položka</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Litry</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {data.top_products.map((row) => (
+                        <tr key={row.name} className="hover:bg-gray-50">
+                          <td className="px-4 py-2 text-sm text-gray-900">{row.name}</td>
+                          <td className="px-4 py-2 text-sm text-gray-900">{row.liters} L</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         </>
