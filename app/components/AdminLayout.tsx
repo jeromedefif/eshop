@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Package, FileText, Users, LogOut, Home, Menu, X, ChevronDown } from 'lucide-react';
+import { Package, FileText, Users, BarChart3, LogOut, Home, Menu, X, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 
 interface AdminLayoutProps {
@@ -36,7 +36,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
    const menuItems = [
     { icon: FileText, label: 'Objednávky', href: '/admin/orders' },    // První
     { icon: Package, label: 'Produkty', href: '/admin/products' },      // Druhé
-    { icon: Users, label: 'Uživatelé', href: '/admin/users' }          // Třetí
+    { icon: Users, label: 'Uživatelé', href: '/admin/users' },          // Třetí
+    { icon: BarChart3, label: 'Statistiky', href: '/admin/stats' }      // Čtvrté
 ];
 
    const toggleMobileMenu = () => {
