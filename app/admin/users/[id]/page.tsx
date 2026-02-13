@@ -46,7 +46,7 @@ const UserDetailPage = () => {
                 // 2. Načtení objednávek tohoto uživatele přímo přes API s filtrováním na serveru
                 try {
     const timestamp = Date.now();
-    const ordersResponse = await fetch(`/api/orders?t=${timestamp}&userId=${userId}`, {
+    const ordersResponse = await fetch(`/api/orders?t=${timestamp}&userId=${userId}&period=all`, {
         cache: 'no-store',
         headers: {
             'Pragma': 'no-cache',
