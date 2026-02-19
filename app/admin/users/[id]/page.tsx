@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase/client';
 import { ArrowLeft, User, Calendar, Mail, Building, Phone, MapPin, FileText, Loader2 } from 'lucide-react';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
 import { format } from 'date-fns';
@@ -26,16 +25,20 @@ const UserDetailPage = () => {
             setError(null);
 
             try {
-                // 1. Načtení profilu uživatele ze Supabase
-                const { data: profileData, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', userId)
-                    .single();
+                // 1. Načtení profilu uživatele (včetně posledního přihlášení) přes server API
+                const profileResponse = await fetch(`/api/admin/users/${userId}`, {
+                    cache: 'no-store',
+                    headers: {
+                        'Pragma': 'no-cache',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    }
+                });
 
-                if (profileError) {
-                    throw new Error(`Chyba při načítání profilu: ${profileError.message}`);
+                if (!profileResponse.ok) {
+                    throw new Error(`Chyba při načítání profilu: ${profileResponse.status}`);
                 }
+
+                const profileData = await profileResponse.json();
 
                 if (!profileData) {
                     throw new Error('Uživatel nebyl nalezen');
@@ -91,6 +94,11 @@ const UserDetailPage = () => {
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'N/A';
         return format(new Date(dateString), 'PPP', { locale: cs });
+    };
+
+    const formatLastSignIn = (dateString?: string | null) => {
+        if (!dateString) return 'Nikdy';
+        return format(new Date(dateString), 'PPP p', { locale: cs });
     };
 
     const formatDateTime = (dateString: string) => {
@@ -229,6 +237,13 @@ const UserDetailPage = () => {
                                     <p className="font-medium text-gray-900 flex items-center">
                                         <Calendar className="w-4 h-4 mr-1 text-gray-500" />
                                         {formatDate(profile?.created_at)}
+                                    </p>
+                                </div>
+                                <div>
+                                    <span className="text-sm font-medium text-gray-700">Poslední přihlášení:</span>
+                                    <p className="font-medium text-gray-900 flex items-center">
+                                        <Calendar className="w-4 h-4 mr-1 text-gray-500" />
+                                        {formatLastSignIn(profile?.last_sign_in_at)}
                                     </p>
                                 </div>
                             </div>
