@@ -5,9 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
-import { supabase } from '@/lib/supabase/client';
-import { Search, X, Mail, Building, Phone, Calendar, RefreshCw, User, Eye } from 'lucide-react';
-import Link from 'next/link';
+import { Search, X, Mail, Building, Phone, Calendar, RefreshCw, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { UserProfile } from '@/types/auth';
 
@@ -25,15 +23,19 @@ const AdminUsersPage = () => {
             setLoading(true);
             setError(null);
 
-            const { data, error: fetchError } = await supabase
-                .from('profiles')
-                .select('*')
-                .order('created_at', { ascending: false });
+            const response = await fetch('/api/admin/users', {
+                cache: 'no-store',
+                headers: {
+                    'Pragma': 'no-cache',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                }
+            });
 
-            if (fetchError) {
-                throw fetchError;
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status}`);
             }
 
+            const data = await response.json();
             setUsers(data || []);
         } catch (err) {
             console.error('Error fetching users:', err);
@@ -65,6 +67,19 @@ const AdminUsersPage = () => {
         return new Date(dateString).toLocaleDateString('cs-CZ');
     };
 
+    const formatLastSignIn = (dateString?: string | null) => {
+        if (!dateString) return 'Nikdy';
+
+        const date = new Date(dateString);
+        return date.toLocaleString('cs-CZ', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
     const handleViewUserDetail = (userId: string) => {
         router.push(`/admin/users/${userId}`);
     };
@@ -72,7 +87,10 @@ const AdminUsersPage = () => {
     // Komponenta karty uživatele pro mobilní zobrazení
     const UserCard = ({ user }: { user: UserProfile }) => {
         return (
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-3">
+            <div
+                className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-3 cursor-pointer hover:bg-gray-50"
+                onClick={() => handleViewUserDetail(user.id)}
+            >
                 <div className="flex items-start gap-3">
                     <div className="h-10 w-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                         <User className="h-5 w-5" />
@@ -100,6 +118,10 @@ const AdminUsersPage = () => {
                                 <Calendar className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
                                 <span>{formatDate(user.created_at)}</span>
                             </div>
+                            <div className="flex items-center text-sm text-gray-500 mt-1">
+                                <Calendar className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
+                                <span>Poslední přihlášení: {formatLastSignIn(user.last_sign_in_at)}</span>
+                            </div>
                         </div>
                     </div>
                     <div className="ml-1 flex flex-col items-end gap-2">
@@ -110,13 +132,6 @@ const AdminUsersPage = () => {
                         }`}>
                             {user.is_admin ? 'Admin' : 'Uživatel'}
                         </span>
-                        <button
-                            onClick={() => handleViewUserDetail(user.id)}
-                            className="text-blue-600 p-1 hover:bg-blue-50 rounded-full transition-colors"
-                            title="Zobrazit detail"
-                        >
-                            <Eye className="w-4 h-4" />
-                        </button>
                     </div>
                 </div>
             </div>
@@ -228,19 +243,16 @@ const AdminUsersPage = () => {
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jméno</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jméno / Společnost</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Společnost</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Telefon</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Registrace</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Akce</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">R / P</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {filteredUsers.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
+                                        <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
                                             {searchQuery
                                                 ? 'Nenalezeni žádní uživatelé odpovídající vašemu hledání'
                                                 : 'Zatím nejsou žádní uživatelé'}
@@ -250,18 +262,33 @@ const AdminUsersPage = () => {
                                     filteredUsers.map((user) => (
                                         <tr key={user.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm font-medium text-gray-900">{user.full_name || 'Neuvedeno'}</div>
+                                                <button
+                                                    onClick={() => handleViewUserDetail(user.id)}
+                                                    className="text-left"
+                                                    title="Zobrazit detail uživatele"
+                                                >
+                                                    <div className="text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline">
+                                                        {user.full_name || 'Neuvedeno'}
+                                                        {user.is_admin && (
+                                                            <span className="ml-2 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-blue-100 text-blue-800 align-middle">
+                                                                ADMIN
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500 mt-0.5">
+                                                        {user.company || 'Neuvedeno'}
+                                                    </div>
+                                                </button>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex items-center">
                                                     <Mail className="w-4 h-4 text-gray-400 mr-2" />
-                                                    <span className="text-sm text-gray-900">{user.email}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center">
-                                                    <Building className="w-4 h-4 text-gray-400 mr-2" />
-                                                    <span className="text-sm text-gray-900">{user.company || 'Neuvedeno'}</span>
+                                                    <a
+                                                        href={`mailto:${user.email}`}
+                                                        className="text-sm text-blue-700 hover:text-blue-900 hover:underline"
+                                                    >
+                                                        {user.email}
+                                                    </a>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
@@ -271,28 +298,8 @@ const AdminUsersPage = () => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center">
-                                                    <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                                                    <span className="text-sm text-gray-500">{formatDate(user.created_at)}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                    user.is_admin
-                                                        ? 'bg-blue-100 text-blue-800'
-                                                        : 'bg-gray-100 text-gray-800'
-                                                }`}>
-                                                    {user.is_admin ? 'Admin' : 'Uživatel'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-center">
-                                                <button
-                                                    onClick={() => handleViewUserDetail(user.id)}
-                                                    className="text-blue-600 hover:text-blue-900 p-1.5 hover:bg-blue-50 rounded-full transition-colors"
-                                                    title="Zobrazit detail"
-                                                >
-                                                    <Eye className="w-5 h-5" />
-                                                </button>
+                                                <div className="text-sm text-gray-600">R: {formatDate(user.created_at)}</div>
+                                                <div className="text-sm text-gray-600 mt-0.5">P: {formatLastSignIn(user.last_sign_in_at)}</div>
                                             </td>
                                         </tr>
                                     ))
