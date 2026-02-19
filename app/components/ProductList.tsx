@@ -156,12 +156,12 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                 <button
                     onClick={() => product.in_stock && onAddToCart(product.id, volume)}
                     disabled={!product.in_stock}
-                    className={`w-full px-2 py-1 text-xs border rounded-md min-w-[40px]
+                    className={`w-full px-2.5 py-1.5 text-xs border rounded-md min-w-[42px]
              transition-colors duration-150 ${
             isInCart
-                ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100'
+                ? 'bg-blue-600/15 border-blue-500 text-blue-700 hover:bg-blue-600/25'
                 : product.in_stock
-                    ? 'bg-white text-gray-900 border-gray-300 hover:bg-blue-50 hover:border-blue-300 active:bg-blue-100'
+                    ? 'bg-white text-gray-900 border-gray-300 hover:bg-blue-50 hover:border-blue-400 active:bg-blue-100'
                     : 'opacity-50 cursor-not-allowed text-gray-500'
         }`}    
                 >
@@ -170,8 +170,8 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                 {isInCart && (
                     <button
                         onClick={() => onRemoveFromCart(product.id, volume)}
-                        className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600
-                                 text-white text-[10px] rounded-full w-4 h-4
+                        className="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600
+                                 text-white text-[10px] rounded-full w-[18px] h-[18px]
                                  flex items-center justify-center font-medium shadow-sm
                                  transition-colors duration-150 cursor-pointer"
                         title="Kliknutím snížíte počet o 1"
@@ -209,7 +209,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                 </div>
 
                 {/* Tlačítka objemů - stejná jako v desktop verzi */}
-                <div className="flex gap-1 mt-3">
+                <div className="flex gap-1.5 mt-3">
                     {productButtons.map(({ label, value }) => (
                         <VolumeButton
                             key={`${product.id}-${value}`}
@@ -253,7 +253,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                     </div>
                 </div>
 
-                <div className="flex items-center gap-1 mt-2 sm:mt-0 sm:pl-2 w-full sm:w-auto">
+                <div className="flex items-center gap-1.5 mt-2 sm:mt-0 sm:pl-2 w-full sm:w-auto">
                     {productButtons.map(({ label, value }) => (
                         <VolumeButton
                             key={`${product.id}-${value}`}
