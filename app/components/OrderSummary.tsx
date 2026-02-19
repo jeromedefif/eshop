@@ -19,8 +19,52 @@ type OrderSummaryProps = {
     totalVolume: number;
 };
 
-// Definice pořadí kategorií
-const CATEGORY_ORDER = ['Víno', 'Ovocné víno', 'Nápoje', 'Dusík', 'PET'];
+const CATEGORY_ORDER = ['Víno', 'Ovocné víno', 'Nápoje', 'Dusík', 'Plyny', 'PET'];
+
+const CATEGORY_THEME: Record<string, { icon: string; pill: string; volumeChip: string; label: string }> = {
+    'Víno': {
+        icon: 'text-purple-700',
+        pill: 'bg-purple-50 text-purple-800',
+        volumeChip: 'bg-purple-50 text-purple-800 border-purple-200',
+        label: 'Víno'
+    },
+    'Ovocné víno': {
+        icon: 'text-rose-700',
+        pill: 'bg-rose-50 text-rose-800',
+        volumeChip: 'bg-rose-50 text-rose-800 border-rose-200',
+        label: 'Ovocné víno'
+    },
+    'Nápoje': {
+        icon: 'text-blue-700',
+        pill: 'bg-blue-50 text-blue-800',
+        volumeChip: 'bg-blue-50 text-blue-800 border-blue-200',
+        label: 'Nápoje'
+    },
+    'Dusík': {
+        icon: 'text-cyan-700',
+        pill: 'bg-cyan-50 text-cyan-800',
+        volumeChip: 'bg-cyan-50 text-cyan-800 border-cyan-200',
+        label: 'Dusík'
+    },
+    'Plyny': {
+        icon: 'text-cyan-700',
+        pill: 'bg-cyan-50 text-cyan-800',
+        volumeChip: 'bg-cyan-50 text-cyan-800 border-cyan-200',
+        label: 'Plyny'
+    },
+    'PET': {
+        icon: 'text-amber-700',
+        pill: 'bg-amber-50 text-amber-800',
+        volumeChip: 'bg-amber-50 text-amber-800 border-amber-200',
+        label: 'PET'
+    },
+    'default': {
+        icon: 'text-gray-600',
+        pill: 'bg-gray-100 text-gray-800',
+        volumeChip: 'bg-gray-100 text-gray-800 border-gray-200',
+        label: 'Ostatní'
+    }
+};
 
 const OrderSummary = ({
     cartItems,
@@ -29,24 +73,28 @@ const OrderSummary = ({
     onAddToCart,
     totalVolume
 }: OrderSummaryProps) => {
+    const getCategoryTheme = (category: string) => CATEGORY_THEME[category] || CATEGORY_THEME.default;
+
     const getCategoryIcon = (category: string) => {
+        const { icon } = getCategoryTheme(category);
+
         switch(category) {
             case 'Víno':
-                return <Grape className="h-5 w-5 text-gray-600" />;
+                return <Grape className={`h-5 w-5 ${icon}`} />;
             case 'Ovocné víno':
-                return <Wine className="h-5 w-5 text-gray-600" />;
+                return <Wine className={`h-5 w-5 ${icon}`} />;
             case 'Nápoje':
-                return <Martini className="h-5 w-5 text-gray-600" />;
+                return <Martini className={`h-5 w-5 ${icon}`} />;
             case 'Dusík':
-                return <TestTube className="h-5 w-5 text-gray-600" />;
+            case 'Plyny':
+                return <TestTube className={`h-5 w-5 ${icon}`} />;
             case 'PET':
-                return <Box className="h-5 w-5 text-gray-600" />;
+                return <Box className={`h-5 w-5 ${icon}`} />;
             default:
-                return <Package className="h-5 w-5 text-gray-600" />;
+                return <Package className={`h-5 w-5 ${icon}`} />;
         }
     };
 
-    // Seskupit položky podle kategorií
     const groupedItems = Object.entries(cartItems).reduce((acc, [key, count]) => {
         const [productId, volume] = key.split('-');
         const product = products.find(p => p.id === parseInt(productId));
@@ -59,34 +107,30 @@ const OrderSummary = ({
         return acc;
     }, {} as Record<string, Array<{ product: Product; volume: string; count: number }>>);
 
-    // Seřazení kategorií podle definovaného pořadí
-    const sortedCategories = Object.keys(groupedItems).sort(
-        (a, b) => CATEGORY_ORDER.indexOf(a) - CATEGORY_ORDER.indexOf(b)
-    );
+    const sortedCategories = Object.keys(groupedItems).sort((a, b) => {
+        const aIndex = CATEGORY_ORDER.includes(a) ? CATEGORY_ORDER.indexOf(a) : Number.MAX_SAFE_INTEGER;
+        const bIndex = CATEGORY_ORDER.includes(b) ? CATEGORY_ORDER.indexOf(b) : Number.MAX_SAFE_INTEGER;
+        return aIndex - bIndex;
+    });
 
     const getItemText = (product: Product, volume: string) => {
         if (product.category === 'PET') {
             return 'balení';
         }
-        if (product.category === 'Dusík') {
+        if (product.category === 'Dusík' || product.category === 'Plyny') {
             return volume === 'maly' ? 'malý' : 'velký';
         }
         return `${volume}L`;
     };
 
-    // Helper pro české skloňování
     const getItemsCount = (count: number) => {
         if (count === 1) return 'položka';
         if (count >= 2 && count <= 4) return 'položky';
         return 'položek';
     };
 
-    // Funkce pro úplné odstranění položky z košíku
     const handleRemoveItem = (productId: number, volume: string) => {
-        // Odstraníme položku úplně, ne jen snížení množství
         const key = `${productId}-${volume}`;
-
-        // Voláme funkci tolikrát, kolik je množství položky, abychom ji úplně odstranili
         const count = cartItems[key] || 0;
         for (let i = 0; i < count; i++) {
             onRemoveFromCart(productId, volume);
@@ -114,7 +158,6 @@ const OrderSummary = ({
 
     return (
         <div className="bg-white rounded-lg shadow">
-            {/* Header */}
             <div className="p-4 border-b border-gray-100">
                 <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-gray-900">Přehled objednávky</h2>
@@ -124,79 +167,76 @@ const OrderSummary = ({
                 </div>
             </div>
 
-            {/* Items list - nový design ve stylu skupin */}
             <div className="p-4">
                 <div className="space-y-4">
-                    {sortedCategories.map((category) => (
-                        <div key={category} className="border-t first:border-t-0 pt-3 first:pt-0">
-                            <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2 px-2 py-2 bg-gray-50 rounded-lg">
-                                {getCategoryIcon(category)}
-                                {category}
-                                <span className="text-xs font-medium text-gray-800">
-                                    ({groupedItems[category].length})
-                                </span>
-                            </h3>
-                            <div className="mt-2 space-y-1">
-                                {groupedItems[category].map(({ product, volume, count }) => (
-                                    <div
-                                        key={`${product.id}-${volume}`}
-                                        className="flex items-center justify-between px-3 py-2 hover:bg-blue-50
-                                                rounded-lg transition-colors"
-                                    >
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-1">
-                                                {/* Nové pořadí: objem, poté název produktu */}
-                                                <span className="font-bold text-gray-900">
-                                                    {product.category === 'PET' ? 'balení' :
-                                                     product.category === 'Dusík' ? (volume === 'maly' ? 'malý' : 'velký') :
-                                                     `${volume}L`} -
-                                                </span>
-                                                <span className="font-medium text-gray-900 ml-1">
-                                                    {product.name}
-                                                </span>
-                                            </div>
-                                        </div>
+                    {sortedCategories.map((category) => {
+                        const theme = getCategoryTheme(category);
 
-                                        {/* Quantity controls */}
-                                        <div className="flex items-center space-x-2">
-                                            <div className="flex items-center bg-white border rounded-lg">
-                                                <button
-                                                    onClick={() => handleDecrement(product.id, volume)}
-                                                    className="p-1 hover:bg-gray-100 rounded-l-lg border-r"
-                                                    title="Snížit množství"
-                                                >
-                                                    <Minus className="w-4 h-4 text-gray-600" />
-                                                </button>
-                                                <span className="px-3 py-1 font-medium text-gray-800">
-                                                    {count}
-                                                </span>
-                                                <button
-                                                    onClick={() => handleIncrement(product.id, volume)}
-                                                    className="p-1 hover:bg-gray-100 rounded-r-lg border-l"
-                                                    title="Zvýšit množství"
-                                                >
-                                                    <Plus className="w-4 h-4 text-gray-600" />
-                                                </button>
+                        return (
+                            <div key={category} className="border-t first:border-t-0 pt-3 first:pt-0">
+                                <h3 className={`text-sm font-semibold flex items-center gap-2 px-2.5 py-2 rounded-lg ${theme.pill}`}>
+                                    {getCategoryIcon(category)}
+                                    {theme.label}
+                                    <span className="text-xs font-semibold opacity-80">
+                                        ({groupedItems[category].length})
+                                    </span>
+                                </h3>
+
+                                <div className="mt-2 space-y-1.5">
+                                    {groupedItems[category].map(({ product, volume, count }) => (
+                                        <div
+                                            key={`${product.id}-${volume}`}
+                                            className="flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-blue-50 rounded-lg transition-colors"
+                                        >
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold shrink-0 ${theme.volumeChip}`}>
+                                                        {getItemText(product, volume)}
+                                                    </span>
+                                                    <span className="font-medium text-gray-900 truncate">
+                                                        {product.name}
+                                                    </span>
+                                                </div>
                                             </div>
 
-                                            <button
-                                                onClick={() => handleRemoveItem(product.id, volume)}
-                                                className="p-1.5 hover:bg-red-100 rounded-lg
-                                                        transition-colors"
-                                                title="Odebrat položku"
-                                            >
-                                                <Trash2 className="w-4 h-4 text-red-500" />
-                                            </button>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <div className="flex items-center bg-white border rounded-lg">
+                                                    <button
+                                                        onClick={() => handleDecrement(product.id, volume)}
+                                                        className="p-1 hover:bg-gray-100 rounded-l-lg border-r"
+                                                        title="Snížit množství"
+                                                    >
+                                                        <Minus className="w-4 h-4 text-gray-600" />
+                                                    </button>
+                                                    <span className="px-3 py-1 font-medium text-gray-800">
+                                                        {count}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => handleIncrement(product.id, volume)}
+                                                        className="p-1 hover:bg-gray-100 rounded-r-lg border-l"
+                                                        title="Zvýšit množství"
+                                                    >
+                                                        <Plus className="w-4 h-4 text-gray-600" />
+                                                    </button>
+                                                </div>
+
+                                                <button
+                                                    onClick={() => handleRemoveItem(product.id, volume)}
+                                                    className="p-1.5 hover:bg-red-100 rounded-lg transition-colors"
+                                                    title="Odebrat položku"
+                                                >
+                                                    <Trash2 className="w-4 h-4 text-red-500" />
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
 
-            {/* Footer with total */}
             {totalVolume > 0 && (
                 <div className="border-t border-gray-100 p-4 bg-gray-50 rounded-b-lg">
                     <div className="flex justify-between items-center">
