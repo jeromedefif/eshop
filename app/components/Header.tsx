@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { List, UserCog, LogOut, ShoppingCart, Package, User, FileText, Menu, X } from 'lucide-react';
+import { List, UserCog, LogOut, ShoppingCart, Package, User, FileText, RotateCcw, Menu, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Cart from './Cart';
 import { Product } from '@/types/database';
@@ -119,8 +119,9 @@ const Header = ({
                   <button
                     onClick={handleQuickReorder}
                     disabled={!onQuickReorder || isQuickReordering}
-                    className="inline-flex items-center px-3 py-2 text-sm font-semibold rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
                   >
+                    <RotateCcw className="mr-1.5 h-4 w-4" />
                     {isQuickReordering ? 'Načítám...' : 'Objednat poslední'}
                   </button>
                   <Link
@@ -245,8 +246,13 @@ const Header = ({
                       setMobileMenuOpen(false);
                     }}
                     disabled={!onQuickReorder || isQuickReordering}
-                    className="block w-full text-left px-3 py-2 rounded-md text-base font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className={`block w-full px-3 py-2 rounded-md text-base font-medium text-left ${
+                      !onQuickReorder || isQuickReordering
+                        ? 'bg-blue-50 text-blue-700 opacity-70 cursor-not-allowed'
+                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                    }`}
                   >
+                    <RotateCcw className="inline-block mr-2 h-5 w-5" />
                     {isQuickReordering ? 'Načítám...' : 'Objednat poslední'}
                   </button>
                   <Link

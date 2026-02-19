@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
-import { Package, ShoppingCart, ArrowLeft, Home, ChevronDown, Loader2 } from 'lucide-react';
+import { Package, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
 import { useContext } from 'react';
 import { CartContext } from '../page';
+import Header from '@/components/Header';
 
 // Konstanty - velmi minimální změna
 const PAGE_SIZE = 5;
@@ -29,7 +30,7 @@ const MyOrdersPage = () => {
         return null;
     }
 
-    const { setCartItems } = cartContext;
+    const { cartItems, setCartItems, products, totalVolume } = cartContext;
 
     // Upravený useEffect - podobný původnímu
     useEffect(() => {
@@ -164,6 +165,73 @@ const MyOrdersPage = () => {
         router.push('/order-summary');
     };
 
+    const handleQuickReorder = async () => {
+        if (!user) {
+            router.push('/login');
+            return;
+        }
+
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .select(`
+                    id,
+                    created_at,
+                    status,
+                    order_items (
+                        id,
+                        product_id,
+                        volume,
+                        quantity,
+                        product:products (
+                            id,
+                            name,
+                            in_stock
+                        )
+                    )
+                `)
+                .eq('user_id', user.id)
+                .in('status', ['confirmed', 'completed'])
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (error) {
+                throw error;
+            }
+
+            const latestOrder = data?.[0];
+            if (!latestOrder) {
+                alert('Nemáte žádnou předchozí objednávku k opakování.');
+                return;
+            }
+
+            await handleReorder(latestOrder);
+        } catch (error) {
+            console.error('Error creating reorder from latest order:', error);
+            alert('Objednávku se nepodařilo načíst. Zkuste to prosím znovu.');
+        }
+    };
+
+    const handleRemoveFromCart = (productId: number, volume: number | string) => {
+        setCartItems(prev => {
+            const key = `${productId}-${volume}`;
+            const currentCount = prev[key] || 0;
+
+            if (currentCount <= 1) {
+                return Object.fromEntries(Object.entries(prev).filter(([k]) => k !== key));
+            }
+
+            return {
+                ...prev,
+                [key]: currentCount - 1
+            };
+        });
+    };
+
+    const handleClearCart = () => {
+        setCartItems({});
+    };
+
     // Zachování původní funkce formátování data
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -202,24 +270,20 @@ const MyOrdersPage = () => {
 
     return (
         <div className="min-h-screen bg-gray-50">
+            <div className="sticky top-0 z-50">
+                <Header
+                    cartItems={cartItems}
+                    products={products}
+                    totalVolume={totalVolume}
+                    onRemoveFromCart={handleRemoveFromCart}
+                    onClearCart={handleClearCart}
+                    onQuickReorder={handleQuickReorder}
+                />
+            </div>
+
             <div className="container mx-auto px-4 py-8">
-                <div className="bg-white shadow-sm mb-6">
-                    <div className="max-w-7xl mx-auto px-4">
-                        <div className="flex justify-between h-16">
-                            <div className="flex items-center">
-                                <h1 className="text-xl font-bold text-gray-900">Moje objednávky</h1>
-                            </div>
-                            <div className="flex items-center">
-                                <Link
-                                    href="/"
-                                    className="flex items-center text-blue-600 hover:text-blue-800 transition-colors"
-                                >
-                                    <Home className="w-5 h-5 mr-1" />
-                                    Zpět na katalog
-                                </Link>
-                            </div>
-                        </div>
-                    </div>
+                <div className="mb-6">
+                    <h1 className="text-2xl font-bold text-gray-900">Moje objednávky</h1>
                 </div>
 
                 {orders.length === 0 ? (
