@@ -14,6 +14,7 @@ type HeaderProps = {
    totalVolume: number;
    onRemoveFromCart: (productId: number, volume: string | number) => void;
    onClearCart: () => void;
+   onQuickReorder?: () => Promise<void>;
 };
 
 const Header = ({
@@ -21,12 +22,14 @@ const Header = ({
    products,
    totalVolume,
    onRemoveFromCart,
-   onClearCart
+   onClearCart,
+   onQuickReorder
 }: HeaderProps) => {
    const router = useRouter();
    const pathname = usePathname();
    const [isCartOpen, setIsCartOpen] = useState(false);
    const [isSigningOut, setIsSigningOut] = useState(false);
+   const [isQuickReordering, setIsQuickReordering] = useState(false);
    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
    const { user, profile, signOut } = useAuth();
 
@@ -47,6 +50,16 @@ const Header = ({
 
    const handleMobileMenuToggle = () => {
        setMobileMenuOpen(!mobileMenuOpen);
+   };
+
+   const handleQuickReorder = async () => {
+      if (!onQuickReorder || isQuickReordering) return;
+      setIsQuickReordering(true);
+      try {
+        await onQuickReorder();
+      } finally {
+        setIsQuickReordering(false);
+      }
    };
 
    return (
@@ -101,6 +114,24 @@ const Header = ({
 
             {/* Pravá část s profilem a košíkem */}
             <div className="flex items-center space-x-4">
+              {user && (
+                <div className="hidden md:flex items-center space-x-2">
+                  <button
+                    onClick={handleQuickReorder}
+                    disabled={!onQuickReorder || isQuickReordering}
+                    className="inline-flex items-center px-3 py-2 text-sm font-semibold rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isQuickReordering ? 'Načítám...' : 'Objednat poslední'}
+                  </button>
+                  <Link
+                    href="/my-orders"
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-900 hover:bg-gray-100"
+                  >
+                    Moje objednávky
+                  </Link>
+                </div>
+              )}
+
               {profile?.is_admin && (
                 <Link
                 href="/admin/orders"  // První se zobrazí objednávky Změna zde!
@@ -206,6 +237,32 @@ const Header = ({
                 <FileText className="inline-block mr-2 h-5 w-5" />
                 Souhrn objednávky
               </Link>
+              {user && (
+                <>
+                  <button
+                    onClick={() => {
+                      void handleQuickReorder();
+                      setMobileMenuOpen(false);
+                    }}
+                    disabled={!onQuickReorder || isQuickReordering}
+                    className="block w-full text-left px-3 py-2 rounded-md text-base font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {isQuickReordering ? 'Načítám...' : 'Objednat poslední'}
+                  </button>
+                  <Link
+                    href="/my-orders"
+                    className={`block px-3 py-2 rounded-md text-base font-medium ${
+                      pathname === '/my-orders'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-900 hover:bg-gray-100'
+                    }`}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Package className="inline-block mr-2 h-5 w-5" />
+                    Moje objednávky
+                  </Link>
+                </>
+              )}
               {profile?.is_admin && (
                 <Link
                   href="/admin/products"

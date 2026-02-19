@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import Header from '@/components/Header';
@@ -77,6 +78,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 };
 
 export default function Home() {
+   const router = useRouter();
    const cartContext = useContext(CartContext);
    const { user, profile } = useAuth();
    const [currentView, setCurrentView] = useState<'catalog' | 'order' | 'admin'>('catalog');
@@ -118,14 +120,6 @@ export default function Home() {
        // Odstranili jsme kód pro toast, protože používáme vlastní SuccessNotification komponentu
    }, []);
 
-   const handleViewChange = (view: 'catalog' | 'order') => {
-       if (profile?.is_admin) {
-           setCurrentView('catalog');
-       } else {
-           setCurrentView(view);
-       }
-   };
-
    const handleAddToCart = (productId: number, volume: number | string) => {
        setCartItems(prev => {
            const key = `${productId}-${volume}`;
@@ -159,6 +153,77 @@ export default function Home() {
        setCartItems(defaultCartItems);
    };
 
+   const handleQuickReorder = async () => {
+       if (!user) {
+           router.push('/login');
+           return;
+       }
+
+       try {
+           const { data, error } = await supabase
+               .from('orders')
+               .select(`
+                   id,
+                   created_at,
+                   status,
+                   order_items (
+                       id,
+                       product_id,
+                       volume,
+                       quantity,
+                       product:products (
+                           id,
+                           name,
+                           in_stock
+                       )
+                   )
+               `)
+               .eq('user_id', user.id)
+               .in('status', ['confirmed', 'completed'])
+               .order('created_at', { ascending: false })
+               .limit(1);
+
+           if (error) {
+               throw error;
+           }
+
+           const latestOrder = data?.[0];
+           if (!latestOrder) {
+               alert('Nemáte žádnou předchozí objednávku k opakování.');
+               return;
+           }
+
+           const nextCartItems: { [key: string]: number } = {};
+           let unavailableItems = 0;
+
+           latestOrder.order_items.forEach((item: any) => {
+               if (!item.product?.in_stock) {
+                   unavailableItems += 1;
+                   return;
+               }
+
+               const key = `${item.product_id}-${item.volume}`;
+               nextCartItems[key] = item.quantity;
+           });
+
+           if (Object.keys(nextCartItems).length === 0) {
+               alert('Poslední objednávka obsahuje pouze nedostupné položky.');
+               return;
+           }
+
+           setCartItems(nextCartItems);
+
+           if (unavailableItems > 0) {
+               alert('Některé položky nebyly skladem a nebyly přidány.');
+           }
+
+           router.push('/order-summary');
+       } catch (error) {
+           console.error('Error creating reorder from latest order:', error);
+           alert('Objednávku se nepodařilo načíst. Zkuste to prosím znovu.');
+       }
+   };
+
    if (isLoading) {
        return (
            <div className="min-h-screen bg-gray-50 flex justify-center items-center">
@@ -174,11 +239,10 @@ export default function Home() {
                <Header
                    cartItems={cartItems}
                    products={products}
-                   onViewChange={handleViewChange}
-                   currentView={currentView === 'admin' ? 'catalog' : currentView}
                    totalVolume={totalVolume}
                    onRemoveFromCart={handleRemoveFromCart}
                    onClearCart={handleClearCart}
+                   onQuickReorder={handleQuickReorder}
                />
            </div>
 

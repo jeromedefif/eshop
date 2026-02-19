@@ -4,6 +4,7 @@ import { useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { CartContext } from '../page';
+import { supabase } from '@/lib/supabase/client';
 import OrderForm from '@/components/OrderForm';
 import Header from '@/components/Header';
 import Link from 'next/link';
@@ -60,6 +61,75 @@ const OrderSummaryPage = () => {
         setCartItems({});
     };
 
+    const handleQuickReorder = async () => {
+        if (!user) {
+            router.push('/login');
+            return;
+        }
+
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .select(`
+                    id,
+                    created_at,
+                    status,
+                    order_items (
+                        id,
+                        product_id,
+                        volume,
+                        quantity,
+                        product:products (
+                            id,
+                            name,
+                            in_stock
+                        )
+                    )
+                `)
+                .eq('user_id', user.id)
+                .in('status', ['confirmed', 'completed'])
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (error) {
+                throw error;
+            }
+
+            const latestOrder = data?.[0];
+            if (!latestOrder) {
+                alert('Nemáte žádnou předchozí objednávku k opakování.');
+                return;
+            }
+
+            const nextCartItems: { [key: string]: number } = {};
+            let unavailableItems = 0;
+
+            latestOrder.order_items.forEach((item: any) => {
+                if (!item.product?.in_stock) {
+                    unavailableItems += 1;
+                    return;
+                }
+
+                const key = `${item.product_id}-${item.volume}`;
+                nextCartItems[key] = item.quantity;
+            });
+
+            if (Object.keys(nextCartItems).length === 0) {
+                alert('Poslední objednávka obsahuje pouze nedostupné položky.');
+                return;
+            }
+
+            setCartItems(nextCartItems);
+
+            if (unavailableItems > 0) {
+                alert('Některé položky nebyly skladem a nebyly přidány.');
+            }
+        } catch (error) {
+            console.error('Error creating reorder from latest order:', error);
+            alert('Objednávku se nepodařilo načíst. Zkuste to prosím znovu.');
+        }
+    };
+
     // Obsah pro prázdný košík
     const EmptyCartContent = () => (
         <div className="max-w-4xl mx-auto">
@@ -95,6 +165,7 @@ const OrderSummaryPage = () => {
                         totalVolume={totalVolume}
                         onRemoveFromCart={handleRemoveFromCart}
                         onClearCart={handleClearCart}
+                        onQuickReorder={handleQuickReorder}
                     />
                 </div>
 
