@@ -19,7 +19,7 @@ type OrderSummaryProps = {
     totalVolume: number;
 };
 
-const CATEGORY_ORDER = ['Víno', 'Ovocné víno', 'Nápoje', 'Dusík', 'Plyny', 'PET'];
+const CATEGORY_ORDER = ['Nápoje', 'Víno', 'Ovocné víno', 'Plyny', 'PET'];
 
 const CATEGORY_THEME: Record<string, { icon: string; pill: string; volumeChip: string; label: string }> = {
     'Víno': {
@@ -75,6 +75,23 @@ const OrderSummary = ({
 }: OrderSummaryProps) => {
     const getCategoryTheme = (category: string) => CATEGORY_THEME[category] || CATEGORY_THEME.default;
 
+    const normalizeCategory = (category: string) => {
+        if (category === 'Dusík' || category === 'Plyny') return 'Plyny';
+        return category;
+    };
+
+    const getVolumeSortValue = (volume: string) => {
+        const normalized = String(volume || '').toLowerCase().trim();
+        const anyNumber = normalized.match(/(\d+(?:[.,]\d+)?)/);
+        if (anyNumber) {
+            return parseFloat(anyNumber[1].replace(',', '.'));
+        }
+        if (normalized.includes('velk')) return 2;
+        if (normalized.includes('mal')) return 1;
+        if (normalized.includes('balen')) return 0;
+        return -1;
+    };
+
     const getCategoryIcon = (category: string) => {
         const { icon } = getCategoryTheme(category);
 
@@ -99,11 +116,12 @@ const OrderSummary = ({
         const [productId, volume] = key.split('-');
         const product = products.find(p => p.id === parseInt(productId));
         if (!product) return acc;
+        const normalizedCategory = normalizeCategory(product.category);
 
-        if (!acc[product.category]) {
-            acc[product.category] = [];
+        if (!acc[normalizedCategory]) {
+            acc[normalizedCategory] = [];
         }
-        acc[product.category].push({ product, volume, count });
+        acc[normalizedCategory].push({ product, volume, count });
         return acc;
     }, {} as Record<string, Array<{ product: Product; volume: string; count: number }>>);
 
@@ -112,6 +130,17 @@ const OrderSummary = ({
         const bIndex = CATEGORY_ORDER.includes(b) ? CATEGORY_ORDER.indexOf(b) : Number.MAX_SAFE_INTEGER;
         return aIndex - bIndex;
     });
+
+    const groupedItemsSorted = Object.fromEntries(
+        Object.entries(groupedItems).map(([category, items]) => [
+            category,
+            [...items].sort((a, b) => {
+                const byVolume = getVolumeSortValue(b.volume) - getVolumeSortValue(a.volume);
+                if (byVolume !== 0) return byVolume;
+                return a.product.name.localeCompare(b.product.name, 'cs');
+            })
+        ])
+    ) as Record<string, Array<{ product: Product; volume: string; count: number }>>;
 
     const getItemText = (product: Product, volume: string) => {
         if (product.category === 'PET') {
@@ -178,12 +207,12 @@ const OrderSummary = ({
                                     {getCategoryIcon(category)}
                                     {theme.label}
                                     <span className="text-xs font-semibold opacity-80">
-                                        ({groupedItems[category].length})
+                                        ({groupedItemsSorted[category].length})
                                     </span>
                                 </h3>
 
                                 <div className="mt-2 space-y-1.5">
-                                    {groupedItems[category].map(({ product, volume, count }) => (
+                                    {groupedItemsSorted[category].map(({ product, volume, count }) => (
                                         <div
                                             key={`${product.id}-${volume}`}
                                             className="flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-blue-50 rounded-lg transition-colors"
