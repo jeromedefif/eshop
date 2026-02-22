@@ -26,6 +26,37 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
    const [cartItems, setCartItems] = useState<{[key: string]: number}>(defaultCartItems);
    const [products, setProducts] = useState<Product[]>([]);
    const [totalVolume, setTotalVolume] = useState(0);
+   const { user: authUser } = useAuth();
+
+   // Načtení produktů globálně pro všechny stránky (včetně /order-summary po refreshi)
+   useEffect(() => {
+       let isMounted = true;
+
+       const loadProductsForProvider = async () => {
+           try {
+               const { data, error } = await supabase
+                   .from('products')
+                   .select('*')
+                   .order('name');
+
+               if (error) {
+                   throw error;
+               }
+
+               if (isMounted) {
+                   setProducts(data || []);
+               }
+           } catch (error) {
+               console.error('Error loading products in CartProvider:', error);
+           }
+       };
+
+       loadProductsForProvider();
+
+       return () => {
+           isMounted = false;
+       };
+   }, [authUser?.id]);
 
    // Načtení košíku z localStorage
    useEffect(() => {

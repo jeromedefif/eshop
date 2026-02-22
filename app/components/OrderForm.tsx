@@ -41,7 +41,7 @@ const OrderForm = ({
   const getOrderSummary = (): OrderConfirmationData => {
       const items = Object.entries(cartItems).map(([key, quantity]) => {
           const [productId, volume] = key.split('-');
-          const product = products.find(p => p.id === parseInt(productId));
+          const product = products.find(p => String(p.id) === productId);
           if (!product) return null;
 
           const display = product.category === 'PET'

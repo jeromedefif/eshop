@@ -4,7 +4,7 @@ import React from 'react';
 import { Package, Wine, Grape, Martini, TestTube, Box, Trash2, Plus, Minus } from 'lucide-react';
 
 type Product = {
-    id: number;
+    id: number | string;
     name: string;
     category: string;
     in_stock: boolean;
@@ -114,7 +114,7 @@ const OrderSummary = ({
 
     const groupedItems = Object.entries(cartItems).reduce((acc, [key, count]) => {
         const [productId, volume] = key.split('-');
-        const product = products.find(p => p.id === parseInt(productId));
+        const product = products.find(p => String(p.id) === productId);
         if (!product) return acc;
         const normalizedCategory = normalizeCategory(product.category);
 
@@ -158,20 +158,22 @@ const OrderSummary = ({
         return 'položek';
     };
 
-    const handleRemoveItem = (productId: number, volume: string) => {
+    const totalItemsCount = Object.values(cartItems).reduce((sum, count) => sum + count, 0);
+
+    const handleRemoveItem = (productId: number | string, volume: string) => {
         const key = `${productId}-${volume}`;
         const count = cartItems[key] || 0;
         for (let i = 0; i < count; i++) {
-            onRemoveFromCart(productId, volume);
+            onRemoveFromCart(Number(productId), volume);
         }
     };
 
-    const handleIncrement = (productId: number, volume: string) => {
-        onAddToCart(productId, volume);
+    const handleIncrement = (productId: number | string, volume: string) => {
+        onAddToCart(Number(productId), volume);
     };
 
-    const handleDecrement = (productId: number, volume: string) => {
-        onRemoveFromCart(productId, volume);
+    const handleDecrement = (productId: number | string, volume: string) => {
+        onRemoveFromCart(Number(productId), volume);
     };
 
     if (Object.keys(cartItems).length === 0) {
@@ -191,7 +193,7 @@ const OrderSummary = ({
                 <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-gray-900">Přehled objednávky</h2>
                     <span className="text-sm text-gray-800">
-                        {Object.keys(cartItems).length} {getItemsCount(Object.keys(cartItems).length)}
+                        {totalItemsCount} {getItemsCount(totalItemsCount)}
                     </span>
                 </div>
             </div>
