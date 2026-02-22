@@ -19,12 +19,27 @@ export default function AdminOrders({
     const [isExportingCsv, setIsExportingCsv] = useState(false);
     const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year' | 'all'>('month');
     const [hoveredOrderId, setHoveredOrderId] = useState<string | null>(null);
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+    const [isExportingSelectedExcel, setIsExportingSelectedExcel] = useState(false);
     const router = useRouter();
 
     // Při změně vstupních orders aktualizujeme i filtrované orders
     useEffect(() => {
         setFilteredOrders(orders);
     }, [orders]);
+
+    useEffect(() => {
+        if (!isSelectionMode) return;
+        const allowed = new Set(filteredOrders.map((order) => order.id));
+        setSelectedOrderIds((prev) => {
+            const next = new Set<string>();
+            prev.forEach((id) => {
+                if (allowed.has(id)) next.add(id);
+            });
+            return next;
+        });
+    }, [filteredOrders, isSelectionMode]);
 
     // Efekt pro vyhledávání - při změně searchQuery filtrujeme orders
     useEffect(() => {
@@ -190,6 +205,81 @@ export default function AdminOrders({
         }
     };
 
+    const toggleOrderSelection = (orderId: string) => {
+        setSelectedOrderIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(orderId)) {
+                next.delete(orderId);
+            } else {
+                next.add(orderId);
+            }
+            return next;
+        });
+    };
+
+    const toggleSelectAllFiltered = () => {
+        const ids = filteredOrders.map((order) => order.id);
+        const allSelected = ids.length > 0 && ids.every((id) => selectedOrderIds.has(id));
+        if (allSelected) {
+            setSelectedOrderIds(new Set());
+            return;
+        }
+        setSelectedOrderIds(new Set(ids));
+    };
+
+    const handleToggleSelectionMode = () => {
+        setIsSelectionMode((prev) => {
+            const next = !prev;
+            if (!next) {
+                setSelectedOrderIds(new Set());
+            }
+            return next;
+        });
+    };
+
+    const handleExportSelectedToExcel = async () => {
+        if (selectedOrderIds.size === 0 || isExportingSelectedExcel) return;
+
+        setIsExportingSelectedExcel(true);
+        try {
+            const timestamp = Date.now();
+            const response = await fetch(`/api/orders/export-excel-selected?t=${timestamp}`, {
+                method: 'POST',
+                cache: 'no-store',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Pragma': 'no-cache',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                },
+                body: JSON.stringify({ orderIds: Array.from(selectedOrderIds) })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Export vybraných objednávek selhal: ${response.status} ${errorText}`);
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const date = new Date().toISOString().split('T')[0];
+            a.download = `objednavky-vybrane-${date}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            setSelectedOrderIds(new Set());
+            setIsSelectionMode(false);
+        } catch (error) {
+            console.error('Chyba při exportu vybraných objednávek:', error);
+            alert('Nepodařilo se exportovat vybrané objednávky. Zkuste to prosím znovu.');
+        } finally {
+            setIsExportingSelectedExcel(false);
+        }
+    };
+
     const getStatusColor = (status: Order['status']) => {
         switch (status) {
             case 'pending': return 'bg-yellow-100 text-yellow-800';
@@ -328,8 +418,37 @@ export default function AdminOrders({
                             {isExportingExcel ? 'Exportuji...' : 'Excel'}
                         </span>
                     </button>
+                    <button
+                        onClick={isSelectionMode ? handleExportSelectedToExcel : handleToggleSelectionMode}
+                        className="flex-1 sm:flex-none flex justify-center items-center px-3 py-2 bg-emerald-600 text-white rounded-lg
+                                 hover:bg-emerald-700 transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed"
+                        disabled={isSelectionMode && (selectedOrderIds.size === 0 || isExportingSelectedExcel)}
+                        title={isSelectionMode ? 'Export vybraných objednávek do Excelu' : 'Zapnout výběr objednávek pro export'}
+                    >
+                        <FileSpreadsheet className="w-5 h-5" />
+                        <span className="ml-2 hidden sm:inline">
+                            {isSelectionMode
+                                ? (isExportingSelectedExcel
+                                    ? 'Exportuji vybrané...'
+                                    : `Export vybraných (${selectedOrderIds.size})`)
+                                : 'Vybrat pro export'}
+                        </span>
+                    </button>
                 </div>
             </div>
+
+            {isSelectionMode && (
+                <div className="mb-4 text-sm text-gray-700">
+                    Označte objednávky v tabulce a klikněte na
+                    {' '}<span className="font-semibold">Export vybraných</span>.
+                    <button
+                        onClick={handleToggleSelectionMode}
+                        className="ml-3 text-blue-600 hover:text-blue-800"
+                    >
+                        Zrušit výběr
+                    </button>
+                </div>
+            )}
 
             <div className="mb-6">
                 <div className="relative">
@@ -394,6 +513,19 @@ export default function AdminOrders({
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
+                                {isSelectionMode && (
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={
+                                                filteredOrders.length > 0 &&
+                                                filteredOrders.every((order) => selectedOrderIds.has(order.id))
+                                            }
+                                            onChange={toggleSelectAllFiltered}
+                                            aria-label="Vybrat všechny objednávky"
+                                        />
+                                    </th>
+                                )}
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stav</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Datum</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Zákazník</th>
@@ -404,7 +536,7 @@ export default function AdminOrders({
                         <tbody className="bg-white">
                             {filteredOrders.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                                    <td colSpan={isSelectionMode ? 6 : 5} className="px-6 py-8 text-center text-gray-500">
                                         {searchQuery
                                             ? 'Nenalezeny žádné objednávky odpovídající vašemu hledání'
                                             : `Zatím nejsou žádné objednávky za ${getPeriodDescription(selectedPeriod)}`}
@@ -422,6 +554,16 @@ export default function AdminOrders({
                                                 onMouseEnter={() => setHoveredOrderId(order.id)}
                                                 onMouseLeave={() => setHoveredOrderId(null)}
                                             >
+                                                {isSelectionMode && (
+                                                    <td className="px-4 py-4 align-top">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedOrderIds.has(order.id)}
+                                                            onChange={() => toggleOrderSelection(order.id)}
+                                                            aria-label={`Vybrat objednávku ${order.id}`}
+                                                        />
+                                                    </td>
+                                                )}
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <button
                                                         onClick={() => handleViewOrderDetail(order.id)}
@@ -455,7 +597,7 @@ export default function AdminOrders({
                                                     onMouseEnter={() => setHoveredOrderId(order.id)}
                                                     onMouseLeave={() => setHoveredOrderId(null)}
                                                 >
-                                                    <td colSpan={5} className="px-6 py-3 text-sm text-gray-700">
+                                                    <td colSpan={isSelectionMode ? 6 : 5} className="px-6 py-3 text-sm text-gray-700">
                                                         <span className="font-semibold text-gray-800">Poznámka:</span>{' '}
                                                         <span
                                                             className="align-middle"
