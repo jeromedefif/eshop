@@ -18,6 +18,7 @@ export default function AdminOrders({
     const [isExportingExcel, setIsExportingExcel] = useState(false);
     const [isExportingCsv, setIsExportingCsv] = useState(false);
     const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year' | 'all'>('month');
+    const [hoveredOrderId, setHoveredOrderId] = useState<string | null>(null);
     const router = useRouter();
 
     // Při změně vstupních orders aktualizujeme i filtrované orders
@@ -39,6 +40,7 @@ export default function AdminOrders({
             order.customer_name.toLowerCase().includes(lowercaseQuery) ||
             order.customer_email.toLowerCase().includes(lowercaseQuery) ||
             (order.customer_company && order.customer_company.toLowerCase().includes(lowercaseQuery)) ||
+            (order.note && order.note.toLowerCase().includes(lowercaseQuery)) ||
             order.id.toLowerCase().includes(lowercaseQuery)
         );
 
@@ -251,6 +253,12 @@ export default function AdminOrders({
                         {order.total_volume}L
                     </div>
                 </div>
+                {order.note && order.note.trim() && (
+                    <div className="mt-2 text-sm text-gray-600" title={order.note}>
+                        <span className="font-medium text-gray-700">Poznámka:</span>{' '}
+                        <span>{order.note}</span>
+                    </div>
+                )}
             </div>
         );
     };
@@ -390,12 +398,13 @@ export default function AdminOrders({
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Datum</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Zákazník</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Objem</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Položky</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody className="bg-white">
                             {filteredOrders.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                                         {searchQuery
                                             ? 'Nenalezeny žádné objednávky odpovídající vašemu hledání'
                                             : `Zatím nejsou žádné objednávky za ${getPeriodDescription(selectedPeriod)}`}
@@ -404,32 +413,60 @@ export default function AdminOrders({
                             ) : (
                                 filteredOrders.map((order) => {
                                     const dateTime = formatDateTime(order.created_at);
+                                    const hasNote = Boolean(order.note && order.note.trim());
+                                    const isHovered = hoveredOrderId === order.id;
                                     return (
-                                        <tr key={order.id} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <button
-                                                    onClick={() => handleViewOrderDetail(order.id)}
-                                                    className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
-                                                        ${getStatusColor(order.status)} cursor-pointer hover:opacity-80`}
+                                        <React.Fragment key={order.id}>
+                                            <tr
+                                                className={`border-t border-gray-200 ${isHovered ? 'bg-gray-50' : ''}`}
+                                                onMouseEnter={() => setHoveredOrderId(order.id)}
+                                                onMouseLeave={() => setHoveredOrderId(null)}
+                                            >
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <button
+                                                        onClick={() => handleViewOrderDetail(order.id)}
+                                                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                                                            ${getStatusColor(order.status)} cursor-pointer hover:opacity-80`}
+                                                    >
+                                                        {getStatusText(order.status)}
+                                                    </button>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    <div>{dateTime.date}</div>
+                                                    <div className="text-xs text-gray-500">{dateTime.time}</div>
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-gray-900">
+                                                    <div>{order.customer_name}</div>
+                                                    {order.customer_company && (
+                                                        <div className="text-gray-700">{order.customer_company}</div>
+                                                    )}
+                                                    <div className="text-gray-500">{order.customer_email}</div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    {order.total_volume}L
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    {order.order_items?.length ?? 0}
+                                                </td>
+                                            </tr>
+                                            {hasNote && (
+                                                <tr
+                                                    className={isHovered ? 'bg-gray-50' : ''}
+                                                    onMouseEnter={() => setHoveredOrderId(order.id)}
+                                                    onMouseLeave={() => setHoveredOrderId(null)}
                                                 >
-                                                    {getStatusText(order.status)}
-                                                </button>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                <div>{dateTime.date}</div>
-                                                <div className="text-xs text-gray-500">{dateTime.time}</div>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-gray-900">
-                                                <div>{order.customer_name}</div>
-                                                {order.customer_company && (
-                                                    <div className="text-gray-700">{order.customer_company}</div>
-                                                )}
-                                                <div className="text-gray-500">{order.customer_email}</div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {order.total_volume}L
-                                            </td>
-                                        </tr>
+                                                    <td colSpan={5} className="px-6 py-3 text-sm text-gray-700">
+                                                        <span className="font-semibold text-gray-800">Poznámka:</span>{' '}
+                                                        <span
+                                                            className="align-middle"
+                                                            title={order.note || ''}
+                                                        >
+                                                            {order.note}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
                                     );
                                 })
                             )}

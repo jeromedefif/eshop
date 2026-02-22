@@ -4,10 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
-import prisma from '@/lib/prisma';
-import { ArrowLeft, CheckCircle, AlertCircle, Loader2, Trash2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertCircle, Loader2, Trash2, Grape, Martini, Wine, FlaskConical, Package } from 'lucide-react';
 import Link from 'next/link';
-import { formatOrderDisplay } from '@/lib/formatters';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
 import { toast } from 'react-toastify';
 
@@ -167,6 +165,98 @@ const OrderDetailPage = () => {
         }
     };
 
+    const normalizeCategory = (category: string) => {
+        if (category === 'Dusík' || category === 'Plyny') return 'Plyny';
+        return category;
+    };
+
+    const categoryOrder = ['Nápoje', 'Víno', 'Ovocné víno', 'Plyny', 'PET'];
+
+    const categoryMeta: Record<string, {
+        icon: React.ComponentType<{ className?: string }>;
+        headerClass: string;
+        badgeClass: string;
+    }> = {
+        'Víno': {
+            icon: Grape,
+            headerClass: 'bg-purple-50 text-purple-700',
+            badgeClass: 'bg-purple-50 text-purple-700 border-purple-200'
+        },
+        'Nápoje': {
+            icon: Martini,
+            headerClass: 'bg-blue-50 text-blue-700',
+            badgeClass: 'bg-blue-50 text-blue-700 border-blue-200'
+        },
+        'Ovocné víno': {
+            icon: Wine,
+            headerClass: 'bg-rose-50 text-rose-700',
+            badgeClass: 'bg-rose-50 text-rose-700 border-rose-200'
+        },
+        'Plyny': {
+            icon: FlaskConical,
+            headerClass: 'bg-cyan-50 text-cyan-700',
+            badgeClass: 'bg-cyan-50 text-cyan-700 border-cyan-200'
+        },
+        'PET': {
+            icon: Package,
+            headerClass: 'bg-amber-50 text-amber-700',
+            badgeClass: 'bg-amber-50 text-amber-700 border-amber-200'
+        }
+    };
+
+    const parseLiters = (volume: string, quantity: number) => {
+        const normalized = String(volume).replace(',', '.');
+        const match = normalized.match(/(\d+(?:\.\d+)?)\s*l/i);
+        if (!match) return 0;
+        return parseFloat(match[1]) * quantity;
+    };
+
+    const getVolumeSortValue = (volume: string) => {
+        const normalized = String(volume || '').toLowerCase().trim();
+
+        // Nejprve bereme jakékoliv číselné hodnoty (50L, 50 l, 50, 1,5L ...)
+        const anyNumber = normalized.match(/(\d+(?:[.,]\d+)?)/);
+        if (anyNumber) {
+            return parseFloat(anyNumber[1].replace(',', '.'));
+        }
+
+        // Nečíselné varianty
+        if (normalized.includes('velk')) return 2;
+        if (normalized.includes('mal')) return 1;
+        if (normalized.includes('balen')) return 0;
+
+        return -1;
+    };
+
+    const groupedItems = (() => {
+        const map = new Map<string, any[]>();
+        for (const item of order?.order_items || []) {
+            const category = normalizeCategory(item?.product?.category || 'Ostatní');
+            if (!map.has(category)) {
+                map.set(category, []);
+            }
+            map.get(category)!.push(item);
+        }
+
+        const sortedCategories = Array.from(map.keys()).sort((a, b) => {
+            const indexA = categoryOrder.indexOf(a);
+            const indexB = categoryOrder.indexOf(b);
+            return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+        });
+
+        return sortedCategories.map((category) => {
+            const items = [...map.get(category)!].sort((a, b) => {
+                const byVolume = getVolumeSortValue(b.volume) - getVolumeSortValue(a.volume);
+                if (byVolume !== 0) return byVolume;
+                const byQuantity = (b.quantity || 0) - (a.quantity || 0);
+                if (byQuantity !== 0) return byQuantity;
+                return String(a.product?.name || '').localeCompare(String(b.product?.name || ''), 'cs');
+            });
+
+            return { category, items };
+        });
+    })();
+
     // Komponenta pro potvrzovací dialog
     const DeleteConfirmationDialog = () => {
         if (!showDeleteConfirm) return null;
@@ -244,7 +334,10 @@ const OrderDetailPage = () => {
 
             <div className="bg-white shadow-md rounded-lg overflow-hidden">
                 <div className="p-6">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-6">Detail objednávky</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 mb-6">
+                        Detail objednávky - {order.customer_name}
+                        {order.customer_company ? `, ${order.customer_company}` : ''}
+                    </h1>
 
                     {/* Zobrazení zprávy o aktualizaci */}
                     {updateMessage && (
@@ -263,7 +356,7 @@ const OrderDetailPage = () => {
 
                     {/* Základní informace */}
                     <div className="mb-6">
-                        <h2 className="text-lg font-semibold mb-3">Základní informace</h2>
+                        <h2 className="text-xl font-bold text-gray-900 mb-3">Základní informace</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
                             <div>
                                 <p className="text-sm text-gray-600">ID objednávky</p>
@@ -315,9 +408,69 @@ const OrderDetailPage = () => {
                         </div>
                     </div>
 
+                    {/* Poznámka */}
+                    <div className="mb-6">
+                        <h2 className="text-xl font-bold text-gray-900 mb-3">Poznámka</h2>
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                            <p className="text-gray-900 whitespace-pre-wrap">{order.note?.trim() ? order.note : 'Bez poznámky'}</p>
+                        </div>
+                    </div>
+
+                    {/* Položky objednávky */}
+                    <div className="mb-6">
+                        <h2 className="text-xl font-bold text-gray-900 mb-3">Položky objednávky</h2>
+                        <div className="border rounded-lg p-4 space-y-4">
+                            {groupedItems.map(({ category, items }) => {
+                                const meta = categoryMeta[category] || {
+                                    icon: Package,
+                                    headerClass: 'bg-gray-100 text-gray-700',
+                                    badgeClass: 'bg-gray-100 text-gray-700 border-gray-200'
+                                };
+                                const Icon = meta.icon;
+
+                                const subtotalLiters = items.reduce((sum, item) => {
+                                    return sum + parseLiters(item.volume, item.quantity);
+                                }, 0);
+
+                                return (
+                                    <div key={category} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
+                                        <div className={`rounded-md px-3 py-2 mb-2 font-semibold flex items-center gap-2 ${meta.headerClass}`}>
+                                            <Icon className="w-4 h-4" />
+                                            <span>{category}</span>
+                                            <span className="opacity-80 text-sm">({items.length})</span>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            {items.map((item) => (
+                                                <div
+                                                    key={item.id}
+                                                    className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg transition-colors hover:bg-blue-50"
+                                                >
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <span className={`px-2 py-0.5 text-sm font-semibold rounded-md border ${meta.badgeClass}`}>
+                                                            {item.volume}
+                                                        </span>
+                                                        <span className="text-gray-900 truncate">{item.product.name}</span>
+                                                    </div>
+                                                    <span className="text-sm font-semibold text-gray-800 whitespace-nowrap">{item.quantity}x</span>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {subtotalLiters > 0 && (
+                                            <div className="mt-2 text-sm text-gray-600 text-right">
+                                                Mezisoučet: <span className="font-semibold text-gray-800">{Math.round(subtotalLiters * 10) / 10}L</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
                     {/* Informace o zákazníkovi */}
                     <div className="mb-6">
-                        <h2 className="text-lg font-semibold mb-3">Informace o zákazníkovi</h2>
+                        <h2 className="text-xl font-bold text-gray-900 mb-3">Informace o zákazníkovi</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
                             <div>
                                 <p className="text-sm text-gray-600">Jméno</p>
@@ -339,47 +492,6 @@ const OrderDetailPage = () => {
                                     <p className="font-medium text-gray-900">{order.customer_company}</p>
                                 </div>
                             )}
-                        </div>
-                    </div>
-
-                    {/* Poznámka k objednávce, pokud existuje */}
-                    {order.note && (
-                        <div className="mb-6">
-                            <h2 className="text-lg font-semibold mb-3">Poznámka</h2>
-                            <div className="bg-gray-50 p-4 rounded-lg">
-                                <p className="text-gray-900">{order.note}</p>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Položky objednávky */}
-                    <div className="mb-6">
-                        <h2 className="text-lg font-semibold mb-3">Položky objednávky</h2>
-                        <div className="border rounded-lg overflow-hidden">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Produkt</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Kategorie</th>
-                                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase">Množství a Objem</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {order.order_items.map((item: any) => (
-                                        <tr key={item.id}>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {item.product.name}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {item.product.category}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                                                {formatOrderDisplay(item)}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
                         </div>
                     </div>
 
