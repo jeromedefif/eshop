@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import AdminOrders from '@/components/AdminOrders';
 import { Loader2 } from 'lucide-react';
 import type { Order } from '@/types/orders';
@@ -9,10 +9,15 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
+    const [currentPeriod, setCurrentPeriod] = useState<'week' | 'month' | 'year' | 'all'>('month');
     const { isAdmin } = useAuth();
+    const isFetchingRef = useRef(false);
 
     // Funkce pro načtení všech objednávek s podporou období
     const fetchOrders = useCallback(async (search: string = '', period: 'week' | 'month' | 'year' | 'all' = 'month') => {
+        if (isFetchingRef.current) return;
+
+        isFetchingRef.current = true;
         try {
             setLoading(true);
             console.log(`Načítání objednávek pro admina${search ? ' s vyhledáváním: ' + search : ''}, období: ${period}`);
@@ -52,6 +57,7 @@ export default function OrdersPage() {
         } catch (error) {
             console.error('Chyba při načítání objednávek:', error);
         } finally {
+            isFetchingRef.current = false;
             setLoading(false);
         }
     }, []);
@@ -88,9 +94,27 @@ export default function OrdersPage() {
     // Načtení objednávek při prvním renderu - s výchozím obdobím "month"
     useEffect(() => {
         if (isAdmin) {
-            fetchOrders('', 'month'); // Výchozí období je měsíc
+            fetchOrders('', currentPeriod);
         }
-    }, [isAdmin, fetchOrders]);
+    }, [isAdmin, fetchOrders, currentPeriod]);
+
+    // Automatický refresh každých 60s pouze při aktivní záložce
+    useEffect(() => {
+        if (!isAdmin) return;
+
+        const refreshIfVisible = () => {
+            if (document.visibilityState !== 'visible') return;
+            fetchOrders('', currentPeriod);
+        };
+
+        const intervalId = window.setInterval(refreshIfVisible, 60000);
+        document.addEventListener('visibilitychange', refreshIfVisible);
+
+        return () => {
+            window.clearInterval(intervalId);
+            document.removeEventListener('visibilitychange', refreshIfVisible);
+        };
+    }, [isAdmin, fetchOrders, currentPeriod]);
 
     if (loading && orders.length === 0) {
         return (
@@ -104,7 +128,11 @@ export default function OrdersPage() {
         <div className="p-6">
             <AdminOrders
                 orders={orders}
-                onOrdersChange={(period?: 'week' | 'month' | 'year' | 'all') => fetchOrders('', period || 'month')}
+                onOrdersChange={(period?: 'week' | 'month' | 'year' | 'all') => {
+                    const nextPeriod = period || 'month';
+                    setCurrentPeriod(nextPeriod);
+                    return fetchOrders('', nextPeriod);
+                }}
                 onExportOrders={handleExportOrders}
                 onSearch={handleSearch}
             />
