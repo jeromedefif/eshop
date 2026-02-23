@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, X, Download, RefreshCw, FileSpreadsheet, Calendar } from 'lucide-react';
+import { Search, X, RefreshCw, FileSpreadsheet, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
@@ -16,7 +16,6 @@ export default function AdminOrders({
     const [filteredOrders, setFilteredOrders] = useState<Order[]>(orders);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isExportingExcel, setIsExportingExcel] = useState(false);
-    const [isExportingCsv, setIsExportingCsv] = useState(false);
     const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year' | 'all'>('month');
     const [hoveredOrderId, setHoveredOrderId] = useState<string | null>(null);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -118,48 +117,6 @@ export default function AdminOrders({
             }
         } finally {
             setIsRefreshing(false);
-        }
-    };
-
-    // Export do CSV s anti-cache opatřeními
-    const handleExportToCsv = async () => {
-        if (isExportingCsv) return;
-
-        setIsExportingCsv(true);
-        try {
-            const timestamp = Date.now();
-            console.log('Začíná export do CSV:', timestamp);
-
-            const response = await fetch(`/api/orders/export?t=${timestamp}`, {
-                cache: 'no-store',
-                headers: {
-                    'Pragma': 'no-cache',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate'
-                }
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Chyba při exportu do CSV:', response.status, errorText);
-                throw new Error(`Export do CSV selhal: ${response.status} ${errorText}`);
-            }
-
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            const date = new Date().toISOString().split('T')[0];
-            a.download = `objednavky-cekajici-na-vyrizeni-${date}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            console.log('Export do CSV dokončen');
-        } catch (error) {
-            console.error('Chyba při exportu do CSV:', error);
-            alert('Nepodařilo se exportovat data do CSV. Zkuste to prosím znovu.');
-        } finally {
-            setIsExportingCsv(false);
         }
     };
 
@@ -392,18 +349,6 @@ export default function AdminOrders({
                         <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
                         <span className="ml-2 hidden sm:inline">
                             Obnovit
-                        </span>
-                    </button>
-                    <button
-                        onClick={handleExportToCsv}
-                        className="flex-1 sm:flex-none flex justify-center items-center px-3 py-2 bg-blue-600 text-white rounded-lg
-                                 hover:bg-blue-700 transition-colors"
-                        disabled={isExportingCsv}
-                        title="Export do CSV"
-                    >
-                        <Download className="w-5 h-5" />
-                        <span className="ml-2 hidden sm:inline">
-                            {isExportingCsv ? 'Exportuji...' : 'CSV'}
                         </span>
                     </button>
                     <button
