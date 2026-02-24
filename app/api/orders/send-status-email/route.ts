@@ -2,11 +2,108 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import prisma from '@/lib/prisma';
 
-// Pomocná funkce pro formátování objemu
+type OrderItemWithProduct = {
+  quantity: number;
+  volume: string | number;
+  product: {
+    name: string;
+    category: string;
+  };
+};
+
 function formatVolume(volume: string | number, category: string): string {
-  if (category === 'PET') return 'balení'
-  if (category === 'Dusík') return volume === 'maly' ? 'malý' : 'velký'
-  return `${volume}L`
+  if (category === 'PET') return 'balení';
+  if (category === 'Dusík' || category === 'Plyny') return volume === 'maly' ? 'malý' : 'velký';
+  return `${volume}L`;
+}
+
+function normalizeCategory(category: string): string {
+  if (category === 'Dusík' || category === 'Plyny') return 'Plyny';
+  return category;
+}
+
+function categoryRank(category: string): number {
+  const order = ['Nápoje', 'Víno', 'Ovocné víno', 'Plyny', 'PET'];
+  const idx = order.indexOf(category);
+  return idx === -1 ? 999 : idx;
+}
+
+function getVolumeSortValue(volume: string | number): number {
+  const normalized = String(volume || '').toLowerCase().trim();
+  const numberMatch = normalized.match(/(\d+(?:[.,]\d+)?)/);
+  if (numberMatch) {
+    return parseFloat(numberMatch[1].replace(',', '.'));
+  }
+  if (normalized.includes('velk')) return 2;
+  if (normalized.includes('mal')) return 1;
+  if (normalized.includes('balen')) return 0;
+  return -1;
+}
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function sortOrderItems(items: OrderItemWithProduct[]): OrderItemWithProduct[] {
+  return [...items].sort((a, b) => {
+    const categoryA = normalizeCategory(a?.product?.category || 'Ostatní');
+    const categoryB = normalizeCategory(b?.product?.category || 'Ostatní');
+
+    const byCategory = categoryRank(categoryA) - categoryRank(categoryB);
+    if (byCategory !== 0) return byCategory;
+
+    const byVolume = getVolumeSortValue(b.volume) - getVolumeSortValue(a.volume);
+    if (byVolume !== 0) return byVolume;
+
+    const byQuantity = Number(b.quantity || 0) - Number(a.quantity || 0);
+    if (byQuantity !== 0) return byQuantity;
+
+    return String(a?.product?.name || '').localeCompare(String(b?.product?.name || ''), 'cs');
+  });
+}
+
+function buildItemsTable(items: OrderItemWithProduct[]): string {
+  const desktopRows = items.map((item) => `
+    <tr>
+      <td style="padding:10px;border-bottom:1px solid #e5e7eb;color:#111827;">${escapeHtml(item.product.name)}</td>
+      <td style="padding:10px;border-bottom:1px solid #e5e7eb;color:#374151;">${escapeHtml(normalizeCategory(item.product.category))}</td>
+      <td style="padding:10px;border-bottom:1px solid #e5e7eb;color:#111827;text-align:left;white-space:nowrap;">${escapeHtml(item.quantity)}x ${escapeHtml(formatVolume(item.volume, item.product.category))}</td>
+    </tr>
+  `).join('');
+
+  const mobileRows = items.map((item) => `
+    <tr>
+      <td style="padding:10px 0;border-bottom:1px solid #e5e7eb;">
+        <div style="color:#111827;font-weight:600;line-height:1.35;">${escapeHtml(item.product.name)}</div>
+        <div style="margin-top:4px;color:#4b5563;line-height:1.35;">${escapeHtml(normalizeCategory(item.product.category))}, ${escapeHtml(item.quantity)}x ${escapeHtml(formatVolume(item.volume, item.product.category))}</div>
+      </td>
+    </tr>
+  `).join('');
+
+  return `
+    <table role="presentation" cellspacing="0" cellpadding="0" class="desktop-items" style="width:100%;border-collapse:collapse;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+      <thead>
+        <tr style="background:#f8fafc;">
+          <th style="padding:10px;text-align:left;color:#334155;font-size:12px;text-transform:uppercase;">Produkt</th>
+          <th style="padding:10px;text-align:left;color:#334155;font-size:12px;text-transform:uppercase;">Kategorie</th>
+          <th style="padding:10px;text-align:left;color:#334155;font-size:12px;text-transform:uppercase;">KS x Objem</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${desktopRows}
+      </tbody>
+    </table>
+    <table role="presentation" cellspacing="0" cellpadding="0" class="mobile-items" style="display:none;width:100%;border-collapse:collapse;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+      <tbody>
+        ${mobileRows}
+      </tbody>
+    </table>
+  `;
 }
 
 export async function POST(request: Request) {
@@ -60,17 +157,20 @@ export async function POST(request: Request) {
     let subject: string;
     let statusText: string;
     let statusColor: string;
+    let statusBg: string;
     let additionalMessage: string = '';
 
     if (status === 'confirmed') {
-      subject = `Potvrzení objednávky - VINARIA s.r.o.`;
-      statusText = 'POTVRZENA';
-      statusColor = '#4CAF50'; // Změněno na zelenou barvu
+      subject = `Objednávka vyřízena: ${order.customer_name} (${order.customer_company || 'Bez firmy'}) #${order.id.slice(0, 8).toUpperCase()}`;
+      statusText = 'VYŘÍZENA';
+      statusColor = '#166534';
+      statusBg = '#dcfce7';
       additionalMessage = 'Vaše objednávka byla úspěšně potvrzena a připravuje se k expedici.';
     } else if (status === 'cancelled') {
-      subject = `Zrušení objednávky - VINARIA s.r.o.`;
+      subject = `Objednávka zrušena: ${order.customer_name} (${order.customer_company || 'Bez firmy'}) #${order.id.slice(0, 8).toUpperCase()}`;
       statusText = 'ZRUŠENA';
-      statusColor = '#e53935';
+      statusColor = '#991b1b';
+      statusBg = '#fee2e2';
       additionalMessage = 'Vaše objednávka byla zrušena. V případě jakýchkoliv dotazů nás neváhejte kontaktovat.';
     } else {
       // Pro jiné stavy neodešleme email
@@ -80,50 +180,58 @@ export async function POST(request: Request) {
       );
     }
 
+    const sortedItems = sortOrderItems(order.order_items as OrderItemWithProduct[]);
+    const itemsTable = buildItemsTable(sortedItems);
+    const orderNumber = order.id.slice(0, 8).toUpperCase();
+    const createdDate = new Date(order.created_at).toLocaleDateString('cs-CZ');
+    const noteHtml = order.note
+      ? `<p style="margin:6px 0 0;color:#111827;">${escapeHtml(order.note)}</p>`
+      : `<p style="margin:6px 0 0;color:#6b7280;">Neuvedena</p>`;
+
     // Generování HTML emailu
     const emailHtml = `
       <html>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h1 style="color: ${statusColor};">Vaše objednávka byla ${statusText}</h1>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <style>
+            @media only screen and (max-width: 600px) {
+              .desktop-items { display: none !important; }
+              .mobile-items { display: table !important; }
+            }
+          </style>
+        </head>
+        <body style="margin:0;background:#f3f4f6;font-family:Arial,sans-serif;color:#111827;">
+          <div style="max-width:680px;margin:0 auto;padding:20px 14px;">
+            <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:22px;">
+              <p style="margin:0 0 12px;font-size:13px;color:#6b7280;">VINARIA s.r.o. - Beginy.cz</p>
+              <h1 style="margin:0 0 12px;font-size:28px;line-height:1.2;color:${statusColor};">Objednávka ${statusText.toLowerCase()}</h1>
 
-            <p>Vážený zákazníku ${order.customer_name}, ze společnosti ${order.customer_company || 'Neuvedeno'}</p>
-            <p>${additionalMessage}</p>
-            <p>Níže najdete shrnutí Vaší objednávky:</p>
+              <p style="margin:0 0 10px;color:#374151;">Vážený zákazníku ${escapeHtml(order.customer_name)},</p>
+              <p style="margin:0 0 12px;color:#374151;">${escapeHtml(additionalMessage)}</p>
 
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <h2 style="margin-top: 0;">Položky objednávky:</h2>
-              <ul>
-                ${order.order_items.map(item => `
-                  <li>
-                    ${item.product.name} - ${item.quantity}x ${formatVolume(item.volume, item.product.category)}
-                  </li>
-                `).join('')}
-              </ul>
+              <div style="margin-top:16px;padding:14px;border:1px solid ${statusBg};background:${statusBg};border-radius:10px;">
+                <p style="margin:0;color:${statusColor};"><strong>Číslo objednávky:</strong> ${orderNumber}</p>
+                <p style="margin:6px 0 0;color:${statusColor};"><strong>Datum vytvoření:</strong> ${createdDate}</p>
+                <p style="margin:6px 0 0;color:${statusColor};"><strong>Stav:</strong> ${statusText}</p>
+                <p style="margin:6px 0 0;color:${statusColor};"><strong>Celkový objem:</strong> ${escapeHtml(order.total_volume)} L</p>
+              </div>
 
-              <p style="font-weight: bold;">
-                Celkový objem: ${order.total_volume}L
+              <h2 style="margin:24px 0 10px;font-size:18px;color:#111827;">Položky objednávky</h2>
+              ${itemsTable}
+
+              <h2 style="margin:24px 0 8px;font-size:18px;color:#111827;">Poznámka k objednávce</h2>
+              <div style="padding:14px;border:1px solid #e5e7eb;background:#f9fafb;border-radius:10px;">
+                ${noteHtml}
+              </div>
+
+              <p style="margin:26px 0 0;padding-top:14px;border-top:1px solid #e5e7eb;color:#6b7280;font-size:13px;">
+                V případě dotazů nás kontaktujte emailem na:
+                <a href="mailto:fiala@vinaria.cz" style="color:#1d4ed8;"> fiala@vinaria.cz</a>
+                nebo telefonicky na:
+                <a href="tel:+420734720994" style="color:#1d4ed8;"> +420 734 720 994</a>.<br/>
+                VINARIA s.r.o. - Beginy.cz
               </p>
             </div>
-
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <h2 style="margin-top: 0;">Kontaktní údaje zákazníka:</h2>
-              <p>Email: ${order.customer_email}</p>
-              <p>Telefon: ${order.customer_phone || 'Neuvedeno'}</p>
-              <p>Firma: ${order.customer_company || 'Neuvedeno'}</p>
-            </div>
-
-            ${order.note ? `
-              <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                <h2 style="margin-top: 0;">Poznámka k objednávce:</h2>
-                <p>${order.note}</p>
-              </div>
-            ` : ''}
-
-            <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-              S pozdravem,<br>
-              Váš tým VINARIA s.r.o.
-            </p>
           </div>
         </body>
       </html>
