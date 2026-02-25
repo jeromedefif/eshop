@@ -70,17 +70,9 @@ function sortOrderItems(items: OrderItemWithProduct[]): OrderItemWithProduct[] {
 }
 
 function buildItemsTable(items: OrderItemWithProduct[]): string {
-  const desktopRows = items.map((item) => `
+  const rows = items.map((item) => `
     <tr>
-      <td style="padding:10px;border-bottom:1px solid #e5e7eb;color:#111827;">${escapeHtml(item.product.name)}</td>
-      <td style="padding:10px;border-bottom:1px solid #e5e7eb;color:#374151;">${escapeHtml(normalizeCategory(item.product.category))}</td>
-      <td style="padding:10px;border-bottom:1px solid #e5e7eb;color:#111827;text-align:left;white-space:nowrap;">${escapeHtml(item.quantity)}x ${escapeHtml(formatVolume(item.volume, item.product.category))}</td>
-    </tr>
-  `).join('');
-
-  const mobileRows = items.map((item) => `
-    <tr>
-      <td style="padding:10px 0;border-bottom:1px solid #e5e7eb;">
+      <td style="padding:10px;border-bottom:1px solid #e5e7eb;">
         <div style="color:#111827;font-weight:600;line-height:1.35;">${escapeHtml(item.product.name)}</div>
         <div style="margin-top:4px;color:#4b5563;line-height:1.35;">${escapeHtml(normalizeCategory(item.product.category))}, ${escapeHtml(item.quantity)}x ${escapeHtml(formatVolume(item.volume, item.product.category))}</div>
       </td>
@@ -88,21 +80,14 @@ function buildItemsTable(items: OrderItemWithProduct[]): string {
   `).join('');
 
   return `
-    <table role="presentation" cellspacing="0" cellpadding="0" class="desktop-items" style="width:100%;border-collapse:collapse;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+    <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
       <thead>
         <tr style="background:#f8fafc;">
-          <th style="padding:10px;text-align:left;color:#334155;font-size:12px;text-transform:uppercase;">Produkt</th>
-          <th style="padding:10px;text-align:left;color:#334155;font-size:12px;text-transform:uppercase;">Kategorie</th>
-          <th style="padding:10px;text-align:left;color:#334155;font-size:12px;text-transform:uppercase;">KS x Objem</th>
+          <th style="padding:10px;text-align:left;color:#334155;font-size:12px;text-transform:uppercase;">Položky objednávky</th>
         </tr>
       </thead>
       <tbody>
-        ${desktopRows}
-      </tbody>
-    </table>
-    <table role="presentation" cellspacing="0" cellpadding="0" class="mobile-items" style="display:none;width:100%;border-collapse:collapse;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
-      <tbody>
-        ${mobileRows}
+        ${rows}
       </tbody>
     </table>
   `;
@@ -173,15 +158,7 @@ export async function POST(request: Request) {
       // Customer email
       const customerEmailHtml = `
         <html>
-          <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-            <style>
-              @media only screen and (max-width: 600px) {
-                .desktop-items { display: none !important; }
-                .mobile-items { display: table !important; }
-              }
-            </style>
-          </head>
+          <head><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
           <body style="margin:0;background:#f3f4f6;font-family:Arial,sans-serif;color:#111827;">
             <div style="max-width:680px;margin:0 auto;padding:20px 14px;">
               <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:22px;">
@@ -220,15 +197,7 @@ export async function POST(request: Request) {
       // Admin email
       const adminEmailHtml = `
         <html>
-          <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-            <style>
-              @media only screen and (max-width: 600px) {
-                .desktop-items { display: none !important; }
-                .mobile-items { display: table !important; }
-              }
-            </style>
-          </head>
+          <head><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
           <body style="margin:0;background:#f3f4f6;font-family:Arial,sans-serif;color:#111827;">
             <div style="max-width:680px;margin:0 auto;padding:20px 14px;">
               <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:22px;">
