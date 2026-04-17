@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
-import { Package, ShoppingCart } from 'lucide-react';
+import { Package, ShoppingCart, Loader2, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { useContext } from 'react';
 import { CartContext } from '../page';
@@ -327,13 +327,13 @@ const MyOrdersPage = () => {
                                             {order.order_items.map((item: any) => (
                                                 <li key={item.id} className="flex justify-between items-center">
                                                     <div className="text-gray-800">
-                                                        {item.product.name} - {item.volume === 'maly'
+                                                        {(item.product?.name || 'Smazaný produkt')} - {item.volume === 'maly'
                                                             ? 'malý'
                                                             : item.volume === 'velky'
                                                                 ? 'velký'
                                                                 : `${item.volume}L`} x {item.quantity}
                                                     </div>
-                                                    {!item.product.in_stock && (
+                                                    {item.product && !item.product.in_stock && (
                                                         <span className="text-red-600 text-sm">Není skladem</span>
                                                     )}
                                                 </li>
