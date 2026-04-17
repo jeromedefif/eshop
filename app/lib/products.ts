@@ -8,6 +8,11 @@ export class ProductError extends Error {
     }
 }
 
+export type DeleteProductResult = {
+    mode: 'deleted' | 'archived';
+    message: string;
+};
+
 export async function fetchProducts(): Promise<Product[]> {
     const { data, error } = await supabase
         .from('products')
@@ -70,16 +75,39 @@ export async function updateProduct(id: string, updates: UpdateProductInput): Pr
     };
 }
 
-export async function deleteProduct(id: string): Promise<void> {
+export async function deleteProduct(id: string): Promise<DeleteProductResult> {
     const { error } = await supabase
         .from('products')
         .delete()
         .eq('id', id);
 
-    if (error) {
-        console.error('Error deleting product:', error);
-        throw new ProductError('Nepodařilo se smazat produkt');
+    if (!error) {
+        return {
+            mode: 'deleted',
+            message: 'Produkt byl smazán'
+        };
     }
+
+    // Produkt je použitý v objednávkách -> místo hard delete archivujeme (in_stock = false)
+    if (error.code === '23503') {
+        const { error: archiveError } = await supabase
+            .from('products')
+            .update({ in_stock: false })
+            .eq('id', id);
+
+        if (archiveError) {
+            console.error('Error archiving product after FK constraint:', archiveError);
+            throw new ProductError('Produkt je použit v objednávkách a nepodařilo se jej archivovat');
+        }
+
+        return {
+            mode: 'archived',
+            message: 'Produkt je použit v objednávkách, byl proto archivován (označen jako Není skladem).'
+        };
+    }
+
+    console.error('Error deleting product:', error);
+    throw new ProductError('Nepodařilo se smazat produkt');
 }
 
 export async function updateProductStock(id: string, in_stock: boolean): Promise<Product> {

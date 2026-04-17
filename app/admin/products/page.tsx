@@ -10,7 +10,8 @@ import {
     createProduct,
     updateProduct,
     deleteProduct,
-    ProductError
+    ProductError,
+    DeleteProductResult
 } from '@/lib/products';
 
 const AdminProductsPage = () => {
@@ -65,10 +66,9 @@ const AdminProductsPage = () => {
         }
     };
 
-    const handleDeleteProduct = async (id: string) => {
+    const handleDeleteProduct = async (id: string): Promise<DeleteProductResult> => {
         try {
-            await deleteProduct(id);
-            setProducts(prev => prev.filter(p => p.id !== id));
+            return await deleteProduct(id);
         } catch (error) {
             console.error('Error deleting product:', error);
             throw error instanceof ProductError

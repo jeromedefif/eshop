@@ -4,13 +4,14 @@
 import React, { useState } from 'react';
 import { PlusCircle, Edit2, Trash2, X, Search, MoreHorizontal, ChevronDown } from 'lucide-react';
 import type { Product, CreateProductInput } from '@/types/database';
+import type { DeleteProductResult } from '@/lib/products';
 
 interface AdminProductsProps {
     products: Product[];
     onProductsChange: () => Promise<void>;
     onAddProduct: (product: CreateProductInput) => Promise<void>;
     onUpdateProduct: (product: Product) => Promise<void>;
-    onDeleteProduct: (id: string) => Promise<void>;
+    onDeleteProduct: (id: string) => Promise<DeleteProductResult>;
 }
 
 interface ProductFormData {
@@ -340,12 +341,16 @@ const AdminProducts = ({
     );
 
     const handleDelete = async (id: string) => {
-        if (!window.confirm('Opravdu chcete smazat tento produkt?')) return;
+        if (!window.confirm('Opravdu chcete smazat tento produkt?\n\nPokud je produkt použit v objednávkách, bude pouze archivován (Není skladem).')) return;
 
         setIsLoading(true);
         try {
-            await onDeleteProduct(id);
+            const result = await onDeleteProduct(id);
             await onProductsChange();
+
+            if (result.mode === 'archived') {
+                alert(result.message);
+            }
         } catch (error) {
             console.error('Error deleting product:', error);
             alert('Nepodařilo se smazat produkt');
