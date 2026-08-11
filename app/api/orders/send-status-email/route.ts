@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import prisma from '@/lib/prisma';
+import { normalizeOrderCategory, sortOrderItems } from '@/lib/order-item-sorting';
 
 type OrderItemWithProduct = {
   quantity: number;
@@ -18,26 +19,7 @@ function formatVolume(volume: string | number, category: string): string {
 }
 
 function normalizeCategory(category: string): string {
-  if (category === 'Dusík' || category === 'Plyny') return 'Plyny';
-  return category;
-}
-
-function categoryRank(category: string): number {
-  const order = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák', 'Plyny', 'PET'];
-  const idx = order.indexOf(category);
-  return idx === -1 ? 999 : idx;
-}
-
-function getVolumeSortValue(volume: string | number): number {
-  const normalized = String(volume || '').toLowerCase().trim();
-  const numberMatch = normalized.match(/(\d+(?:[.,]\d+)?)/);
-  if (numberMatch) {
-    return parseFloat(numberMatch[1].replace(',', '.'));
-  }
-  if (normalized.includes('velk')) return 2;
-  if (normalized.includes('mal')) return 1;
-  if (normalized.includes('balen')) return 0;
-  return -1;
+  return normalizeOrderCategory(category);
 }
 
 function escapeHtml(value: unknown): string {
@@ -47,24 +29,6 @@ function escapeHtml(value: unknown): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
-}
-
-function sortOrderItems(items: OrderItemWithProduct[]): OrderItemWithProduct[] {
-  return [...items].sort((a, b) => {
-    const categoryA = normalizeCategory(a?.product?.category || 'Ostatní');
-    const categoryB = normalizeCategory(b?.product?.category || 'Ostatní');
-
-    const byCategory = categoryRank(categoryA) - categoryRank(categoryB);
-    if (byCategory !== 0) return byCategory;
-
-    const byVolume = getVolumeSortValue(b.volume) - getVolumeSortValue(a.volume);
-    if (byVolume !== 0) return byVolume;
-
-    const byQuantity = Number(b.quantity || 0) - Number(a.quantity || 0);
-    if (byQuantity !== 0) return byQuantity;
-
-    return String(a?.product?.name || '').localeCompare(String(b?.product?.name || ''), 'cs');
-  });
 }
 
 function buildItemsTable(items: OrderItemWithProduct[]): string {

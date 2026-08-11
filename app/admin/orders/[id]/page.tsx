@@ -8,6 +8,7 @@ import { ArrowLeft, CheckCircle, AlertCircle, Loader2, Trash2, Grape, Martini, W
 import Link from 'next/link';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
 import { toast } from 'react-toastify';
+import { normalizeOrderCategory, sortOrderItems, STANDARD_ORDER_CATEGORIES } from '@/lib/order-item-sorting';
 
 const OrderDetailPage = () => {
     const router = useRouter();
@@ -236,11 +237,8 @@ const OrderDetailPage = () => {
     };
 
     const normalizeCategory = (category: string) => {
-        if (category === 'Dusík' || category === 'Plyny') return 'Plyny';
-        return category;
+        return normalizeOrderCategory(category);
     };
-
-    const categoryOrder = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák', 'Plyny', 'PET'];
 
     const categoryMeta: Record<string, {
         icon: React.ComponentType<{ className?: string }>;
@@ -284,57 +282,42 @@ const OrderDetailPage = () => {
         }
     };
 
-    const parseLiters = (volume: string, quantity: number) => {
+    const parseLiters = (volume: string | number, quantity: number) => {
         const normalized = String(volume).replace(',', '.');
-        const match = normalized.match(/(\d+(?:\.\d+)?)\s*l/i);
+        const match = normalized.match(/(\d+(?:\.\d+)?)/);
         if (!match) return 0;
         return parseFloat(match[1]) * quantity;
     };
 
-    const getVolumeSortValue = (volume: string) => {
-        const normalized = String(volume || '').toLowerCase().trim();
-
-        // Nejprve bereme jakékoliv číselné hodnoty (50L, 50 l, 50, 1,5L ...)
-        const anyNumber = normalized.match(/(\d+(?:[.,]\d+)?)/);
-        if (anyNumber) {
-            return parseFloat(anyNumber[1].replace(',', '.'));
-        }
-
-        // Nečíselné varianty
-        if (normalized.includes('velk')) return 2;
-        if (normalized.includes('mal')) return 1;
-        if (normalized.includes('balen')) return 0;
-
-        return -1;
+    const formatVolumeLabel = (volume: string | number, category: string) => {
+        if (category === 'PET') return 'balení';
+        if (category === 'Plyny') return String(volume).toLowerCase().includes('mal') ? 'malý' : 'velký';
+        return /l\s*$/i.test(String(volume)) ? String(volume) : `${volume}L`;
     };
 
     const groupedItems = (() => {
-        const map = new Map<string, any[]>();
-        for (const item of order?.order_items || []) {
+        const groups: Array<{
+            key: string;
+            category: string;
+            volumeLabel: string | null;
+            items: any[];
+        }> = [];
+
+        for (const item of sortOrderItems(order?.order_items || [])) {
             const category = normalizeCategory(item?.product?.category || 'Ostatní');
-            if (!map.has(category)) {
-                map.set(category, []);
+            const isStandard = STANDARD_ORDER_CATEGORIES.includes(category as typeof STANDARD_ORDER_CATEGORIES[number]);
+            const volumeLabel = isStandard ? formatVolumeLabel(item.volume, category) : null;
+            const key = isStandard ? `${volumeLabel}-${category}` : category;
+            const lastGroup = groups[groups.length - 1];
+
+            if (lastGroup?.key === key) {
+                lastGroup.items.push(item);
+            } else {
+                groups.push({ key, category, volumeLabel, items: [item] });
             }
-            map.get(category)!.push(item);
         }
 
-        const sortedCategories = Array.from(map.keys()).sort((a, b) => {
-            const indexA = categoryOrder.indexOf(a);
-            const indexB = categoryOrder.indexOf(b);
-            return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
-        });
-
-        return sortedCategories.map((category) => {
-            const items = [...map.get(category)!].sort((a, b) => {
-                const byVolume = getVolumeSortValue(b.volume) - getVolumeSortValue(a.volume);
-                if (byVolume !== 0) return byVolume;
-                const byQuantity = (b.quantity || 0) - (a.quantity || 0);
-                if (byQuantity !== 0) return byQuantity;
-                return String(a.product?.name || '').localeCompare(String(b.product?.name || ''), 'cs');
-            });
-
-            return { category, items };
-        });
+        return groups;
     })();
 
     // Komponenta pro potvrzovací dialog
@@ -501,7 +484,7 @@ const OrderDetailPage = () => {
                             <span className="text-sm text-slate-500">{order.order_items?.length || 0} položek</span>
                         </div>
                         <div className="space-y-3 rounded-xl border border-slate-200 p-3">
-                            {groupedItems.map(({ category, items }) => {
+                            {groupedItems.map(({ key, category, volumeLabel, items }, groupIndex) => {
                                 const meta = categoryMeta[category] || {
                                     icon: Package,
                                     headerClass: 'bg-gray-100 text-gray-700',
@@ -512,9 +495,14 @@ const OrderDetailPage = () => {
                                 const subtotalLiters = items.reduce((sum, item) => {
                                     return sum + parseLiters(item.volume, item.quantity);
                                 }, 0);
+                                const previousVolume = groupedItems[groupIndex - 1]?.volumeLabel;
+                                const showVolumeHeading = volumeLabel && volumeLabel !== previousVolume;
 
                                 return (
-                                    <div key={category} className="border-b border-slate-100 pb-3 last:border-b-0 last:pb-0">
+                                    <div key={key} className="border-b border-slate-100 pb-3 last:border-b-0 last:pb-0">
+                                        {showVolumeHeading && (
+                                            <div className="mb-2 text-base font-bold text-slate-900">{volumeLabel}</div>
+                                        )}
                                         <div className={`mb-1.5 flex items-center gap-2 rounded-md px-3 py-1.5 font-semibold ${meta.headerClass}`}>
                                             <Icon className="w-4 h-4" />
                                             <span>{category}</span>
@@ -529,11 +517,10 @@ const OrderDetailPage = () => {
                                                 >
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <span className={`px-2 py-0.5 text-sm font-semibold rounded-md border ${meta.badgeClass}`}>
-                                                            {item.volume}
+                                                            {item.quantity}x {formatVolumeLabel(item.volume, category)}
                                                         </span>
                                                         <span className="text-gray-900 truncate">{item.product.name}</span>
                                                     </div>
-                                                    <span className="text-sm font-semibold text-gray-800 whitespace-nowrap">{item.quantity}x</span>
                                                 </div>
                                             ))}
                                         </div>

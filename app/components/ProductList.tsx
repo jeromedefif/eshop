@@ -153,14 +153,17 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
         })
         : [];
 
-    // Komponenta pro tlačítko objemu - používá se jak v kartě, tak v seznamu
-    const VolumeButton = ({ product, volume, label }: { product: Product, volume: string | number, label: string }) => {
+    // Renderovací funkce zachovávají stabilní typ DOM prvků při změně košíku.
+    // Vnořené React komponenty se při každém renderu vytvářely znovu a celý
+    // katalog se proto odpojil a připojil, což prohlížeč posouvalo nahoru.
+    const renderVolumeButton = (product: Product, volume: string | number, label: string) => {
         const count = getCartCount(product.id, volume);
         const isInCart = count > 0;
 
         return (
-            <div className="relative flex-1">
+            <div key={`${product.id}-${volume}`} className="relative flex-1">
                 <button
+                    type="button"
                     onClick={() => product.in_stock && !product.is_archived && onAddToCart(product.id, volume)}
                     disabled={!product.in_stock || product.is_archived}
                     className={`w-full px-2.5 py-1.5 text-xs border rounded-md min-w-[42px]
@@ -176,6 +179,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                 </button>
                 {isInCart && (
                     <button
+                        type="button"
                         onClick={() => onRemoveFromCart(product.id, volume)}
                         className="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600
                                  text-white text-[10px] rounded-full w-[18px] h-[18px]
@@ -190,12 +194,12 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
         );
     };
 
-    // Komponenta pro kartičku produktu (mobilní zobrazení)
-    const ProductCard = ({ product }: { product: Product }) => {
+    // Kartička produktu pro mobilní zobrazení
+    const renderProductCard = (product: Product) => {
         const productButtons = getVolumeButtons(product);
 
         return (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
+            <div key={product.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
                 <div className="flex items-start gap-2 mb-2">
                     <div className="mt-0.5">
                         {getProductIcon(product.category)}
@@ -221,25 +225,18 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
 
                 {/* Tlačítka objemů - stejná jako v desktop verzi */}
                 <div className="flex gap-1.5 mt-3">
-                    {productButtons.map(({ label, value }) => (
-                        <VolumeButton
-                            key={`${product.id}-${value}`}
-                            product={product}
-                            volume={value}
-                            label={label}
-                        />
-                    ))}
+                    {productButtons.map(({ label, value }) => renderVolumeButton(product, value, label))}
                 </div>
             </div>
         );
     };
 
-    // Komponenta pro řádek produktu (desktop zobrazení)
-    const ProductItem = ({ product }: { product: Product }) => {
+    // Řádek produktu pro desktopové zobrazení
+    const renderProductItem = (product: Product) => {
         const productButtons = getVolumeButtons(product);
 
         return (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center py-2 px-3 bg-white
+            <div key={product.id} className="flex flex-col sm:flex-row items-start sm:items-center py-2 px-3 bg-white
                         hover:bg-blue-50/80 transition-all duration-150
                         border-b last:border-b-0 hover:shadow-md min-h-[40px] first:pt-1.5">
                 <div className="flex items-center flex-grow min-w-0 gap-2">
@@ -267,14 +264,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                 </div>
 
                 <div className="flex items-center gap-1.5 mt-2 sm:mt-0 sm:pl-2 w-full sm:w-auto">
-                    {productButtons.map(({ label, value }) => (
-                        <VolumeButton
-                            key={`${product.id}-${value}`}
-                            product={product}
-                            volume={value}
-                            label={label}
-                        />
-                    ))}
+                    {productButtons.map(({ label, value }) => renderVolumeButton(product, value, label))}
                 </div>
             </div>
         );
@@ -519,7 +509,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                             </h2>
                             <div className="space-y-3">
                                 {categoryProducts.map(product => (
-                                    <ProductCard key={product.id} product={product} />
+                                    renderProductCard(product)
                                 ))}
                             </div>
                         </div>
@@ -528,7 +518,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                     // Kartičky bez seskupení
                     <div className="space-y-3">
                         {filteredProducts.map(product => (
-                            <ProductCard key={product.id} product={product} />
+                            renderProductCard(product)
                         ))}
                     </div>
                 )}
@@ -567,7 +557,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                                 </h2>
                                 <div>
                                     {categoryProducts.map(product => (
-                                        <ProductItem key={product.id} product={product} />
+                                        renderProductItem(product)
                                     ))}
                                 </div>
                             </div>
@@ -577,7 +567,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                     // Seznam bez seskupení
                     <div className="bg-white rounded-lg border">
                         {filteredProducts.map(product => (
-                            <ProductItem key={product.id} product={product} />
+                            renderProductItem(product)
                         ))}
                     </div>
                 )}

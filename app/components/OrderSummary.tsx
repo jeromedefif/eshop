@@ -4,6 +4,7 @@ import React from 'react';
 import { Package, Wine, Grape, Martini, TestTube, Box, Trash2, Plus, Minus, Sparkles, Amphora } from 'lucide-react';
 import type { Product } from '@/types/database';
 import { normalizeProductCategory } from '@/lib/product-config';
+import { sortOrderItems, STANDARD_ORDER_CATEGORIES } from '@/lib/order-item-sorting';
 
 type OrderSummaryProps = {
     cartItems: {[key: string]: number};
@@ -12,8 +13,6 @@ type OrderSummaryProps = {
     onAddToCart: (productId: string | number, volume: string | number) => void;
     totalVolume: number;
 };
-
-const CATEGORY_ORDER = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák', 'Plyny', 'PET'];
 
 const CATEGORY_THEME: Record<string, { icon: string; pill: string; volumeChip: string; label: string }> = {
     'Víno': {
@@ -85,18 +84,6 @@ const OrderSummary = ({
         return normalizeProductCategory(category);
     };
 
-    const getVolumeSortValue = (volume: string) => {
-        const normalized = String(volume || '').toLowerCase().trim();
-        const anyNumber = normalized.match(/(\d+(?:[.,]\d+)?)/);
-        if (anyNumber) {
-            return parseFloat(anyNumber[1].replace(',', '.'));
-        }
-        if (normalized.includes('velk')) return 2;
-        if (normalized.includes('mal')) return 1;
-        if (normalized.includes('balen')) return 0;
-        return -1;
-    };
-
     const getCategoryIcon = (category: string) => {
         const { icon } = getCategoryTheme(category);
 
@@ -121,35 +108,31 @@ const OrderSummary = ({
         }
     };
 
-    const groupedItems = Object.entries(cartItems).reduce((acc, [key, count]) => {
+    type SummaryItem = { product: Product; volume: string; count: number; quantity: number };
+
+    const sortedItems = sortOrderItems(Object.entries(cartItems).reduce((items, [key, count]) => {
         const [productId, volume] = key.split('-');
         const product = products.find(p => String(p.id) === productId);
-        if (!product) return acc;
-        const normalizedCategory = normalizeCategory(product.category);
+        if (product) items.push({ product, volume, count, quantity: count });
+        return items;
+    }, [] as SummaryItem[]));
 
-        if (!acc[normalizedCategory]) {
-            acc[normalizedCategory] = [];
+    // Standardní tekuté kategorie se mohou opakovat pro různé objemy. Zachováme
+    // stávající vzhled kategorií, ale jejich sekce skládáme v pořadí položek.
+    const displayGroups = sortedItems.reduce((groups, item) => {
+        const category = normalizeCategory(item.product.category);
+        const isStandard = STANDARD_ORDER_CATEGORIES.includes(category as typeof STANDARD_ORDER_CATEGORIES[number]);
+        const canonicalVolume = String(item.volume).replace(/\s*l$/i, '');
+        const key = isStandard ? `${canonicalVolume}-${category}` : category;
+        const lastGroup = groups[groups.length - 1];
+
+        if (lastGroup?.key === key) {
+            lastGroup.items.push(item);
+        } else {
+            groups.push({ key, category, items: [item] });
         }
-        acc[normalizedCategory].push({ product, volume, count });
-        return acc;
-    }, {} as Record<string, Array<{ product: Product; volume: string; count: number }>>);
-
-    const sortedCategories = Object.keys(groupedItems).sort((a, b) => {
-        const aIndex = CATEGORY_ORDER.includes(a) ? CATEGORY_ORDER.indexOf(a) : Number.MAX_SAFE_INTEGER;
-        const bIndex = CATEGORY_ORDER.includes(b) ? CATEGORY_ORDER.indexOf(b) : Number.MAX_SAFE_INTEGER;
-        return aIndex - bIndex;
-    });
-
-    const groupedItemsSorted = Object.fromEntries(
-        Object.entries(groupedItems).map(([category, items]) => [
-            category,
-            [...items].sort((a, b) => {
-                const byVolume = getVolumeSortValue(b.volume) - getVolumeSortValue(a.volume);
-                if (byVolume !== 0) return byVolume;
-                return a.product.name.localeCompare(b.product.name, 'cs');
-            })
-        ])
-    ) as Record<string, Array<{ product: Product; volume: string; count: number }>>;
+        return groups;
+    }, [] as Array<{ key: string; category: string; items: SummaryItem[] }>);
 
     const getItemText = (product: Product, volume: string) => {
         const category = normalizeCategory(product.category);
@@ -159,7 +142,7 @@ const OrderSummary = ({
         if (category === 'Plyny') {
             return volume === 'maly' ? 'malý' : 'velký';
         }
-        return `${volume}L`;
+        return /l\s*$/i.test(volume) ? volume : `${volume}L`;
     };
 
     const getItemsCount = (count: number) => {
@@ -210,21 +193,21 @@ const OrderSummary = ({
 
             <div className="p-4">
                 <div className="space-y-4">
-                    {sortedCategories.map((category) => {
+                    {displayGroups.map(({ key, category, items }) => {
                         const theme = getCategoryTheme(category);
 
                         return (
-                            <div key={category} className="border-t first:border-t-0 pt-3 first:pt-0">
+                            <div key={key} className="border-t first:border-t-0 pt-3 first:pt-0">
                                 <h3 className={`text-sm font-semibold flex items-center gap-2 px-2.5 py-2 rounded-lg ${theme.pill}`}>
                                     {getCategoryIcon(category)}
                                     {theme.label}
                                     <span className="text-xs font-semibold opacity-80">
-                                        ({groupedItemsSorted[category].length})
+                                        ({items.length})
                                     </span>
                                 </h3>
 
                                 <div className="mt-2 space-y-1.5">
-                                    {groupedItemsSorted[category].map(({ product, volume, count }) => (
+                                    {items.map(({ product, volume, count }) => (
                                         <div
                                             key={`${product.id}-${volume}`}
                                             className="flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-blue-50 rounded-lg transition-colors"
