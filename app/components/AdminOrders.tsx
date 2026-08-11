@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, X, RefreshCw, FileSpreadsheet, Calendar } from 'lucide-react';
+import { Search, X, RefreshCw, FileSpreadsheet, Calendar, Box, TestTube, MessageSquare } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
@@ -269,19 +269,48 @@ export default function AdminOrders({
         };
     };
 
+    const getLogisticsFlags = (order: Order) => {
+        const categories = new Set(
+            (order.order_items || []).map((item) => item.product?.category || '')
+        );
+
+        return {
+            hasPet: categories.has('PET'),
+            // "Dusík" is kept for historical orders created before the category rename.
+            hasGases: categories.has('Plyny') || categories.has('Dusík')
+        };
+    };
+
+    const LogisticsBadges = ({ order }: { order: Order }) => {
+        const { hasPet, hasGases } = getLogisticsFlags(order);
+        if (!hasPet && !hasGases) return null;
+
+        return (
+            <span className="inline-flex flex-wrap items-center gap-1.5">
+                {hasPet && <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800"><Box className="h-3.5 w-3.5" />PET</span>}
+                {hasGases && <span className="inline-flex items-center gap-1 rounded-full bg-cyan-50 px-2 py-0.5 text-xs font-semibold text-cyan-800"><TestTube className="h-3.5 w-3.5" />Plyny</span>}
+            </span>
+        );
+    };
+
     // Komponenta karty objednávky pro mobilní zobrazení
     const OrderCard = ({ order }: { order: Order }) => {
         const dateTime = formatDateTime(order.created_at);
 
         return (
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-3">
-                <div className="flex justify-between items-start mb-2">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+                <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900">{order.customer_name}</div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button onClick={() => handleViewOrderDetail(order.id)} className="font-semibold text-slate-900 hover:text-blue-700">
+                                {order.customer_name}
+                            </button>
+                            <LogisticsBadges order={order} />
+                        </div>
                         {order.customer_company && (
-                            <div className="text-sm text-gray-700">{order.customer_company}</div>
+                            <div className="text-sm text-slate-600">{order.customer_company}</div>
                         )}
-                        <div className="text-sm text-gray-500">{order.customer_email}</div>
+                        <a href={`mailto:${order.customer_email}`} className="text-sm text-slate-500 hover:text-blue-700 hover:underline">{order.customer_email}</a>
                     </div>
                     <button
                         onClick={() => handleViewOrderDetail(order.id)}
@@ -292,18 +321,24 @@ export default function AdminOrders({
                     </button>
                 </div>
 
-                <div className="flex justify-between items-center text-sm">
-                    <div className="text-gray-700">
-                        {dateTime.date} <span className="text-gray-500">{dateTime.time}</span>
+                <div className="grid grid-cols-3 gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                    <div className="text-slate-700">
+                        <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Datum</div>
+                        {dateTime.date} <span className="text-slate-500">{dateTime.time}</span>
                     </div>
-                    <div className="font-medium text-gray-900">
-                        {order.total_volume}L
+                    <div className="text-right font-semibold text-blue-700">
+                        <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Objem</div>
+                        {order.total_volume} L
+                    </div>
+                    <div className="text-right font-semibold text-slate-700">
+                        <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Položky</div>
+                        {order.order_items?.length ?? 0}
                     </div>
                 </div>
                 {order.note && order.note.trim() && (
-                    <div className="mt-2 text-sm text-gray-600" title={order.note}>
-                        <span className="font-medium text-gray-700">Poznámka:</span>{' '}
-                        <span>{order.note}</span>
+                    <div className="mt-3 flex gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-600" title={order.note}>
+                        <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                        <span className="line-clamp-2">{order.note}</span>
                     </div>
                 )}
             </div>
@@ -311,24 +346,23 @@ export default function AdminOrders({
     };
 
     return (
-        <div className="max-w-6xl mx-auto">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-6">
+        <div className="mx-auto w-full max-w-none">
+            <div className="mb-6 flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Správa objednávek</h2>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <h2 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Správa objednávek</h2>
+                    <p className="mt-1 text-sm text-slate-500">
                         Zobrazeny objednávky za {getPeriodDescription(selectedPeriod)}
                     </p>
                 </div>
 
                 {/* Nástrojová lišta */}
-                <div className="flex gap-2 w-full sm:w-auto justify-end">
+                <div className="flex w-full flex-wrap gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 sm:w-auto sm:flex-nowrap">
                     {/* Dropdown pro výběr období */}
                     <div className="relative">
                         <select
                             value={selectedPeriod}
                             onChange={(e) => handlePeriodChange(e.target.value as typeof selectedPeriod)}
-                            className="appearance-none px-3 py-2 pr-10 bg-white border border-gray-300 rounded-lg text-gray-800
-                                     hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-10 text-slate-800 shadow-sm transition-colors hover:border-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             disabled={isRefreshing}
                         >
                             <option value="week">Týden</option>
@@ -341,8 +375,7 @@ export default function AdminOrders({
 
                     <button
                         onClick={handleRefreshOrders}
-                        className="flex-1 sm:flex-none flex justify-center items-center px-3 py-2 bg-gray-100 text-gray-800 rounded-lg
-                                 hover:bg-gray-200 transition-colors"
+                        className="flex flex-1 items-center justify-center rounded-lg bg-white px-3 py-2 text-slate-700 shadow-sm ring-1 ring-slate-200 transition-colors hover:bg-slate-100 sm:flex-none"
                         disabled={isRefreshing}
                         title="Obnovit"
                     >
@@ -353,8 +386,7 @@ export default function AdminOrders({
                     </button>
                     <button
                         onClick={handleExportToExcel}
-                        className="flex-1 sm:flex-none flex justify-center items-center px-3 py-2 bg-green-600 text-white rounded-lg
-                                 hover:bg-green-700 transition-colors"
+                        className="flex flex-1 items-center justify-center rounded-lg bg-emerald-600 px-3 py-2 text-white shadow-sm transition-colors hover:bg-emerald-700 sm:flex-none"
                         disabled={isExportingExcel}
                         title="Export do Excelu"
                     >
@@ -365,8 +397,7 @@ export default function AdminOrders({
                     </button>
                     <button
                         onClick={isSelectionMode ? handleExportSelectedToExcel : handleToggleSelectionMode}
-                        className="flex-1 sm:flex-none flex justify-center items-center px-3 py-2 bg-emerald-600 text-white rounded-lg
-                                 hover:bg-emerald-700 transition-colors disabled:bg-emerald-300 disabled:cursor-not-allowed"
+                        className="flex flex-1 items-center justify-center rounded-lg bg-blue-600 px-3 py-2 text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300 sm:flex-none"
                         disabled={isSelectionMode && (selectedOrderIds.size === 0 || isExportingSelectedExcel)}
                         title={isSelectionMode ? 'Export vybraných objednávek do Excelu' : 'Zapnout výběr objednávek pro export'}
                     >
@@ -383,19 +414,19 @@ export default function AdminOrders({
             </div>
 
             {isSelectionMode && (
-                <div className="mb-4 text-sm text-gray-700">
+                <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-950">
                     Označte objednávky v tabulce a klikněte na
                     {' '}<span className="font-semibold">Export vybraných</span>.
                     <button
                         onClick={handleToggleSelectionMode}
-                        className="ml-3 text-blue-600 hover:text-blue-800"
+                        className="ml-3 font-semibold text-blue-700 hover:text-blue-900"
                     >
                         Zrušit výběr
                     </button>
                 </div>
             )}
 
-            <div className="mb-6">
+            <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Search className="h-5 w-5 text-gray-400" />
@@ -405,8 +436,7 @@ export default function AdminOrders({
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Vyhledat objednávku..."
-                        className="block w-full pl-10 pr-4 py-2 border rounded-lg
-                                 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                        className="block w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                     />
                     {searchQuery && (
                         <button
@@ -427,9 +457,9 @@ export default function AdminOrders({
             {/* Mobilní zobrazení - karty */}
             <div className="md:hidden">
                 {filteredOrders.length === 0 ? (
-                    <div className="bg-white rounded-lg p-8 text-center">
-                        <Search className="h-10 w-10 text-gray-400 mx-auto mb-2" />
-                        <p className="text-gray-600 text-base">
+                    <div className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+                        <Search className="mx-auto mb-2 h-10 w-10 text-slate-400" />
+                        <p className="text-base text-slate-600">
                             {searchQuery
                                 ? 'Nenalezeny žádné objednávky odpovídající vašemu hledání'
                                 : `Zatím nejsou žádné objednávky za ${getPeriodDescription(selectedPeriod)}`}
@@ -454,12 +484,12 @@ export default function AdminOrders({
 
             {/* Desktop zobrazení - tabulka */}
             <div className="hidden md:block">
-                <div className="bg-white rounded-lg shadow overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <table className="min-w-full divide-y divide-slate-200">
+                        <thead className="bg-slate-50">
                             <tr>
                                 {isSelectionMode && (
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-10">
+                                    <th className="w-10 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                                         <input
                                             type="checkbox"
                                             checked={
@@ -471,17 +501,17 @@ export default function AdminOrders({
                                         />
                                     </th>
                                 )}
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stav</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Datum</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Zákazník</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Objem</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Položky</th>
+                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Stav</th>
+                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Datum</th>
+                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Zákazník / logistika</th>
+                                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Objem</th>
+                                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Položky</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white">
                             {filteredOrders.length === 0 ? (
                                 <tr>
-                                    <td colSpan={isSelectionMode ? 6 : 5} className="px-6 py-8 text-center text-gray-500">
+                                    <td colSpan={isSelectionMode ? 6 : 5} className="px-6 py-10 text-center text-slate-500">
                                         {searchQuery
                                             ? 'Nenalezeny žádné objednávky odpovídající vašemu hledání'
                                             : `Zatím nejsou žádné objednávky za ${getPeriodDescription(selectedPeriod)}`}
@@ -495,7 +525,7 @@ export default function AdminOrders({
                                     return (
                                         <React.Fragment key={order.id}>
                                             <tr
-                                                className={`border-t border-gray-200 ${isHovered ? 'bg-gray-50' : ''}`}
+                                                className={`border-t border-slate-100 transition-colors ${isHovered ? 'bg-blue-50/60' : 'hover:bg-slate-50/80'}`}
                                                 onMouseEnter={() => setHoveredOrderId(order.id)}
                                                 onMouseLeave={() => setHoveredOrderId(null)}
                                             >
@@ -509,47 +539,58 @@ export default function AdminOrders({
                                                         />
                                                     </td>
                                                 )}
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="whitespace-nowrap px-5 py-4 align-top">
                                                     <button
                                                         onClick={() => handleViewOrderDetail(order.id)}
-                                                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
-                                                            ${getStatusColor(order.status)} cursor-pointer hover:opacity-80`}
+                                                        className={`inline-flex cursor-pointer rounded-full px-2.5 py-1 text-xs font-semibold leading-5 transition-opacity hover:opacity-80 ${getStatusColor(order.status)}`}
                                                     >
                                                         {getStatusText(order.status)}
                                                     </button>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    <div>{dateTime.date}</div>
-                                                    <div className="text-xs text-gray-500">{dateTime.time}</div>
+                                                <td className="whitespace-nowrap px-5 py-4 align-top text-sm text-slate-900">
+                                                    <div className="font-medium">{dateTime.date}</div>
+                                                    <div className="text-xs text-slate-500">{dateTime.time}</div>
                                                 </td>
-                                                <td className="px-6 py-4 text-sm text-gray-900">
-                                                    <div>{order.customer_name}</div>
+                                                <td className="px-5 py-4 text-sm text-slate-900">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <button
+                                                            onClick={() => handleViewOrderDetail(order.id)}
+                                                            className="font-semibold text-slate-900 transition-colors hover:text-blue-700"
+                                                        >
+                                                            {order.customer_name}
+                                                        </button>
+                                                        <LogisticsBadges order={order} />
+                                                    </div>
                                                     {order.customer_company && (
-                                                        <div className="text-gray-700">{order.customer_company}</div>
+                                                        <div className="mt-0.5 text-slate-600">{order.customer_company}</div>
                                                     )}
-                                                    <div className="text-gray-500">{order.customer_email}</div>
+                                                    <a href={`mailto:${order.customer_email}`} className="mt-0.5 inline-block text-slate-500 transition-colors hover:text-blue-700 hover:underline">
+                                                        {order.customer_email}
+                                                    </a>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {order.total_volume}L
+                                                <td className="whitespace-nowrap px-5 py-4 text-right align-top text-sm font-bold text-blue-700">
+                                                    {order.total_volume} L
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {order.order_items?.length ?? 0}
+                                                <td className="whitespace-nowrap px-5 py-4 text-right align-top text-sm text-slate-700">
+                                                    <span className="inline-flex min-w-8 justify-center rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                                                        {order.order_items?.length ?? 0}
+                                                    </span>
                                                 </td>
                                             </tr>
                                             {hasNote && (
                                                 <tr
-                                                    className={isHovered ? 'bg-gray-50' : ''}
+                                                    className={`transition-colors ${isHovered ? 'bg-blue-50/60' : 'hover:bg-slate-50/80'}`}
                                                     onMouseEnter={() => setHoveredOrderId(order.id)}
                                                     onMouseLeave={() => setHoveredOrderId(null)}
                                                 >
-                                                    <td colSpan={isSelectionMode ? 6 : 5} className="px-6 py-3 text-sm text-gray-700">
-                                                        <span className="font-semibold text-gray-800">Poznámka:</span>{' '}
-                                                        <span
-                                                            className="align-middle"
-                                                            title={order.note || ''}
-                                                        >
-                                                            {order.note}
-                                                        </span>
+                                                    <td colSpan={isSelectionMode ? 6 : 5} className="px-5 pb-4 pt-0 text-sm text-slate-700">
+                                                        <div className="flex items-start gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5" title={order.note || ''}>
+                                                            <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                                                            <span className="min-w-0">
+                                                                <span className="mr-1 font-semibold text-slate-800">Poznámka zákazníka:</span>
+                                                                {order.note}
+                                                            </span>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             )}

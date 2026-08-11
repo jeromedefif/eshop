@@ -21,6 +21,9 @@ const OrderDetailPage = () => {
     const [status, setStatus] = useState<string>('');
     const [updateMessage, setUpdateMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [internalNote, setInternalNote] = useState('');
+    const [isLoadingInternalNote, setIsLoadingInternalNote] = useState(true);
+    const [isSavingInternalNote, setIsSavingInternalNote] = useState(false);
 
     // Fetch order data
     useEffect(() => {
@@ -46,6 +49,51 @@ const OrderDetailPage = () => {
             fetchOrderDetails();
         }
     }, [orderId]);
+
+    // Interní poznámka je uložená odděleně od zákaznické objednávky a její endpoint
+    // navíc ověřuje administrátorské oprávnění na serveru.
+    useEffect(() => {
+        const fetchInternalNote = async () => {
+            if (!orderId) return;
+
+            setIsLoadingInternalNote(true);
+            try {
+                const response = await fetch(`/api/orders/${orderId}/internal-note`, { cache: 'no-store' });
+                if (!response.ok) throw new Error('Nepodařilo se načíst interní poznámku');
+                const data = await response.json();
+                setInternalNote(data.note || '');
+            } catch (error) {
+                console.error('Error fetching internal order note:', error);
+                toast.error('Nepodařilo se načíst interní poznámku');
+            } finally {
+                setIsLoadingInternalNote(false);
+            }
+        };
+
+        fetchInternalNote();
+    }, [orderId]);
+
+    const handleSaveInternalNote = async () => {
+        setIsSavingInternalNote(true);
+        try {
+            const response = await fetch(`/api/orders/${orderId}/internal-note`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ note: internalNote }),
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Nepodařilo se uložit interní poznámku');
+
+            setInternalNote(data.note || '');
+            toast.success(data.note ? 'Interní poznámka byla uložena' : 'Interní poznámka byla odstraněna');
+        } catch (error) {
+            console.error('Error saving internal order note:', error);
+            toast.error(error instanceof Error ? error.message : 'Nepodařilo se uložit interní poznámku');
+        } finally {
+            setIsSavingInternalNote(false);
+        }
+    };
 
     const handleStatusChange = async (newStatus: string) => {
         if (newStatus === status) return;
@@ -418,11 +466,39 @@ const OrderDetailPage = () => {
                         </div>
                     </div>
 
-                    {/* Poznámka */}
+                    {/* Poznámka zákazníka */}
                     <div className="mb-6">
-                        <h2 className="text-xl font-bold text-gray-900 mb-3">Poznámka</h2>
+                        <h2 className="text-xl font-bold text-gray-900 mb-3">Poznámka zákazníka</h2>
                         <div className="bg-gray-50 p-4 rounded-lg">
                             <p className="text-gray-900 whitespace-pre-wrap">{order.note?.trim() ? order.note : 'Bez poznámky'}</p>
+                        </div>
+                    </div>
+
+                    {/* Interní poznámka je určená výhradně pro administraci. */}
+                    <div className="mb-6">
+                        <h2 className="text-xl font-bold text-gray-900 mb-3">Interní poznámka administrace</h2>
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                            <p className="mb-3 text-sm text-amber-900">Tato poznámka se nezobrazuje zákazníkovi ani se neposílá e-mailem.</p>
+                            <textarea
+                                value={internalNote}
+                                onChange={(event) => setInternalNote(event.target.value)}
+                                disabled={isLoadingInternalNote || isSavingInternalNote}
+                                maxLength={5000}
+                                rows={4}
+                                placeholder="Např. volat před závozem, připravit PET, čeká na platbu..."
+                                className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            />
+                            <div className="mt-3 flex items-center justify-between gap-3">
+                                <span className="text-xs text-amber-900">{internalNote.length}/5000</span>
+                                <button
+                                    type="button"
+                                    onClick={handleSaveInternalNote}
+                                    disabled={isLoadingInternalNote || isSavingInternalNote}
+                                    className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:bg-amber-300"
+                                >
+                                    {isSavingInternalNote ? 'Ukládám...' : 'Uložit interní poznámku'}
+                                </button>
+                            </div>
                         </div>
                     </div>
 

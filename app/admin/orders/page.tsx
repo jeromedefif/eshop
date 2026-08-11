@@ -125,7 +125,7 @@ export default function OrdersPage() {
     }
 
     return (
-        <div className="p-6">
+        <div className="w-full">
             <AdminOrders
                 orders={orders}
                 onOrdersChange={(period?: 'week' | 'month' | 'year' | 'all') => {
