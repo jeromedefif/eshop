@@ -26,6 +26,17 @@ const Cart = ({
     onGoToOrder,
     totalVolume
 }: CartProps) => {
+    React.useEffect(() => {
+        if (!isOpen) return;
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [isOpen]);
+
     if (!isOpen) return null;
 
     const getProductDetails = (productId: string | number) => {
@@ -70,9 +81,9 @@ const Cart = ({
            />
 
             {/* Panel */}
-            <div className="fixed inset-y-0 right-0 max-w-xl w-full bg-white shadow-xl z-50 flex flex-col">
+            <div className="fixed inset-y-0 right-0 h-[100dvh] max-h-[100dvh] max-w-xl w-full bg-white shadow-xl z-50 flex flex-col overflow-hidden">
                 {/* Hlavička */}
-                <div className="p-4 border-b flex justify-between items-center">
+                <div className="shrink-0 p-4 border-b flex justify-between items-center">
                     <div className="flex items-center">
                         <ShoppingBag className="h-6 w-6 text-gray-700 mr-2" />
                         <h2 className="text-lg font-bold text-gray-900">Košík</h2>
@@ -81,6 +92,7 @@ const Cart = ({
                         </span>
                     </div>
                     <button
+                        type="button"
                         onClick={onClose}
                         className="text-gray-400 hover:text-gray-500"
                     >
@@ -89,7 +101,10 @@ const Cart = ({
                 </div>
 
                 {/* Obsah */}
-                <div className="flex-1 overflow-y-auto p-4">
+                <div
+                    className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4"
+                    style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+                >
                     {Object.keys(cartItems).length === 0 ? (
                         <div className="text-center text-gray-500 mt-8">
                             <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-gray-400" />
@@ -118,6 +133,7 @@ const Cart = ({
                                             </p>
                                         </div>
                                         <button
+                                            type="button"
                                             onClick={() => onRemoveFromCart(productId, volume)}
                                             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                                             title="Odebrat položku"
@@ -132,7 +148,10 @@ const Cart = ({
                 </div>
 
                 {/* Patička */}
-                <div className="border-t p-4 space-y-4">
+                <div
+                    className="shrink-0 border-t p-4 space-y-4 bg-white"
+                    style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+                >
                     {totalVolume > 0 && (
                         <div className="flex justify-between items-center py-2 border-b">
                             <span className="text-gray-600">Celkový objem nápojů:</span>
@@ -142,6 +161,7 @@ const Cart = ({
 
                     <div className="grid gap-2">
                         <button
+                            type="button"
                             onClick={onGoToOrder}
                             disabled={Object.keys(cartItems).length === 0}
                             className="w-full py-2 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
@@ -151,6 +171,7 @@ const Cart = ({
 
                         {Object.keys(cartItems).length > 0 && (
                             <button
+                                type="button"
                                 onClick={onClearCart}
                                 className="w-full py-2 px-4 text-red-600 font-medium rounded-lg hover:bg-red-50 transition-colors border border-red-200"
                             >
