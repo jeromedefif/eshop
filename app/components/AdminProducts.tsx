@@ -189,7 +189,7 @@ const AdminProducts = ({ products, onProductsChange, onAddProduct, onUpdateProdu
     const [showArchived, setShowArchived] = useState(false);
     const [sortOption, setSortOption] = useState<SortOption>('catalog');
 
-    const visibleProducts = useMemo(() => products.filter((product) => showArchived || !product.is_archived), [products, showArchived]);
+    const visibleProducts = useMemo(() => products.filter((product) => showArchived ? product.is_archived : !product.is_archived), [products, showArchived]);
 
     const categoryCounts = useMemo(() => Object.fromEntries(CATEGORY_FILTERS.map((filter) => [
         filter.id,
@@ -207,7 +207,7 @@ const AdminProducts = ({ products, onProductsChange, onAddProduct, onUpdateProdu
 
         return products
             .filter((product) => {
-                if (!showArchived && product.is_archived) return false;
+                if (showArchived ? !product.is_archived : product.is_archived) return false;
                 if (selectedCategory !== 'Všechny' && normalizeProductCategory(product.category) !== selectedCategory) return false;
                 if (availability === 'in-stock' && (!product.in_stock || product.is_archived)) return false;
                 if (availability === 'out-of-stock' && (product.in_stock || product.is_archived)) return false;
