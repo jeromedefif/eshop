@@ -11,11 +11,18 @@ datasource db {
 }
 
 model Product {
-  id          BigInt      @id @default(autoincrement())
-  name        String      @db.Text
-  category    String      @db.Text
-  in_stock    Boolean     @default(true)
-  order_items OrderItem[]
+  id              BigInt      @id @default(autoincrement())
+  name            String      @db.Text
+  category        String      @db.Text
+  in_stock        Boolean     @default(true)
+  is_archived     Boolean     @default(false)
+  archived_at     DateTime?   @db.Timestamptz(6)
+  is_new          Boolean     @default(false)
+  is_featured     Boolean     @default(false)
+  sort_priority   Int         @default(0)
+  min_order_qty   Int         @default(1)
+  allowed_volumes String[]    @default([])
+  order_items     OrderItem[]
 
   @@map("products")
   @@schema("public")

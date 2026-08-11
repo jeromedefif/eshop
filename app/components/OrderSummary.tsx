@@ -2,24 +2,18 @@
 
 import React from 'react';
 import { Package, Wine, Grape, Martini, TestTube, Box, Trash2, Plus, Minus } from 'lucide-react';
-
-type Product = {
-    id: number | string;
-    name: string;
-    category: string;
-    in_stock: boolean;
-    created_at?: string;
-};
+import type { Product } from '@/types/database';
+import { normalizeProductCategory } from '@/lib/product-config';
 
 type OrderSummaryProps = {
     cartItems: {[key: string]: number};
     products: Array<Product>;
-    onRemoveFromCart: (productId: number, volume: string | number) => void;
-    onAddToCart: (productId: number, volume: string | number) => void;
+    onRemoveFromCart: (productId: string | number, volume: string | number) => void;
+    onAddToCart: (productId: string | number, volume: string | number) => void;
     totalVolume: number;
 };
 
-const CATEGORY_ORDER = ['Nápoje', 'Víno', 'Ovocné víno', 'Plyny', 'PET'];
+const CATEGORY_ORDER = ['Nápoje', 'Víno', 'Ovocné víno', 'Plyny', 'PET', 'Lahve'];
 
 const CATEGORY_THEME: Record<string, { icon: string; pill: string; volumeChip: string; label: string }> = {
     'Víno': {
@@ -58,6 +52,12 @@ const CATEGORY_THEME: Record<string, { icon: string; pill: string; volumeChip: s
         volumeChip: 'bg-amber-50 text-amber-800 border-amber-200',
         label: 'PET'
     },
+    'Lahve': {
+        icon: 'text-slate-700',
+        pill: 'bg-slate-100 text-slate-800',
+        volumeChip: 'bg-slate-50 text-slate-800 border-slate-200',
+        label: 'Lahve'
+    },
     'default': {
         icon: 'text-gray-600',
         pill: 'bg-gray-100 text-gray-800',
@@ -76,8 +76,7 @@ const OrderSummary = ({
     const getCategoryTheme = (category: string) => CATEGORY_THEME[category] || CATEGORY_THEME.default;
 
     const normalizeCategory = (category: string) => {
-        if (category === 'Dusík' || category === 'Plyny') return 'Plyny';
-        return category;
+        return normalizeProductCategory(category);
     };
 
     const getVolumeSortValue = (volume: string) => {
@@ -143,10 +142,11 @@ const OrderSummary = ({
     ) as Record<string, Array<{ product: Product; volume: string; count: number }>>;
 
     const getItemText = (product: Product, volume: string) => {
-        if (product.category === 'PET') {
+        const category = normalizeCategory(product.category);
+        if (category === 'PET' || category === 'Lahve') {
             return 'balení';
         }
-        if (product.category === 'Dusík' || product.category === 'Plyny') {
+        if (category === 'Plyny') {
             return volume === 'maly' ? 'malý' : 'velký';
         }
         return `${volume}L`;
@@ -164,16 +164,16 @@ const OrderSummary = ({
         const key = `${productId}-${volume}`;
         const count = cartItems[key] || 0;
         for (let i = 0; i < count; i++) {
-            onRemoveFromCart(Number(productId), volume);
+            onRemoveFromCart(productId, volume);
         }
     };
 
     const handleIncrement = (productId: number | string, volume: string) => {
-        onAddToCart(Number(productId), volume);
+        onAddToCart(productId, volume);
     };
 
     const handleDecrement = (productId: number | string, volume: string) => {
-        onRemoveFromCart(Number(productId), volume);
+        onRemoveFromCart(productId, volume);
     };
 
     if (Object.keys(cartItems).length === 0) {

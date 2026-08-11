@@ -5,9 +5,13 @@ import type { Product } from '@prisma/client';
 export async function GET() {
     try {
         const products = await prisma.product.findMany({
-            orderBy: {
-                name: 'asc'
-            }
+            where: { is_archived: false },
+            orderBy: [
+                { is_new: 'desc' },
+                { is_featured: 'desc' },
+                { sort_priority: 'desc' },
+                { name: 'asc' }
+            ]
         });
 
         const serializedProducts = products.map((product: Product) => ({
@@ -32,7 +36,13 @@ export async function POST(request: Request) {
             data: {
                 name: data.name,
                 category: data.category,
-                in_stock: data.in_stock
+                in_stock: data.in_stock,
+                is_archived: data.is_archived ?? false,
+                is_new: data.is_new ?? false,
+                is_featured: data.is_featured ?? false,
+                sort_priority: data.sort_priority ?? 0,
+                min_order_qty: data.min_order_qty ?? 1,
+                allowed_volumes: data.allowed_volumes ?? []
             }
         });
 
@@ -57,7 +67,14 @@ export async function PUT(request: Request) {
             data: {
                 name: data.name,
                 category: data.category,
-                in_stock: data.in_stock
+                in_stock: data.in_stock,
+                is_archived: data.is_archived,
+                archived_at: data.is_archived ? new Date() : null,
+                is_new: data.is_new,
+                is_featured: data.is_featured,
+                sort_priority: data.sort_priority,
+                min_order_qty: data.min_order_qty,
+                allowed_volumes: data.allowed_volumes
             }
         });
 

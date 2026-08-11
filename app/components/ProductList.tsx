@@ -2,21 +2,13 @@ import React, { useState } from 'react';
 import Script from 'next/script';
 import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, Layout, LayoutList } from 'lucide-react';
 import { Product } from '@/types/database';
+import { getAllowedVolumes, normalizeProductCategory, sortCatalogProducts } from '@/lib/product-config';
 
 type ProductListProps = {
-    onAddToCart: (productId: number, volume: string | number) => void;
-    onRemoveFromCart: (productId: number, volume: string | number) => void;
+    onAddToCart: (productId: string | number, volume: string | number) => void;
+    onRemoveFromCart: (productId: string | number, volume: string | number) => void;
     cartItems: {[key: string]: number};
     products: Product[];
-};
-
-const VolumeOption = {
-    LITERS: [3, 5, 10, 20, 30, 50],
-    PET: [{ label: '1x balení', value: 'baleni' }],
-    DUSIK: [
-        { label: 'malý', value: 'maly' },
-        { label: 'velký', value: 'velky' }
-    ]
 };
 
 // Definice barev ikon pro kategorie
@@ -25,8 +17,9 @@ const categoryColors = {
     "Víno": "text-purple-700",
     "Nápoje": "text-blue-700",
     "Ovocné víno": "text-rose-700",
-    "Dusík": "text-cyan-700",
-    "PET": "text-amber-700"
+    "Plyny": "text-cyan-700",
+    "PET": "text-amber-700",
+    "Lahve": "text-slate-700"
 };
 
 const categoryButtons = [
@@ -34,8 +27,9 @@ const categoryButtons = [
     { id: 'Víno', icon: <Grape className="h-5 w-5" />, label: 'Víno' },
     { id: 'Nápoje', icon: <Martini className="h-5 w-5" />, label: 'Nápoje' },
     { id: 'Ovocné víno', icon: <Wine className="h-5 w-5" />, label: 'Ovocné' },
-    { id: 'Dusík', icon: <TestTube className="h-5 w-5" />, label: 'Dusík' },
-    { id: 'PET', icon: <Box className="h-5 w-5" />, label: 'PET' }
+    { id: 'Plyny', icon: <TestTube className="h-5 w-5" />, label: 'Plyny' },
+    { id: 'PET', icon: <Box className="h-5 w-5" />, label: 'PET' },
+    { id: 'Lahve', icon: <Package className="h-5 w-5" />, label: 'Lahve' }
 ];
 
 const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: ProductListProps) => {
@@ -95,50 +89,51 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
     };
 
     const getProductIcon = (category: string) => {
-        const color = categoryColors[category] || "text-gray-700";
+        const normalizedCategory = normalizeProductCategory(category);
+        const color = categoryColors[normalizedCategory as keyof typeof categoryColors] || "text-gray-700";
 
-        switch(category) {
+        switch(normalizedCategory) {
             case 'Víno':
                 return <Grape className={`h-5 w-5 ${color}`} />;
             case 'Ovocné víno':
                 return <Wine className={`h-5 w-5 ${color}`} />;
             case 'Nápoje':
                 return <Martini className={`h-5 w-5 ${color}`} />;
-            case 'Dusík':
+            case 'Plyny':
                 return <TestTube className={`h-5 w-5 ${color}`} />;
             case 'PET':
                 return <Box className={`h-5 w-5 ${color}`} />;
+            case 'Lahve':
+                return <Package className={`h-5 w-5 ${color}`} />;
             default:
                 return <Package className={`h-5 w-5 ${color}`} />;
         }
     };
 
     const getVolumeButtons = (product: Product) => {
-        switch(product.category) {
-            case 'PET':
-                return VolumeOption.PET;
-            case 'Dusík':
-                return VolumeOption.DUSIK;
-            default:
-                return VolumeOption.LITERS.map(vol => ({ label: `${vol}L`, value: vol }));
-        }
+        return getAllowedVolumes(product).map((value) => ({
+            value,
+            label: value === 'maly' ? 'malý' : value === 'velky' ? 'velký' : value === 'baleni' ? 'balení' : `${value}L`
+        }));
     };
 
-    const getCartCount = (productId: number, volume: number | string) => {
+    const getCartCount = (productId: string | number, volume: number | string) => {
         const key = `${productId}-${volume}`;
         return cartItems[key] || 0;
     };
 
-    const filteredProducts = products.filter(product => {
-        const categoryMatch = selectedCategory === "Všechny" ? true : product.category === selectedCategory;
+    const filteredProducts = sortCatalogProducts(products).filter(product => {
+        if (product.is_archived) return false;
+        const category = normalizeProductCategory(product.category);
+        const categoryMatch = selectedCategory === "Všechny" ? true : category === selectedCategory;
         const searchMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          product.category.toLowerCase().includes(searchQuery.toLowerCase());
+                          category.toLowerCase().includes(searchQuery.toLowerCase());
         return categoryMatch && searchMatch;
     });
 
     const groupedProducts = isGrouped ?
         filteredProducts.reduce((acc, product) => {
-            const category = product.category;
+            const category = normalizeProductCategory(product.category);
             if (!acc[category]) {
                 acc[category] = [];
             }
@@ -154,13 +149,13 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
         return (
             <div className="relative flex-1">
                 <button
-                    onClick={() => product.in_stock && onAddToCart(product.id, volume)}
-                    disabled={!product.in_stock}
+                    onClick={() => product.in_stock && !product.is_archived && onAddToCart(product.id, volume)}
+                    disabled={!product.in_stock || product.is_archived}
                     className={`w-full px-2.5 py-1.5 text-xs border rounded-md min-w-[42px]
              transition-colors duration-150 ${
             isInCart
                 ? 'bg-blue-600/15 border-blue-500 text-blue-700 hover:bg-blue-600/25'
-                : product.in_stock
+                : product.in_stock && !product.is_archived
                     ? 'bg-white text-gray-900 border-gray-300 hover:bg-blue-50 hover:border-blue-400 active:bg-blue-100'
                     : 'opacity-50 cursor-not-allowed text-gray-500'
         }`}    
@@ -204,7 +199,11 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                                 {product.in_stock ? "Skladem" : "Není skladem"}
                             </span>
                         </div>
-                        <span className="text-xs text-gray-500">{product.category}</span>
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                            <span className="text-xs text-gray-500">{normalizeProductCategory(product.category)}</span>
+                            {product.is_new && <span className="px-1.5 py-0.5 rounded-full text-[11px] leading-none font-medium bg-violet-100 text-violet-800">Novinka</span>}
+                            {product.is_featured && <span className="px-1.5 py-0.5 rounded-full text-[11px] leading-none font-medium bg-orange-100 text-orange-800">Akce</span>}
+                        </div>
                     </div>
                 </div>
 
@@ -245,9 +244,11 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                         }`}>
                             {product.in_stock ? "Skladem" : "Není skladem"}
                         </span>
+                        {product.is_new && <span className="px-1.5 py-0.5 rounded-full text-[11px] leading-none font-medium shrink-0 bg-violet-100 text-violet-800">Novinka</span>}
+                        {product.is_featured && <span className="px-1.5 py-0.5 rounded-full text-[11px] leading-none font-medium shrink-0 bg-orange-100 text-orange-800">Akce</span>}
                         {!isGrouped && (
                             <span className="text-xs text-gray-500 truncate">
-                                {product.category}
+                                {normalizeProductCategory(product.category)}
                             </span>
                         )}
                     </div>
@@ -316,7 +317,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                 <div className="flex justify-between items-center">
                     <div className="flex space-x-1 overflow-x-auto">
                         {categoryButtons.map((cat) => {
-                            const colorClass = categoryColors[cat.id] || "text-gray-700";
+                            const colorClass = categoryColors[cat.id as keyof typeof categoryColors] || "text-gray-700";
                             return (
                                 <button
                                     key={cat.id}

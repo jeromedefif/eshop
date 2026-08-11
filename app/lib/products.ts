@@ -13,10 +13,19 @@ export type DeleteProductResult = {
     message: string;
 };
 
-export async function fetchProducts(): Promise<Product[]> {
-    const { data, error } = await supabase
+export async function fetchProducts(includeArchived = false): Promise<Product[]> {
+    let query = supabase
         .from('products')
-        .select('*')
+        .select('*');
+
+    if (!includeArchived) {
+        query = query.eq('is_archived', false);
+    }
+
+    const { data, error } = await query
+        .order('is_new', { ascending: false })
+        .order('is_featured', { ascending: false })
+        .order('sort_priority', { ascending: false })
         .order('name');
 
     if (error) {
@@ -88,11 +97,15 @@ export async function deleteProduct(id: string): Promise<DeleteProductResult> {
         };
     }
 
-    // Produkt je použitý v objednávkách -> místo hard delete archivujeme (in_stock = false)
+    // Produkt je použitý v objednávkách -> místo hard delete jej archivujeme.
     if (error.code === '23503') {
         const { error: archiveError } = await supabase
             .from('products')
-            .update({ in_stock: false })
+            .update({
+                is_archived: true,
+                archived_at: new Date().toISOString(),
+                in_stock: false
+            })
             .eq('id', id);
 
         if (archiveError) {
@@ -102,7 +115,7 @@ export async function deleteProduct(id: string): Promise<DeleteProductResult> {
 
         return {
             mode: 'archived',
-            message: 'Produkt je použit v objednávkách, byl proto archivován (označen jako Není skladem).'
+            message: 'Produkt je použit v objednávkách, byl proto archivován a zákazníkům se již nezobrazuje.'
         };
     }
 
@@ -112,4 +125,19 @@ export async function deleteProduct(id: string): Promise<DeleteProductResult> {
 
 export async function updateProductStock(id: string, in_stock: boolean): Promise<Product> {
     return updateProduct(id, { in_stock });
+}
+
+export async function archiveProduct(id: string): Promise<Product> {
+    return updateProduct(id, {
+        is_archived: true,
+        archived_at: new Date().toISOString(),
+        in_stock: false
+    });
+}
+
+export async function restoreProduct(id: string): Promise<Product> {
+    return updateProduct(id, {
+        is_archived: false,
+        archived_at: null
+    });
 }

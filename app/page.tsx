@@ -11,6 +11,8 @@ import AdminProducts from '@/components/AdminProducts';
 import AuthDialog from '@/components/AuthDialog';
 import SuccessNotification from '@/components/SuccessNotification';
 import type { Product } from '@/types/database';
+import { getAllowedVolumes, sortCatalogProducts } from '@/lib/product-config';
+import { archiveProduct, createProduct, deleteProduct, restoreProduct, updateProduct } from '@/lib/products';
 
 export const CartContext = createContext<{
    cartItems: {[key: string]: number};
@@ -37,6 +39,10 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                const { data, error } = await supabase
                    .from('products')
                    .select('*')
+                   .eq('is_archived', false)
+                   .order('is_new', { ascending: false })
+                   .order('is_featured', { ascending: false })
+                   .order('sort_priority', { ascending: false })
                    .order('name');
 
                if (error) {
@@ -44,7 +50,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                }
 
                if (isMounted) {
-                   setProducts(data || []);
+                   setProducts(sortCatalogProducts(data || []));
                }
            } catch (error) {
                console.error('Error loading products in CartProvider:', error);
@@ -132,13 +138,17 @@ export default function Home() {
            const { data, error } = await supabase
                .from('products')
                .select('*')
+               .eq('is_archived', false)
+               .order('is_new', { ascending: false })
+               .order('is_featured', { ascending: false })
+               .order('sort_priority', { ascending: false })
                .order('name');
 
            if (error) {
                throw error;
            }
 
-           setProducts(data || []);
+           setProducts(sortCatalogProducts(data || []));
        } catch (error) {
            console.error('Error loading products:', error);
        } finally {
@@ -151,22 +161,27 @@ export default function Home() {
        // Odstranili jsme kód pro toast, protože používáme vlastní SuccessNotification komponentu
    }, []);
 
-   const handleAddToCart = (productId: number, volume: number | string) => {
+   const handleAddToCart = (productId: string | number, volume: number | string) => {
        setCartItems(prev => {
            const key = `${productId}-${volume}`;
+           const product = products.find((item) => String(item.id) === String(productId));
+           const minimumQuantity = product?.min_order_qty || 1;
+           const currentQuantity = prev[key] || 0;
            return {
                ...prev,
-               [key]: (prev[key] || 0) + 1
+               [key]: currentQuantity === 0 ? minimumQuantity : currentQuantity + 1
            };
        });
    };
 
-   const handleRemoveFromCart = (productId: number, volume: number | string) => {
+   const handleRemoveFromCart = (productId: string | number, volume: number | string) => {
        setCartItems(prev => {
            const key = `${productId}-${volume}`;
            const currentCount = prev[key] || 0;
+           const product = products.find((item) => String(item.id) === String(productId));
+           const minimumQuantity = product?.min_order_qty || 1;
 
-           if (currentCount <= 1) {
+           if (currentCount <= minimumQuantity) {
                const newCart = Object.fromEntries(
                    Object.entries(prev).filter(([k]) => k !== key)
                );
@@ -205,7 +220,10 @@ export default function Home() {
                        product:products (
                            id,
                            name,
-                           in_stock
+                           category,
+                           in_stock,
+                           is_archived,
+                           allowed_volumes
                        )
                    )
                `)
@@ -228,7 +246,7 @@ export default function Home() {
            let unavailableItems = 0;
 
            latestOrder.order_items.forEach((item: any) => {
-               if (!item.product?.in_stock) {
+               if (!item.product?.in_stock || item.product?.is_archived || !getAllowedVolumes(item.product).includes(String(item.volume))) {
                    unavailableItems += 1;
                    return;
                }
@@ -304,52 +322,14 @@ export default function Home() {
                    <AdminProducts
                        products={products}
                        onProductsChange={loadProducts}
-                       onAddProduct={async (product) => {
-                           const { error } = await supabase
-                               .from('products')
-                               .insert([{
-                                   name: product.name,
-                                   category: product.category,
-                                   in_stock: product.in_stock
-                               }]);
-
-                           if (error) {
-                               console.error('Error adding product:', error);
-                               return;
-                           }
-
-                           await loadProducts();
-                       }}
+                       onAddProduct={createProduct}
                        onUpdateProduct={async (product) => {
-                           const { error } = await supabase
-                               .from('products')
-                               .update({
-                                   name: product.name,
-                                   category: product.category,
-                                   in_stock: product.in_stock
-                               })
-                               .eq('id', product.id);
-
-                           if (error) {
-                               console.error('Error updating product:', error);
-                               return;
-                           }
-
-                           await loadProducts();
+                           const { id, ...updates } = product;
+                           return updateProduct(id, updates);
                        }}
-                       onDeleteProduct={async (id) => {
-                           const { error } = await supabase
-                               .from('products')
-                               .delete()
-                               .eq('id', id);
-
-                           if (error) {
-                               console.error('Error deleting product:', error);
-                               return;
-                           }
-
-                           await loadProducts();
-                       }}
+                       onDeleteProduct={deleteProduct}
+                       onArchiveProduct={archiveProduct}
+                       onRestoreProduct={restoreProduct}
                    />
                )}
            </main>

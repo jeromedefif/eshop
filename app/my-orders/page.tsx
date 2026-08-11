@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useContext } from 'react';
 import { CartContext } from '../page';
 import Header from '@/components/Header';
+import { getAllowedVolumes } from '@/lib/product-config';
 
 // Konstanty - velmi minimální změna
 const PAGE_SIZE = 5;
@@ -55,7 +56,10 @@ const MyOrdersPage = () => {
                                 id,
                                 name,
                                 category,
-                                in_stock
+                                in_stock,
+                                is_archived,
+                                min_order_qty,
+                                allowed_volumes
                             )
                         )
                     `, { count: 'exact' })
@@ -106,7 +110,10 @@ const MyOrdersPage = () => {
                             id,
                             name,
                             category,
-                            in_stock
+                            in_stock,
+                            is_archived,
+                            min_order_qty,
+                            allowed_volumes
                         )
                     )
                 `, { count: 'exact' })
@@ -134,19 +141,19 @@ const MyOrdersPage = () => {
     // Zde zachováváme původní handleReorder beze změny
     const handleReorder = async (order: any) => {
         // Kontrola dostupnosti položek
-        const unavailableItems = order.order_items.filter((item: any) => !item.product.in_stock);
+        const unavailableItems = order.order_items.filter((item: any) => !item.product || !item.product.in_stock || item.product.is_archived || !getAllowedVolumes(item.product).includes(String(item.volume)));
 
         if (unavailableItems.length > 0) {
             // Upozornění na nedostupné položky
-            const itemNames = unavailableItems.map((item: any) => item.product.name).join(', ');
+            const itemNames = unavailableItems.map((item: any) => item.product?.name || 'smazaný produkt').join(', ');
             alert(`Následující položky již nejsou skladem: ${itemNames}`);
 
             // Do košíku přidáme pouze dostupné položky
             const newCartItems: {[key: string]: number} = {};
             order.order_items.forEach((item: any) => {
-                if (item.product.in_stock) {
+                if (item.product?.in_stock && !item.product.is_archived && getAllowedVolumes(item.product).includes(String(item.volume))) {
                     const key = `${item.product_id}-${item.volume}`;
-                    newCartItems[key] = item.quantity;
+                    newCartItems[key] = Math.max(item.quantity, item.product.min_order_qty || 1);
                 }
             });
 
@@ -156,7 +163,7 @@ const MyOrdersPage = () => {
             const newCartItems: {[key: string]: number} = {};
             order.order_items.forEach((item: any) => {
                 const key = `${item.product_id}-${item.volume}`;
-                newCartItems[key] = item.quantity;
+                newCartItems[key] = Math.max(item.quantity, item.product?.min_order_qty || 1);
             });
             setCartItems(newCartItems);
         }
@@ -186,7 +193,11 @@ const MyOrdersPage = () => {
                         product:products (
                             id,
                             name,
-                            in_stock
+                            category,
+                            in_stock,
+                            is_archived,
+                            min_order_qty,
+                            allowed_volumes
                         )
                     )
                 `)
@@ -212,12 +223,15 @@ const MyOrdersPage = () => {
         }
     };
 
-    const handleRemoveFromCart = (productId: number, volume: number | string) => {
+    const handleRemoveFromCart = (productId: string | number, volume: number | string) => {
         setCartItems(prev => {
             const key = `${productId}-${volume}`;
             const currentCount = prev[key] || 0;
 
-            if (currentCount <= 1) {
+            const product = products.find((item) => String(item.id) === String(productId));
+            const minOrderQty = product?.min_order_qty || 1;
+
+            if (currentCount <= minOrderQty) {
                 return Object.fromEntries(Object.entries(prev).filter(([k]) => k !== key));
             }
 

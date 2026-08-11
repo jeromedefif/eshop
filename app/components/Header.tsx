@@ -12,7 +12,7 @@ type HeaderProps = {
    cartItems: {[key: string]: number};
    products: Product[];
    totalVolume: number;
-   onRemoveFromCart: (productId: number, volume: string | number) => void;
+   onRemoveFromCart: (productId: string | number, volume: string | number) => void;
    onClearCart: () => void;
    onQuickReorder?: () => Promise<void>;
 };

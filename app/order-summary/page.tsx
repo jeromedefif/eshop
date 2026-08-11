@@ -9,6 +9,7 @@ import OrderForm from '@/components/OrderForm';
 import Header from '@/components/Header';
 import Link from 'next/link';
 import { ShoppingBag, ArrowLeft } from 'lucide-react';
+import { getAllowedVolumes } from '@/lib/product-config';
 
 const OrderSummaryPage = () => {
     const router = useRouter();
@@ -28,22 +29,27 @@ const OrderSummaryPage = () => {
 
     // Odstraněno přesměrování - místo toho budeme zobrazovat prázdný stav košíku
 
-    const handleAddToCart = (productId: number, volume: number | string) => {
+    const handleAddToCart = (productId: string | number, volume: number | string) => {
         setCartItems(prev => {
             const key = `${productId}-${volume}`;
+            const product = products.find((item) => String(item.id) === String(productId));
+            const minimumQuantity = product?.min_order_qty || 1;
+            const currentQuantity = prev[key] || 0;
             return {
                 ...prev,
-                [key]: (prev[key] || 0) + 1
+                [key]: currentQuantity === 0 ? minimumQuantity : currentQuantity + 1
             };
         });
     };
 
-    const handleRemoveFromCart = (productId: number, volume: number | string) => {
+    const handleRemoveFromCart = (productId: string | number, volume: number | string) => {
         setCartItems(prev => {
             const key = `${productId}-${volume}`;
             const currentCount = prev[key] || 0;
+            const product = products.find((item) => String(item.id) === String(productId));
+            const minimumQuantity = product?.min_order_qty || 1;
 
-            if (currentCount <= 1) {
+            if (currentCount <= minimumQuantity) {
                 const newCart = Object.fromEntries(
                     Object.entries(prev).filter(([k]) => k !== key)
                 );
@@ -82,7 +88,10 @@ const OrderSummaryPage = () => {
                         product:products (
                             id,
                             name,
-                            in_stock
+                            category,
+                            in_stock,
+                            is_archived,
+                            allowed_volumes
                         )
                     )
                 `)
@@ -105,7 +114,7 @@ const OrderSummaryPage = () => {
             let unavailableItems = 0;
 
             latestOrder.order_items.forEach((item: any) => {
-                if (!item.product?.in_stock) {
+                if (!item.product?.in_stock || item.product?.is_archived || !getAllowedVolumes(item.product).includes(String(item.volume))) {
                     unavailableItems += 1;
                     return;
                 }

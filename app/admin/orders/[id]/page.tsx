@@ -170,7 +170,7 @@ const OrderDetailPage = () => {
         return category;
     };
 
-    const categoryOrder = ['Nápoje', 'Víno', 'Ovocné víno', 'Plyny', 'PET'];
+    const categoryOrder = ['Nápoje', 'Víno', 'Ovocné víno', 'Plyny', 'PET', 'Lahve'];
 
     const categoryMeta: Record<string, {
         icon: React.ComponentType<{ className?: string }>;

@@ -10,6 +10,8 @@ import {
     createProduct,
     updateProduct,
     deleteProduct,
+    archiveProduct,
+    restoreProduct,
     ProductError,
     DeleteProductResult
 } from '@/lib/products';
@@ -22,7 +24,7 @@ const AdminProductsPage = () => {
     const loadProducts = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await fetchProducts();
+            const data = await fetchProducts(true);
             setProducts(data);
             setError(null);
         } catch (error) {
@@ -114,7 +116,9 @@ const AdminProductsPage = () => {
             onProductsChange={loadProducts}
             onAddProduct={handleAddProduct}
             onUpdateProduct={handleUpdateProduct}
-            onDeleteProduct={handleDeleteProduct}
+        onDeleteProduct={handleDeleteProduct}
+        onArchiveProduct={archiveProduct}
+        onRestoreProduct={restoreProduct}
         />
     );
 };

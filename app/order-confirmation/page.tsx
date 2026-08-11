@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import { toast } from 'react-toastify';
 import type { OrderStatus, OrderConfirmationData } from '@/types/orders';
+import { isVolumeAllowed } from '@/lib/product-config';
 
 export default function OrderConfirmationPage() {
     const router = useRouter();
@@ -46,6 +47,25 @@ export default function OrderConfirmationPage() {
         setOrderStatus('processing');
 
         try {
+            // Re-check product availability immediately before the order is saved.
+            // The database migration applies the same rules server-side as well.
+            const productIds = Array.from(new Set(orderData.items.map((item) => item.productId)));
+            const { data: currentProducts, error: productsError } = await supabase
+                .from('products')
+                .select('id, name, category, in_stock, is_archived, min_order_qty, allowed_volumes')
+                .in('id', productIds);
+
+            if (productsError) throw productsError;
+
+            const productsById = new Map((currentProducts || []).map((product) => [String(product.id), product]));
+            for (const item of orderData.items) {
+                const product = productsById.get(String(item.productId));
+                if (!product) throw new Error('Jedna z položek již neexistuje. Vraťte se prosím do katalogu a košík upravte.');
+                if (product.is_archived || !product.in_stock) throw new Error(`Produkt „${product.name}“ již není skladem.`);
+                if (!isVolumeAllowed(product, item.volume)) throw new Error(`Objem u produktu „${product.name}“ již není dostupný.`);
+                if (item.quantity < product.min_order_qty) throw new Error(`Minimální odběr produktu „${product.name}“ je ${product.min_order_qty} ks.`);
+            }
+
             const orderInput = {
                 user_id: user.id,
                 total_volume: orderData.totalVolume,
@@ -126,7 +146,7 @@ export default function OrderConfirmationPage() {
         } catch (error) {
             console.error('Chyba při zpracování objednávky:', error);
             setOrderStatus('error');
-            toast.error('Při zpracování objednávky došlo k chybě. Zkuste to prosím znovu.');
+            toast.error(error instanceof Error ? error.message : 'Při zpracování objednávky došlo k chybě. Zkuste to prosím znovu.');
         }
     };
 

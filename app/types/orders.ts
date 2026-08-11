@@ -42,8 +42,8 @@ export interface UserProfile {
 export interface OrderFormProps {
     cartItems: CartItems;
     products: Product[];
-    onRemoveFromCart: (productId: number, volume: string | number) => void;
-    onAddToCart: (productId: number, volume: string | number) => void;
+    onRemoveFromCart: (productId: string | number, volume: string | number) => void;
+    onAddToCart: (productId: string | number, volume: string | number) => void;
     onClearCart: () => void;
     totalVolume: number;
     user: User | null;

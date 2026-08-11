@@ -3,13 +3,14 @@
 import React from 'react';
 import { X, ShoppingBag, Trash2 } from 'lucide-react';
 import { Product } from '@/types/database';  // Přidáme import typu Product
+import { normalizeProductCategory } from '@/lib/product-config';
 
 type CartProps = {
     isOpen: boolean;
     onClose: () => void;
     cartItems: {[key: string]: number};
     products: Array<Product>;  // Použijeme importovaný typ Product
-    onRemoveFromCart: (productId: number, volume: string | number) => void;
+    onRemoveFromCart: (productId: string | number, volume: string | number) => void;
     onClearCart: () => void;
     onGoToOrder: () => void;
     totalVolume: number;
@@ -27,18 +28,19 @@ const Cart = ({
 }: CartProps) => {
     if (!isOpen) return null;
 
-    const getProductDetails = (productId: number) => {
-        return products.find(p => p.id === productId);
+    const getProductDetails = (productId: string | number) => {
+        return products.find(p => String(p.id) === String(productId));
     };
 
     const getItemDisplay = (product: Product, volume: string, count: number) => {
-        if (product.category === 'PET') {
+        const category = normalizeProductCategory(product.category);
+        if (category === 'PET' || category === 'Lahve') {
             return {
                 volumeText: '1x balení',
                 totalText: `${count} balení`
             };
         }
-        if (product.category === 'Dusík') {
+        if (category === 'Plyny') {
             return {
                 volumeText: volume === 'maly' ? 'malý' : 'velký',
                 totalText: `${count}x ${volume === 'maly' ? 'malý' : 'velký'}`
@@ -97,7 +99,7 @@ const Cart = ({
                         <div className="space-y-4">
                             {Object.entries(cartItems).map(([key, count]) => {
                                 const [productId, volume] = key.split('-');
-                                const product = getProductDetails(parseInt(productId));
+                                const product = getProductDetails(productId);
                                 if (!product) return null;
 
                                 const display = getItemDisplay(product, volume, count);
@@ -116,7 +118,7 @@ const Cart = ({
                                             </p>
                                         </div>
                                         <button
-                                            onClick={() => onRemoveFromCart(parseInt(productId), volume)}
+                                            onClick={() => onRemoveFromCart(productId, volume)}
                                             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                                             title="Odebrat položku"
                                         >

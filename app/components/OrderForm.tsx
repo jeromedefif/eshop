@@ -7,6 +7,7 @@ import type {
   OrderFormProps,
   OrderConfirmationData
 } from '@/types/orders';
+import { normalizeProductCategory } from '@/lib/product-config';
 
 const OrderForm = ({
   cartItems,
@@ -44,9 +45,10 @@ const OrderForm = ({
           const product = products.find(p => String(p.id) === productId);
           if (!product) return null;
 
-          const display = product.category === 'PET'
+          const category = normalizeProductCategory(product.category);
+          const display = category === 'PET' || category === 'Lahve'
               ? `${quantity}× balení`
-              : product.category === 'Dusík'
+              : category === 'Plyny'
                   ? `${quantity}× ${volume === 'maly' ? 'malý' : 'velký'}`
                   : `${volume}L × ${quantity}`;
 
