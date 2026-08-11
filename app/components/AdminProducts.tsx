@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Archive, Edit2, PackageCheck, PlusCircle, RotateCcw, Search, Trash2, X } from 'lucide-react';
+import { Amphora, Archive, Box, Edit2, Grape, ListFilter, Martini, Package, PlusCircle, RotateCcw, Search, Sparkles, Star, Tag, TestTube, Trash2, Wine, X } from 'lucide-react';
 import type { Product, CreateProductInput } from '@/types/database';
 import type { DeleteProductResult } from '@/lib/products';
 import { PRODUCT_CATEGORIES, getAllowedVolumes, getDefaultAllowedVolumes, normalizeProductCategory } from '@/lib/product-config';
@@ -149,18 +149,87 @@ function ProductForm({ initialData, idPrefix, onSave, onCancel, isLoading, title
     );
 }
 
+type AvailabilityFilter = 'all' | 'in-stock' | 'out-of-stock';
+type SortOption = 'catalog' | 'name' | 'priority' | 'newest' | 'archived-last';
+
+const CATEGORY_FILTERS = [
+    { id: 'Všechny', label: 'Vše', icon: ListFilter, color: 'text-gray-700' },
+    { id: 'Víno', label: 'Víno', icon: Grape, color: 'text-purple-700' },
+    { id: 'Perlivé', label: 'Perlivé', icon: Sparkles, color: 'text-teal-700' },
+    { id: 'Nápoje', label: 'Nápoje', icon: Martini, color: 'text-blue-700' },
+    { id: 'Ovocné víno', label: 'Ovocné', icon: Wine, color: 'text-rose-700' },
+    { id: 'Burčák', label: 'Burčák', icon: Amphora, color: 'text-orange-700' },
+    { id: 'Plyny', label: 'Plyny', icon: TestTube, color: 'text-cyan-700' },
+    { id: 'PET', label: 'PET', icon: Box, color: 'text-amber-700' }
+] as const;
+
+const getCategoryIcon = (category: string) => {
+    const normalized = normalizeProductCategory(category);
+    const item = CATEGORY_FILTERS.find((filter) => filter.id === normalized);
+    const Icon = item?.icon || Package;
+    return <Icon className={`h-5 w-5 ${item?.color || 'text-gray-600'}`} />;
+};
+
+const formatAllowedVolumes = (product: Product) => getAllowedVolumes(product).map((volume) => {
+    if (volume === 'maly') return 'malý';
+    if (volume === 'velky') return 'velký';
+    if (volume === 'baleni') return 'balení';
+    return `${volume}L`;
+});
+
 const AdminProducts = ({ products, onProductsChange, onAddProduct, onUpdateProduct, onDeleteProduct, onArchiveProduct, onRestoreProduct }: AdminProductsProps) => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [isAddingNew, setIsAddingNew] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('Všechny');
+    const [availability, setAvailability] = useState<AvailabilityFilter>('all');
+    const [onlyNew, setOnlyNew] = useState(false);
+    const [onlyFeatured, setOnlyFeatured] = useState(false);
     const [showArchived, setShowArchived] = useState(false);
+    const [sortOption, setSortOption] = useState<SortOption>('catalog');
 
-    const filteredProducts = useMemo(() => products.filter((product) => {
-        if (!showArchived && product.is_archived) return false;
-        const query = searchQuery.toLowerCase();
-        return product.name.toLowerCase().includes(query) || normalizeProductCategory(product.category).toLowerCase().includes(query);
-    }), [products, searchQuery, showArchived]);
+    const visibleProducts = useMemo(() => products.filter((product) => showArchived || !product.is_archived), [products, showArchived]);
+
+    const categoryCounts = useMemo(() => Object.fromEntries(CATEGORY_FILTERS.map((filter) => [
+        filter.id,
+        filter.id === 'Všechny'
+            ? visibleProducts.length
+            : visibleProducts.filter((product) => normalizeProductCategory(product.category) === filter.id).length
+    ])), [visibleProducts]);
+
+    const filteredProducts = useMemo(() => {
+        const query = searchQuery.trim().toLocaleLowerCase('cs-CZ');
+        const categoryIndex = (category: string) => {
+            const index = PRODUCT_CATEGORIES.indexOf(normalizeProductCategory(category) as typeof PRODUCT_CATEGORIES[number]);
+            return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+        };
+
+        return products
+            .filter((product) => {
+                if (!showArchived && product.is_archived) return false;
+                if (selectedCategory !== 'Všechny' && normalizeProductCategory(product.category) !== selectedCategory) return false;
+                if (availability === 'in-stock' && (!product.in_stock || product.is_archived)) return false;
+                if (availability === 'out-of-stock' && (product.in_stock || product.is_archived)) return false;
+                if (onlyNew && !product.is_new) return false;
+                if (onlyFeatured && !product.is_featured) return false;
+                if (!query) return true;
+                return product.name.toLocaleLowerCase('cs-CZ').includes(query)
+                    || normalizeProductCategory(product.category).toLocaleLowerCase('cs-CZ').includes(query);
+            })
+            .sort((a, b) => {
+                if (sortOption === 'name') return a.name.localeCompare(b.name, 'cs');
+                if (sortOption === 'priority') return b.sort_priority - a.sort_priority || a.name.localeCompare(b.name, 'cs');
+                if (sortOption === 'newest') return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+                if (sortOption === 'archived-last') return Number(a.is_archived) - Number(b.is_archived) || a.name.localeCompare(b.name, 'cs');
+
+                return categoryIndex(a.category) - categoryIndex(b.category)
+                    || Number(b.is_new) - Number(a.is_new)
+                    || Number(b.is_featured) - Number(a.is_featured)
+                    || b.sort_priority - a.sort_priority
+                    || a.name.localeCompare(b.name, 'cs');
+            });
+    }, [availability, onlyFeatured, onlyNew, products, searchQuery, selectedCategory, showArchived, sortOption]);
 
     const refresh = async () => { await onProductsChange(); };
 
@@ -214,6 +283,19 @@ const AdminProducts = ({ products, onProductsChange, onAddProduct, onUpdateProdu
         try { await onUpdateProduct({ ...product, in_stock: !product.in_stock }); await refresh(); } catch (error) { console.error(error); alert('Stav skladu se nepodařilo změnit.'); } finally { setIsLoading(false); }
     };
 
+    const updateQuickSetting = async (product: Product, updates: Partial<Product>) => {
+        setIsLoading(true);
+        try {
+            await onUpdateProduct({ ...product, ...updates });
+            await refresh();
+        } catch (error) {
+            console.error('Product quick update error:', error);
+            alert('Nastavení produktu se nepodařilo změnit.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="max-w-6xl mx-auto p-4">
             <div className="flex flex-wrap justify-between gap-3 items-center mb-6">
@@ -223,32 +305,72 @@ const AdminProducts = ({ products, onProductsChange, onAddProduct, onUpdateProdu
 
             {isAddingNew && <div className="mb-6"><ProductForm initialData={emptyForm()} idPrefix="new-product" title="Nový produkt" onSave={(data) => handleSave(null, data)} onCancel={() => setIsAddingNew(false)} isLoading={isLoading} /></div>}
 
-            <div className="mb-5 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-                <div className="relative flex-1"><Search className="absolute h-5 w-5 text-gray-400 left-3 top-1/2 -translate-y-1/2" /><input type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Vyhledat produkt..." className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900" />{searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"><X className="w-5 h-5" /></button>}</div>
-                <label className="flex items-center gap-2 whitespace-nowrap text-sm font-medium text-gray-700"><input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} className="h-4 w-4 text-blue-600 rounded" />Zobrazit archivované</label>
-            </div>
+            <section className="mb-5 space-y-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                    {CATEGORY_FILTERS.map((filter) => {
+                        const Icon = filter.icon;
+                        const active = selectedCategory === filter.id;
+                        return <button key={filter.id} type="button" onClick={() => setSelectedCategory(filter.id)} className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${active ? 'bg-blue-100 text-blue-800' : 'text-gray-700 hover:bg-gray-100'}`}><Icon className={`h-5 w-5 ${active ? 'text-blue-700' : filter.color}`} />{filter.label}<span className="text-xs opacity-75">{categoryCounts[filter.id]}</span></button>;
+                    })}
+                </div>
+                <div className="flex flex-col gap-3 lg:flex-row">
+                    <div className="relative flex-1"><Search className="absolute h-5 w-5 text-gray-400 left-3 top-1/2 -translate-y-1/2" /><input type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Vyhledat podle názvu nebo kategorie..." className="block w-full rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-10 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500" />{searchQuery && <button type="button" onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"><X className="w-5 h-5" /></button>}</div>
+                    <select value={sortOption} onChange={(event) => setSortOption(event.target.value as SortOption)} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"><option value="catalog">Kategorie a doporučené</option><option value="name">Název A–Z</option><option value="priority">Priorita</option><option value="newest">Nejnovější</option><option value="archived-last">Archivované naposled</option></select>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <FilterButton active={availability === 'all'} onClick={() => setAvailability('all')}>Všechny stavy</FilterButton>
+                    <FilterButton active={availability === 'in-stock'} onClick={() => setAvailability('in-stock')}>Skladem</FilterButton>
+                    <FilterButton active={availability === 'out-of-stock'} onClick={() => setAvailability('out-of-stock')}>Není skladem</FilterButton>
+                    <FilterButton active={onlyNew} onClick={() => setOnlyNew((value) => !value)} icon={<Star className="h-4 w-4" />}>Novinka</FilterButton>
+                    <FilterButton active={onlyFeatured} onClick={() => setOnlyFeatured((value) => !value)} icon={<Tag className="h-4 w-4" />}>Akce</FilterButton>
+                    <FilterButton active={showArchived} onClick={() => setShowArchived((value) => !value)} icon={<Archive className="h-4 w-4" />}>Archivované</FilterButton>
+                </div>
+            </section>
 
-            <div className="md:hidden space-y-3">
-                {filteredProducts.map((product) => <div key={product.id} className={`bg-white p-4 rounded-lg border shadow-sm ${product.is_archived ? 'opacity-70 border-amber-300' : 'border-gray-200'}`}>
-                    <div className="flex justify-between gap-3"><div><h3 className="font-medium text-gray-900">{product.name}</h3><p className="text-sm text-gray-600">{normalizeProductCategory(product.category)}</p></div><ProductBadges product={product} /></div>
-                    <ProductActions product={product} onEdit={() => setEditingId(product.id)} onDelete={() => handleDelete(product)} onArchive={() => handleArchive(product)} onRestore={() => handleRestore(product)} disabled={isLoading} />
-                    {editingId === product.id && <div className="mt-4"><ProductForm initialData={formFromProduct(product)} idPrefix={`edit-${product.id}`} title="Upravit produkt" onSave={(data) => handleSave(product.id, data)} onCancel={() => setEditingId(null)} isLoading={isLoading} /></div>}
-                </div>)}
+            <div className="space-y-3">
+                {filteredProducts.map((product) => <article key={product.id} className={`overflow-hidden rounded-xl border bg-white shadow-sm transition-colors ${product.is_archived ? 'border-amber-300 bg-amber-50/40' : 'border-gray-200 hover:border-blue-200 hover:bg-blue-50/30'}`}>
+                    <div className="p-4 sm:p-5">
+                        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+                            <div className="min-w-0">
+                                <button type="button" onClick={() => setEditingId(editingId === product.id ? null : product.id)} className="flex items-center gap-2 text-left text-lg font-semibold text-gray-900 hover:text-blue-700"><span>{getCategoryIcon(product.category)}</span><span>{product.name}</span></button>
+                                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-600"><span>{normalizeProductCategory(product.category)}</span><ProductBadges product={product} /></div>
+                            </div>
+                            <div className="flex flex-wrap gap-2 lg:justify-end"><QuickToggle active={product.in_stock} disabled={isLoading || product.is_archived} onClick={() => toggleStock(product)}>Skladem</QuickToggle><QuickToggle active={product.is_new} disabled={isLoading || product.is_archived} onClick={() => updateQuickSetting(product, { is_new: !product.is_new })}>Novinka</QuickToggle><QuickToggle active={product.is_featured} disabled={isLoading || product.is_archived} onClick={() => updateQuickSetting(product, { is_featured: !product.is_featured })}>Akce</QuickToggle></div>
+                        </div>
+                        <div className="mt-4 grid gap-3 border-t border-gray-100 pt-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <ProductInfo label="Povolené objemy"><div className="flex flex-wrap gap-1.5">{formatAllowedVolumes(product).map((volume) => <span key={volume} className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-800">{volume}</span>)}</div></ProductInfo>
+                            <ProductInfo label="Minimální odběr"><span className="font-medium text-gray-900">{product.min_order_qty} ks</span></ProductInfo>
+                            <ProductInfo label="Priorita řazení"><span className="font-medium text-gray-900">{product.sort_priority}</span></ProductInfo>
+                        </div>
+                        <div className="mt-4 flex flex-wrap items-center justify-end gap-x-4 gap-y-2 border-t border-gray-100 pt-3"><ProductActions product={product} onEdit={() => setEditingId(editingId === product.id ? null : product.id)} onDelete={() => handleDelete(product)} onArchive={() => handleArchive(product)} onRestore={() => handleRestore(product)} disabled={isLoading} /></div>
+                    </div>
+                    {editingId === product.id && <div className="border-t border-blue-100 bg-blue-50 p-4 sm:p-5"><ProductForm initialData={formFromProduct(product)} idPrefix={`edit-${product.id}`} title={`Upravit: ${product.name}`} onSave={(data) => handleSave(product.id, data)} onCancel={() => setEditingId(null)} isLoading={isLoading} /></div>}
+                </article>)}
             </div>
-
-            <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden"><table className="min-w-full divide-y divide-gray-200"><thead className="bg-gray-50"><tr><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Název</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategorie</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stav</th><th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Akce</th></tr></thead><tbody className="divide-y divide-gray-200">{filteredProducts.map((product) => <React.Fragment key={product.id}><tr className={product.is_archived ? 'bg-amber-50' : 'hover:bg-gray-50'}><td className="px-4 py-4 text-sm font-medium text-gray-900">{product.name}</td><td className="px-4 py-4 text-sm text-gray-700">{normalizeProductCategory(product.category)}</td><td className="px-4 py-4"><ProductBadges product={product} onToggleStock={() => toggleStock(product)} disabled={isLoading} /></td><td className="px-4 py-4"><ProductActions product={product} onEdit={() => setEditingId(product.id)} onDelete={() => handleDelete(product)} onArchive={() => handleArchive(product)} onRestore={() => handleRestore(product)} disabled={isLoading} /></td></tr>{editingId === product.id && <tr><td colSpan={4} className="p-4 bg-blue-50"><ProductForm initialData={formFromProduct(product)} idPrefix={`edit-${product.id}`} title="Upravit produkt" onSave={(data) => handleSave(product.id, data)} onCancel={() => setEditingId(null)} isLoading={isLoading} /></td></tr>}</React.Fragment>)}</tbody></table></div>
             {!filteredProducts.length && <div className="text-center py-10 text-gray-600">Nenalezeny žádné produkty.</div>}
         </div>
     );
 };
 
-function ProductBadges({ product, onToggleStock, disabled }: { product: Product; onToggleStock?: () => void; disabled?: boolean }) {
-    return <div className="flex flex-wrap gap-1.5 items-center"><span className={`px-2 py-1 text-xs font-semibold rounded-full ${product.is_archived ? 'bg-amber-100 text-amber-900' : product.in_stock ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>{product.is_archived ? 'Archivováno' : product.in_stock ? 'Skladem' : 'Není skladem'}</span>{product.is_new && <span className="px-2 py-1 text-xs font-semibold rounded-full bg-violet-100 text-violet-800">Novinka</span>}{product.is_featured && <span className="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">Akce</span>}{onToggleStock && !product.is_archived && <button onClick={onToggleStock} disabled={disabled} className="text-xs text-blue-700 hover:underline disabled:opacity-50">Změnit sklad</button>}</div>;
+function FilterButton({ active, onClick, icon, children }: { active: boolean; onClick: () => void; icon?: React.ReactNode; children: React.ReactNode }) {
+    return <button type="button" onClick={onClick} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium ${active ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}>{icon}{children}</button>;
+}
+
+function QuickToggle({ active, onClick, disabled, children }: { active: boolean; onClick: () => void; disabled: boolean; children: React.ReactNode }) {
+    return <button type="button" aria-pressed={active} onClick={onClick} disabled={disabled} className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${active ? 'border-blue-400 bg-blue-50 text-blue-800' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-300'}`}>{children}</button>;
+}
+
+function ProductInfo({ label, children }: { label: string; children: React.ReactNode }) {
+    return <div><div className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</div>{children}</div>;
+}
+
+function ProductBadges({ product }: { product: Product }) {
+    return <div className="flex flex-wrap gap-1.5 items-center"><span className={`px-2 py-1 text-xs font-semibold rounded-full ${product.is_archived ? 'bg-amber-100 text-amber-900' : product.in_stock ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>{product.is_archived ? 'Archivováno' : product.in_stock ? 'Skladem' : 'Není skladem'}</span>{product.is_new && <span className="px-2 py-1 text-xs font-semibold rounded-full bg-violet-100 text-violet-800">Novinka</span>}{product.is_featured && <span className="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">Akce</span>}</div>;
 }
 
 function ProductActions({ product, onEdit, onDelete, onArchive, onRestore, disabled }: { product: Product; onEdit: () => void; onDelete: () => void; onArchive: () => void; onRestore: () => void; disabled: boolean }) {
-    if (product.is_archived) return <div className="mt-3 flex justify-end"><button onClick={onRestore} disabled={disabled} className="inline-flex items-center gap-1 text-sm text-blue-700 hover:text-blue-900 disabled:opacity-50"><RotateCcw className="w-4 h-4" />Obnovit</button></div>;
-    return <div className="mt-3 flex justify-end gap-3"><button onClick={onEdit} disabled={disabled} className="inline-flex items-center gap-1 text-sm text-blue-700 hover:text-blue-900 disabled:opacity-50"><Edit2 className="w-4 h-4" />Upravit</button><button onClick={onArchive} disabled={disabled} className="inline-flex items-center gap-1 text-sm text-amber-700 hover:text-amber-900 disabled:opacity-50"><Archive className="w-4 h-4" />Archivovat</button><button onClick={onDelete} disabled={disabled} className="inline-flex items-center gap-1 text-sm text-red-700 hover:text-red-900 disabled:opacity-50"><Trash2 className="w-4 h-4" />Odstranit</button></div>;
+    if (product.is_archived) return <button type="button" onClick={onRestore} disabled={disabled} className="inline-flex items-center gap-1 text-sm text-blue-700 hover:text-blue-900 disabled:opacity-50"><RotateCcw className="w-4 h-4" />Obnovit</button>;
+    return <><button type="button" onClick={onEdit} disabled={disabled} className="inline-flex items-center gap-1 text-sm text-blue-700 hover:text-blue-900 disabled:opacity-50"><Edit2 className="w-4 h-4" />Upravit</button><button type="button" onClick={onArchive} disabled={disabled} className="inline-flex items-center gap-1 text-sm text-amber-700 hover:text-amber-900 disabled:opacity-50"><Archive className="w-4 h-4" />Archivovat</button><button type="button" onClick={onDelete} disabled={disabled} className="inline-flex items-center gap-1 text-sm text-red-700 hover:text-red-900 disabled:opacity-50"><Trash2 className="w-4 h-4" />Odstranit</button></>;
 }
 
 export default AdminProducts;
