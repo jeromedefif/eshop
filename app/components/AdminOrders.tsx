@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, X, RefreshCw, FileSpreadsheet, Calendar, Box, TestTube, MessageSquare } from 'lucide-react';
+import { Search, X, RefreshCw, FileSpreadsheet, Calendar, Box, TestTube, MessageSquare, LockKeyhole } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
@@ -55,6 +55,7 @@ export default function AdminOrders({
             order.customer_email.toLowerCase().includes(lowercaseQuery) ||
             (order.customer_company && order.customer_company.toLowerCase().includes(lowercaseQuery)) ||
             (order.note && order.note.toLowerCase().includes(lowercaseQuery)) ||
+            (order.internal_note?.note && order.internal_note.note.toLowerCase().includes(lowercaseQuery)) ||
             order.id.toLowerCase().includes(lowercaseQuery)
         );
 
@@ -298,7 +299,7 @@ export default function AdminOrders({
         const dateTime = formatDateTime(order.created_at);
 
         return (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+            <div className={`rounded-xl border border-slate-200 border-l-4 bg-white p-4 shadow-sm transition-shadow hover:shadow-md ${order.status === 'pending' ? 'border-l-amber-400' : 'border-l-transparent'}`}>
                 <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -338,7 +339,13 @@ export default function AdminOrders({
                 {order.note && order.note.trim() && (
                     <div className="mt-3 flex gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-600" title={order.note}>
                         <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                        <span className="line-clamp-2">{order.note}</span>
+                        <span><span className="font-semibold text-slate-700">Poznámka zákazníka:</span> {order.note}</span>
+                    </div>
+                )}
+                {order.internal_note?.note?.trim() && (
+                    <div className="mt-2 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950" title={order.internal_note.note}>
+                        <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                        <span><span className="font-semibold">Interní:</span> {order.internal_note.note}</span>
                     </div>
                 )}
             </div>
@@ -521,7 +528,9 @@ export default function AdminOrders({
                                 filteredOrders.map((order) => {
                                     const dateTime = formatDateTime(order.created_at);
                                     const hasNote = Boolean(order.note && order.note.trim());
+                                    const hasInternalNote = Boolean(order.internal_note?.note && order.internal_note.note.trim());
                                     const isHovered = hoveredOrderId === order.id;
+                                    const pendingAccent = order.status === 'pending' ? 'border-l-4 border-l-amber-400' : 'border-l-4 border-l-transparent';
                                     return (
                                         <React.Fragment key={order.id}>
                                             <tr
@@ -530,7 +539,7 @@ export default function AdminOrders({
                                                 onMouseLeave={() => setHoveredOrderId(null)}
                                             >
                                                 {isSelectionMode && (
-                                                    <td className="px-4 py-4 align-top">
+                                                    <td className={`px-4 py-4 align-top ${pendingAccent}`}>
                                                         <input
                                                             type="checkbox"
                                                             checked={selectedOrderIds.has(order.id)}
@@ -539,7 +548,7 @@ export default function AdminOrders({
                                                         />
                                                     </td>
                                                 )}
-                                                <td className="whitespace-nowrap px-5 py-4 align-top">
+                                                <td className={`whitespace-nowrap px-5 py-4 align-top ${isSelectionMode ? '' : pendingAccent}`}>
                                                     <button
                                                         onClick={() => handleViewOrderDetail(order.id)}
                                                         className={`inline-flex cursor-pointer rounded-full px-2.5 py-1 text-xs font-semibold leading-5 transition-opacity hover:opacity-80 ${getStatusColor(order.status)}`}
@@ -589,6 +598,23 @@ export default function AdminOrders({
                                                             <span className="min-w-0">
                                                                 <span className="mr-1 font-semibold text-slate-800">Poznámka zákazníka:</span>
                                                                 {order.note}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                            {hasInternalNote && (
+                                                <tr
+                                                    className={`transition-colors ${isHovered ? 'bg-blue-50/60' : 'hover:bg-slate-50/80'}`}
+                                                    onMouseEnter={() => setHoveredOrderId(order.id)}
+                                                    onMouseLeave={() => setHoveredOrderId(null)}
+                                                >
+                                                    <td colSpan={isSelectionMode ? 6 : 5} className="px-5 pb-4 pt-0 text-sm text-amber-950">
+                                                        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5" title={order.internal_note?.note || ''}>
+                                                            <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                                                            <span className="min-w-0">
+                                                                <span className="mr-1 font-semibold">Interní:</span>
+                                                                {order.internal_note?.note}
                                                             </span>
                                                         </div>
                                                     </td>

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
-import { ArrowLeft, CheckCircle, AlertCircle, Loader2, Trash2, Grape, Martini, Wine, FlaskConical, Package, Sparkles, Amphora } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertCircle, Loader2, Trash2, Grape, Martini, Wine, FlaskConical, Package, Sparkles, Amphora, Copy, MessageSquare, LockKeyhole, Mail, Phone, Building2, CalendarDays } from 'lucide-react';
 import Link from 'next/link';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
 import { toast } from 'react-toastify';
@@ -22,6 +22,7 @@ const OrderDetailPage = () => {
     const [updateMessage, setUpdateMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [internalNote, setInternalNote] = useState('');
+    const [savedInternalNote, setSavedInternalNote] = useState('');
     const [isLoadingInternalNote, setIsLoadingInternalNote] = useState(true);
     const [isSavingInternalNote, setIsSavingInternalNote] = useState(false);
 
@@ -61,7 +62,9 @@ const OrderDetailPage = () => {
                 const response = await fetch(`/api/orders/${orderId}/internal-note`, { cache: 'no-store' });
                 if (!response.ok) throw new Error('Nepodařilo se načíst interní poznámku');
                 const data = await response.json();
-                setInternalNote(data.note || '');
+                const note = data.note || '';
+                setInternalNote(note);
+                setSavedInternalNote(note);
             } catch (error) {
                 console.error('Error fetching internal order note:', error);
                 toast.error('Nepodařilo se načíst interní poznámku');
@@ -73,25 +76,44 @@ const OrderDetailPage = () => {
         fetchInternalNote();
     }, [orderId]);
 
-    const handleSaveInternalNote = async () => {
+    const persistInternalNote = async (noteValue: string) => {
         setIsSavingInternalNote(true);
         try {
             const response = await fetch(`/api/orders/${orderId}/internal-note`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ note: internalNote }),
+                body: JSON.stringify({ note: noteValue }),
             });
 
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Nepodařilo se uložit interní poznámku');
 
-            setInternalNote(data.note || '');
+            const savedNote = data.note || '';
+            setInternalNote(savedNote);
+            setSavedInternalNote(savedNote);
             toast.success(data.note ? 'Interní poznámka byla uložena' : 'Interní poznámka byla odstraněna');
         } catch (error) {
             console.error('Error saving internal order note:', error);
             toast.error(error instanceof Error ? error.message : 'Nepodařilo se uložit interní poznámku');
         } finally {
             setIsSavingInternalNote(false);
+        }
+    };
+
+    const handleSaveInternalNote = () => persistInternalNote(internalNote);
+
+    const handleDeleteInternalNote = async () => {
+        if (!savedInternalNote || !window.confirm('Opravdu chcete interní poznámku odstranit?')) return;
+        await persistInternalNote('');
+    };
+
+    const handleCopyOrderId = async () => {
+        try {
+            await navigator.clipboard.writeText(orderId);
+            toast.success('ID objednávky bylo zkopírováno');
+        } catch (error) {
+            console.error('Error copying order ID:', error);
+            toast.error('ID objednávky se nepodařilo zkopírovat');
         }
     };
 
@@ -379,27 +401,26 @@ const OrderDetailPage = () => {
         );
     }
 
+    const isInternalNoteDirty = internalNote.trim() !== savedInternalNote.trim();
+    const shortOrderId = order.id.slice(0, 8).toUpperCase();
+
     return (
-        <div className="max-w-4xl mx-auto p-6">
-            <div className="flex items-center mb-6">
+        <div className="w-full">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <Link
                     href="/admin/orders"
-                    className="inline-flex items-center text-blue-600 hover:text-blue-800"
+                    className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
                 >
                     <ArrowLeft className="mr-2 h-4 w-4" /> Zpět na seznam objednávek
                 </Link>
+                <h1 className="text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">Detail objednávky</h1>
             </div>
 
-            <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                <div className="p-6">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-6">
-                        Detail objednávky - {order.customer_name}
-                        {order.customer_company ? `, ${order.customer_company}` : ''}
-                    </h1>
-
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                <div className="p-4 sm:p-5">
                     {/* Zobrazení zprávy o aktualizaci */}
                     {updateMessage && (
-                        <div className={`mb-4 p-3 rounded-lg flex items-center ${
+                        <div className={`mb-4 flex items-center rounded-lg p-3 ${
                             updateMessage.type === 'success'
                                 ? 'bg-green-50 text-green-800'
                                 : 'bg-red-50 text-red-800'
@@ -412,100 +433,74 @@ const OrderDetailPage = () => {
                         </div>
                     )}
 
-                    {/* Základní informace */}
-                    <div className="mb-6">
-                        <h2 className="text-xl font-bold text-gray-900 mb-3">Základní informace</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-                            <div>
-                                <p className="text-sm text-gray-600">ID objednávky</p>
-                                <p className="font-medium text-gray-900">{order.id}</p>
+                    {/* Kompaktní souhrn a kontakt zákazníka */}
+                    <div className="mb-4 grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 lg:grid-cols-[minmax(260px,1.25fr)_minmax(220px,1fr)_minmax(260px,1fr)]">
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                                <p className="truncate text-lg font-bold text-slate-950">{order.customer_name}</p>
+                                {order.customer_company && <Building2 className="h-4 w-4 shrink-0 text-slate-400" />}
                             </div>
-                            <div>
-                                <p className="text-sm text-gray-600">Datum vytvoření</p>
-                                <p className="font-medium text-gray-900">
-                                    {format(new Date(order.created_at), 'PPP', { locale: cs })}
-                                </p>
+                            {order.customer_company && <p className="truncate text-sm font-medium text-slate-600">{order.customer_company}</p>}
+                            <div className="mt-2 flex flex-col gap-1 text-sm">
+                                <a href={`mailto:${order.customer_email}`} className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-700 hover:underline">
+                                    <Mail className="h-4 w-4 shrink-0 text-slate-400" /> {order.customer_email}
+                                </a>
+                                {order.customer_phone && (
+                                    <a href={`tel:${order.customer_phone}`} className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-700 hover:underline">
+                                        <Phone className="h-4 w-4 shrink-0 text-slate-400" /> {order.customer_phone}
+                                    </a>
+                                )}
                             </div>
-                            <div>
-                                <p className="text-sm text-gray-600">Stav</p>
-                                <div className="flex items-center space-x-2">
-                                    <span className={`px-2 py-1 inline-flex text-sm font-semibold rounded-full ${
-                                        getStatusColor(status)
-                                    }`}>
-                                        {getStatusText(status)}
-                                    </span>
+                        </div>
 
-                                    {/* Přidání výběru stavu */}
-                                    <div className="relative ml-2">
-                                        <select
-                                            value={status}
-                                            onChange={(e) => handleStatusChange(e.target.value)}
-                                            className="px-3 py-1.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white text-gray-900 appearance-none pl-3 pr-10"
-                                            disabled={isUpdating}
-                                        >
-                                            <option value="pending">Čeká na potvrzení</option>
-                                            <option value="confirmed">Potvrzeno</option>
-                                            <option value="cancelled">Zrušeno</option>
-                                        </select>
-                                        <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                                            </svg>
-                                        </div>
-                                    </div>
+                        <div className="border-t border-slate-200 pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
+                            <div className="flex items-center gap-2 text-sm text-slate-500">
+                                <CalendarDays className="h-4 w-4" /> Datum vytvoření
+                            </div>
+                            <p className="mt-1 font-semibold text-slate-900">{format(new Date(order.created_at), 'PPP', { locale: cs })}</p>
+                            <button type="button" onClick={handleCopyOrderId} className="mt-2 inline-flex items-center gap-2 rounded-md bg-white px-2.5 py-1.5 font-mono text-xs font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100" title={order.id}>
+                                #{shortOrderId} <Copy className="h-3.5 w-3.5" />
+                            </button>
+                        </div>
 
-                                    {isUpdating && (
-                                        <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
-                                    )}
+                        <div className="border-t border-slate-200 pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
+                            <div className="flex items-end justify-between gap-3">
+                                <div>
+                                    <p className="text-sm text-slate-500">Celkový objem</p>
+                                    <p className="text-2xl font-bold text-blue-700">{order.total_volume} L</p>
                                 </div>
+                                {isUpdating && <Loader2 className="h-5 w-5 animate-spin text-blue-600" />}
                             </div>
-                            <div>
-                                <p className="text-sm text-gray-600">Celkový objem</p>
-                                <p className="font-medium text-gray-900">{order.total_volume}L</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Poznámka zákazníka */}
-                    <div className="mb-6">
-                        <h2 className="text-xl font-bold text-gray-900 mb-3">Poznámka zákazníka</h2>
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                            <p className="text-gray-900 whitespace-pre-wrap">{order.note?.trim() ? order.note : 'Bez poznámky'}</p>
-                        </div>
-                    </div>
-
-                    {/* Interní poznámka je určená výhradně pro administraci. */}
-                    <div className="mb-6">
-                        <h2 className="text-xl font-bold text-gray-900 mb-3">Interní poznámka administrace</h2>
-                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                            <p className="mb-3 text-sm text-amber-900">Tato poznámka se nezobrazuje zákazníkovi ani se neposílá e-mailem.</p>
-                            <textarea
-                                value={internalNote}
-                                onChange={(event) => setInternalNote(event.target.value)}
-                                disabled={isLoadingInternalNote || isSavingInternalNote}
-                                maxLength={5000}
-                                rows={4}
-                                placeholder="Např. volat před závozem, připravit PET, čeká na platbu..."
-                                className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200 disabled:cursor-not-allowed disabled:bg-gray-100"
-                            />
-                            <div className="mt-3 flex items-center justify-between gap-3">
-                                <span className="text-xs text-amber-900">{internalNote.length}/5000</span>
-                                <button
-                                    type="button"
-                                    onClick={handleSaveInternalNote}
-                                    disabled={isLoadingInternalNote || isSavingInternalNote}
-                                    className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:bg-amber-300"
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(status)}`}>{getStatusText(status)}</span>
+                                <select
+                                    value={status}
+                                    onChange={(e) => handleStatusChange(e.target.value)}
+                                    className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                    disabled={isUpdating}
                                 >
-                                    {isSavingInternalNote ? 'Ukládám...' : 'Uložit interní poznámku'}
-                                </button>
+                                    <option value="pending">Čeká na potvrzení</option>
+                                    <option value="confirmed">Potvrzeno</option>
+                                    <option value="cancelled">Zrušeno</option>
+                                </select>
                             </div>
                         </div>
                     </div>
+
+                    {order.note?.trim() && (
+                        <div className="mb-4 flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
+                            <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                            <p className="whitespace-pre-wrap"><span className="font-semibold text-slate-900">Poznámka zákazníka:</span> {order.note}</p>
+                        </div>
+                    )}
 
                     {/* Položky objednávky */}
-                    <div className="mb-6">
-                        <h2 className="text-xl font-bold text-gray-900 mb-3">Položky objednávky</h2>
-                        <div className="border rounded-lg p-4 space-y-4">
+                    <div className="mb-4">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                            <h2 className="text-lg font-bold text-slate-950">Položky objednávky</h2>
+                            <span className="text-sm text-slate-500">{order.order_items?.length || 0} položek</span>
+                        </div>
+                        <div className="space-y-3 rounded-xl border border-slate-200 p-3">
                             {groupedItems.map(({ category, items }) => {
                                 const meta = categoryMeta[category] || {
                                     icon: Package,
@@ -519,18 +514,18 @@ const OrderDetailPage = () => {
                                 }, 0);
 
                                 return (
-                                    <div key={category} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
-                                        <div className={`rounded-md px-3 py-2 mb-2 font-semibold flex items-center gap-2 ${meta.headerClass}`}>
+                                    <div key={category} className="border-b border-slate-100 pb-3 last:border-b-0 last:pb-0">
+                                        <div className={`mb-1.5 flex items-center gap-2 rounded-md px-3 py-1.5 font-semibold ${meta.headerClass}`}>
                                             <Icon className="w-4 h-4" />
                                             <span>{category}</span>
                                             <span className="opacity-80 text-sm">({items.length})</span>
                                         </div>
 
-                                        <div className="space-y-2">
+                                        <div className="space-y-1">
                                             {items.map((item) => (
                                                 <div
                                                     key={item.id}
-                                                    className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg transition-colors hover:bg-blue-50"
+                                                    className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-blue-50"
                                                 >
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <span className={`px-2 py-0.5 text-sm font-semibold rounded-md border ${meta.badgeClass}`}>
@@ -554,44 +549,61 @@ const OrderDetailPage = () => {
                         </div>
                     </div>
 
-                    {/* Informace o zákazníkovi */}
-                    <div className="mb-6">
-                        <h2 className="text-xl font-bold text-gray-900 mb-3">Informace o zákazníkovi</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-                            <div>
-                                <p className="text-sm text-gray-600">Jméno</p>
-                                <p className="font-medium text-gray-900">{order.customer_name}</p>
+                    {/* Interní poznámka je určená výhradně pro administraci. */}
+                    <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                <LockKeyhole className="h-4 w-4 text-amber-700" />
+                                <h2 className="font-bold text-amber-950">Interní poznámka</h2>
+                                {isInternalNoteDirty && <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">Neuloženo</span>}
                             </div>
-                            <div>
-                                <p className="text-sm text-gray-600">Email</p>
-                                <p className="font-medium text-gray-900">{order.customer_email}</p>
+                            <span className="text-xs text-amber-800">Zákazník ji nikdy neuvidí</span>
+                        </div>
+                        <textarea
+                            value={internalNote}
+                            onChange={(event) => setInternalNote(event.target.value)}
+                            disabled={isLoadingInternalNote || isSavingInternalNote}
+                            maxLength={5000}
+                            rows={3}
+                            placeholder="Např. volat před závozem, připravit PET, čeká na platbu..."
+                            className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200 disabled:cursor-not-allowed disabled:bg-slate-100"
+                        />
+                        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                            <span className="text-xs text-amber-900">{internalNote.length}/5000</span>
+                            <div className="flex items-center gap-2">
+                                {savedInternalNote && (
+                                    <button
+                                        type="button"
+                                        onClick={handleDeleteInternalNote}
+                                        disabled={isLoadingInternalNote || isSavingInternalNote}
+                                        className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        Odstranit poznámku
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={handleSaveInternalNote}
+                                    disabled={isLoadingInternalNote || isSavingInternalNote || !isInternalNoteDirty}
+                                    className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:bg-amber-300"
+                                >
+                                    {isSavingInternalNote ? 'Ukládám...' : 'Uložit interní poznámku'}
+                                </button>
                             </div>
-                            {order.customer_phone && (
-                                <div>
-                                    <p className="text-sm text-gray-600">Telefon</p>
-                                    <p className="font-medium text-gray-900">{order.customer_phone}</p>
-                                </div>
-                            )}
-                            {order.customer_company && (
-                                <div>
-                                    <p className="text-sm text-gray-600">Společnost</p>
-                                    <p className="font-medium text-gray-900">{order.customer_company}</p>
-                                </div>
-                            )}
                         </div>
                     </div>
 
                     {/* Tlačítko pro smazání objednávky */}
-                    <div className="border-t pt-6 mt-6">
+                    <div className="mt-5 border-t border-red-100 pt-4">
                         <button
                             onClick={() => setShowDeleteConfirm(true)}
-                            className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                            className="flex items-center rounded-lg bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700"
                             disabled={isDeleting}
                         >
                             <Trash2 className="w-4 h-4 mr-2" />
                             Smazat objednávku
                         </button>
-                        <p className="text-sm text-gray-500 mt-2">
+                        <p className="mt-2 text-sm text-slate-500">
                             Tato akce je nevratná a smaže objednávku včetně všech položek.
                         </p>
                     </div>

@@ -49,11 +49,45 @@ export default function OrdersPage() {
                 throw new Error(`API error: ${response.status}`);
             }
 
-            const data = await response.json();
+            const data: Order[] = await response.json();
             console.log(`Načteno ${data.length} objednávek pro období: ${period}`);
 
-            // Nastavíme objednávky
-            setOrders(data);
+            // Interní poznámky se načítají jedním zabezpečeným admin požadavkem,
+            // nikoliv samostatně pro každou objednávku.
+            let notesByOrderId = new Map<string, NonNullable<Order['internal_note']>>();
+            if (data.length > 0) {
+                try {
+                    const notesResponse = await fetch('/api/orders/internal-notes', {
+                        method: 'POST',
+                        cache: 'no-store',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Cache-Control': 'no-cache, no-store, must-revalidate'
+                        },
+                        body: JSON.stringify({ orderIds: data.map((order) => order.id) })
+                    });
+
+                    if (notesResponse.ok) {
+                        const notesData = await notesResponse.json();
+                        notesByOrderId = new Map(
+                            (notesData.notes || []).map((note: { order_id: string; note: string; updated_at: string | null }) => [
+                                note.order_id,
+                                { note: note.note, updated_at: note.updated_at }
+                            ])
+                        );
+                    } else {
+                        console.error('Nepodařilo se načíst interní poznámky:', notesResponse.status);
+                    }
+                } catch (notesError) {
+                    // Seznam objednávek zůstane použitelný i při dočasném problému poznámek.
+                    console.error('Chyba při načítání interních poznámek:', notesError);
+                }
+            }
+
+            setOrders(data.map((order) => ({
+                ...order,
+                internal_note: notesByOrderId.get(order.id) || null
+            })));
         } catch (error) {
             console.error('Chyba při načítání objednávek:', error);
         } finally {

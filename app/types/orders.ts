@@ -23,6 +23,10 @@ export interface Order {
     total_volume: string;
     status: 'pending' | 'confirmed' | 'completed';
     note: string | null;
+    internal_note?: {
+        note: string;
+        updated_at: string | null;
+    } | null;
     order_items: OrderItem[];
 }
 
