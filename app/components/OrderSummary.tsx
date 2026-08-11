@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Package, Wine, Grape, Martini, TestTube, Box, Trash2, Plus, Minus } from 'lucide-react';
+import { Package, Wine, Grape, Martini, TestTube, Box, Trash2, Plus, Minus, Sparkles, Amphora } from 'lucide-react';
 import type { Product } from '@/types/database';
 import { normalizeProductCategory } from '@/lib/product-config';
 
@@ -13,7 +13,7 @@ type OrderSummaryProps = {
     totalVolume: number;
 };
 
-const CATEGORY_ORDER = ['Nápoje', 'Víno', 'Ovocné víno', 'Plyny', 'PET', 'Lahve'];
+const CATEGORY_ORDER = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák', 'Plyny', 'PET'];
 
 const CATEGORY_THEME: Record<string, { icon: string; pill: string; volumeChip: string; label: string }> = {
     'Víno': {
@@ -22,11 +22,23 @@ const CATEGORY_THEME: Record<string, { icon: string; pill: string; volumeChip: s
         volumeChip: 'bg-purple-50 text-purple-800 border-purple-200',
         label: 'Víno'
     },
+    'Perlivé': {
+        icon: 'text-teal-700',
+        pill: 'bg-teal-50 text-teal-800',
+        volumeChip: 'bg-teal-50 text-teal-800 border-teal-200',
+        label: 'Perlivé'
+    },
     'Ovocné víno': {
         icon: 'text-rose-700',
         pill: 'bg-rose-50 text-rose-800',
         volumeChip: 'bg-rose-50 text-rose-800 border-rose-200',
         label: 'Ovocné víno'
+    },
+    'Burčák': {
+        icon: 'text-orange-700',
+        pill: 'bg-orange-50 text-orange-800',
+        volumeChip: 'bg-orange-50 text-orange-800 border-orange-200',
+        label: 'Burčák'
     },
     'Nápoje': {
         icon: 'text-blue-700',
@@ -51,12 +63,6 @@ const CATEGORY_THEME: Record<string, { icon: string; pill: string; volumeChip: s
         pill: 'bg-amber-50 text-amber-800',
         volumeChip: 'bg-amber-50 text-amber-800 border-amber-200',
         label: 'PET'
-    },
-    'Lahve': {
-        icon: 'text-slate-700',
-        pill: 'bg-slate-100 text-slate-800',
-        volumeChip: 'bg-slate-50 text-slate-800 border-slate-200',
-        label: 'Lahve'
     },
     'default': {
         icon: 'text-gray-600',
@@ -97,8 +103,12 @@ const OrderSummary = ({
         switch(category) {
             case 'Víno':
                 return <Grape className={`h-5 w-5 ${icon}`} />;
+            case 'Perlivé':
+                return <Sparkles className={`h-5 w-5 ${icon}`} />;
             case 'Ovocné víno':
                 return <Wine className={`h-5 w-5 ${icon}`} />;
+            case 'Burčák':
+                return <Amphora className={`h-5 w-5 ${icon}`} />;
             case 'Nápoje':
                 return <Martini className={`h-5 w-5 ${icon}`} />;
             case 'Dusík':
@@ -143,7 +153,7 @@ const OrderSummary = ({
 
     const getItemText = (product: Product, volume: string) => {
         const category = normalizeCategory(product.category);
-        if (category === 'PET' || category === 'Lahve') {
+        if (category === 'PET') {
             return 'balení';
         }
         if (category === 'Plyny') {

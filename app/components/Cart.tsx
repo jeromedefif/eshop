@@ -34,7 +34,7 @@ const Cart = ({
 
     const getItemDisplay = (product: Product, volume: string, count: number) => {
         const category = normalizeProductCategory(product.category);
-        if (category === 'PET' || category === 'Lahve') {
+        if (category === 'PET') {
             return {
                 volumeText: '1x balení',
                 totalText: `${count} balení`

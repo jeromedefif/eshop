@@ -14,7 +14,7 @@ type OrderItemWithProduct = {
 
 // Helper functions
 function formatVolume(volume: string | number, category: string): string {
-  if (category === 'PET' || category === 'Lahve') return 'balení';
+  if (category === 'PET') return 'balení';
   if (category === 'Dusík' || category === 'Plyny') return volume === 'maly' ? 'malý' : 'velký';
   return `${volume}L`;
 }
@@ -25,7 +25,7 @@ function normalizeCategory(category: string): string {
 }
 
 function categoryRank(category: string): number {
-  const order = ['Nápoje', 'Víno', 'Ovocné víno', 'Plyny', 'PET', 'Lahve'];
+  const order = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák', 'Plyny', 'PET'];
   const idx = order.indexOf(category);
   return idx === -1 ? 999 : idx;
 }

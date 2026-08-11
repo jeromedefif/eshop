@@ -51,7 +51,7 @@ function VolumeSelector({ formData, setFormData, idPrefix, disabled }: {
 
     const label = normalizeProductCategory(formData.category) === 'Plyny'
         ? 'Povolené velikosti lahve'
-        : normalizeProductCategory(formData.category) === 'PET' || normalizeProductCategory(formData.category) === 'Lahve'
+        : normalizeProductCategory(formData.category) === 'PET'
             ? 'Dostupné balení'
             : 'Povolené objemy';
 

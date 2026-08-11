@@ -1,8 +1,8 @@
 import type { Product } from '@/types/database';
 
-export const PRODUCT_CATEGORIES = ['Nápoje', 'Víno', 'Ovocné víno', 'Plyny', 'PET', 'Lahve'] as const;
+export const PRODUCT_CATEGORIES = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák', 'Plyny', 'PET'] as const;
 
-export const CATEGORY_ORDER = ['Nápoje', 'Víno', 'Ovocné víno', 'Plyny', 'PET', 'Lahve'];
+export const CATEGORY_ORDER = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák', 'Plyny', 'PET'];
 
 export const LITER_VOLUMES = ['3', '5', '10', '20', '30', '50'];
 export const GAS_VOLUMES = ['maly', 'velky'];
@@ -15,13 +15,14 @@ export function normalizeProductCategory(category: string): string {
 export function getDefaultAllowedVolumes(category: string): string[] {
     switch (normalizeProductCategory(category)) {
         case 'Víno':
+        case 'Perlivé':
         case 'Nápoje':
         case 'Ovocné víno':
+        case 'Burčák':
             return LITER_VOLUMES;
         case 'Plyny':
             return GAS_VOLUMES;
         case 'PET':
-        case 'Lahve':
             return PACKAGE_VOLUMES;
         default:
             return [];

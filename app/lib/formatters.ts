@@ -6,7 +6,7 @@ export const formatOrderDisplay = (item: OrderItem) => {
     const { quantity, volume } = item;
 
     const normalizedCategory = normalizeProductCategory(category);
-    if (normalizedCategory === 'PET' || normalizedCategory === 'Lahve') {
+    if (normalizedCategory === 'PET') {
         return `${quantity}x, balení`;
     }
     if (normalizedCategory === 'Plyny') {

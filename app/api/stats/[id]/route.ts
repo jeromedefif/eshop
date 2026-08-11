@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-const LITER_CATEGORIES = ['Víno', 'Nápoje', 'Ovocné víno', 'Ovocné'];
+const LITER_CATEGORIES = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák', 'Ovocné'];
 
 type Period = 'week' | 'month' | 'year' | 'all';
 

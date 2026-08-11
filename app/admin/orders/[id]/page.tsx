@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
-import { ArrowLeft, CheckCircle, AlertCircle, Loader2, Trash2, Grape, Martini, Wine, FlaskConical, Package } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertCircle, Loader2, Trash2, Grape, Martini, Wine, FlaskConical, Package, Sparkles, Amphora } from 'lucide-react';
 import Link from 'next/link';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
 import { toast } from 'react-toastify';
@@ -170,7 +170,7 @@ const OrderDetailPage = () => {
         return category;
     };
 
-    const categoryOrder = ['Nápoje', 'Víno', 'Ovocné víno', 'Plyny', 'PET', 'Lahve'];
+    const categoryOrder = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák', 'Plyny', 'PET'];
 
     const categoryMeta: Record<string, {
         icon: React.ComponentType<{ className?: string }>;
@@ -182,6 +182,11 @@ const OrderDetailPage = () => {
             headerClass: 'bg-purple-50 text-purple-700',
             badgeClass: 'bg-purple-50 text-purple-700 border-purple-200'
         },
+        'Perlivé': {
+            icon: Sparkles,
+            headerClass: 'bg-teal-50 text-teal-700',
+            badgeClass: 'bg-teal-50 text-teal-700 border-teal-200'
+        },
         'Nápoje': {
             icon: Martini,
             headerClass: 'bg-blue-50 text-blue-700',
@@ -191,6 +196,11 @@ const OrderDetailPage = () => {
             icon: Wine,
             headerClass: 'bg-rose-50 text-rose-700',
             badgeClass: 'bg-rose-50 text-rose-700 border-rose-200'
+        },
+        'Burčák': {
+            icon: Amphora,
+            headerClass: 'bg-orange-50 text-orange-700',
+            badgeClass: 'bg-orange-50 text-orange-700 border-orange-200'
         },
         'Plyny': {
             icon: FlaskConical,

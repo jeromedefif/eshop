@@ -46,7 +46,7 @@ const OrderForm = ({
           if (!product) return null;
 
           const category = normalizeProductCategory(product.category);
-          const display = category === 'PET' || category === 'Lahve'
+          const display = category === 'PET'
               ? `${quantity}× balení`
               : category === 'Plyny'
                   ? `${quantity}× ${volume === 'maly' ? 'malý' : 'velký'}`

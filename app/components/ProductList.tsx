@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import Script from 'next/script';
-import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, Layout, LayoutList } from 'lucide-react';
+import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, Layout, LayoutList, Sparkles, Amphora } from 'lucide-react';
 import { Product } from '@/types/database';
-import { getAllowedVolumes, normalizeProductCategory, sortCatalogProducts } from '@/lib/product-config';
+import { CATEGORY_ORDER, getAllowedVolumes, normalizeProductCategory, sortCatalogProducts } from '@/lib/product-config';
 
 type ProductListProps = {
     onAddToCart: (productId: string | number, volume: string | number) => void;
@@ -15,21 +15,23 @@ type ProductListProps = {
 const categoryColors = {
     "Všechny": "text-gray-700",
     "Víno": "text-purple-700",
+    "Perlivé": "text-teal-700",
     "Nápoje": "text-blue-700",
     "Ovocné víno": "text-rose-700",
+    "Burčák": "text-orange-700",
     "Plyny": "text-cyan-700",
-    "PET": "text-amber-700",
-    "Lahve": "text-slate-700"
+    "PET": "text-amber-700"
 };
 
 const categoryButtons = [
     { id: 'Všechny', icon: <ListFilter className="h-5 w-5" />, label: 'Vše' },
     { id: 'Víno', icon: <Grape className="h-5 w-5" />, label: 'Víno' },
+    { id: 'Perlivé', icon: <Sparkles className="h-5 w-5" />, label: 'Perlivé' },
     { id: 'Nápoje', icon: <Martini className="h-5 w-5" />, label: 'Nápoje' },
     { id: 'Ovocné víno', icon: <Wine className="h-5 w-5" />, label: 'Ovocné' },
+    { id: 'Burčák', icon: <Amphora className="h-5 w-5" />, label: 'Burčák' },
     { id: 'Plyny', icon: <TestTube className="h-5 w-5" />, label: 'Plyny' },
-    { id: 'PET', icon: <Box className="h-5 w-5" />, label: 'PET' },
-    { id: 'Lahve', icon: <Package className="h-5 w-5" />, label: 'Lahve' }
+    { id: 'PET', icon: <Box className="h-5 w-5" />, label: 'PET' }
 ];
 
 const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: ProductListProps) => {
@@ -95,16 +97,18 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
         switch(normalizedCategory) {
             case 'Víno':
                 return <Grape className={`h-5 w-5 ${color}`} />;
+            case 'Perlivé':
+                return <Sparkles className={`h-5 w-5 ${color}`} />;
             case 'Ovocné víno':
                 return <Wine className={`h-5 w-5 ${color}`} />;
+            case 'Burčák':
+                return <Amphora className={`h-5 w-5 ${color}`} />;
             case 'Nápoje':
                 return <Martini className={`h-5 w-5 ${color}`} />;
             case 'Plyny':
                 return <TestTube className={`h-5 w-5 ${color}`} />;
             case 'PET':
                 return <Box className={`h-5 w-5 ${color}`} />;
-            case 'Lahve':
-                return <Package className={`h-5 w-5 ${color}`} />;
             default:
                 return <Package className={`h-5 w-5 ${color}`} />;
         }
@@ -140,6 +144,14 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
             acc[category].push(product);
             return acc;
         }, {} as Record<string, Product[]>) : null;
+
+    const groupedProductEntries = groupedProducts
+        ? Object.entries(groupedProducts).sort(([categoryA], [categoryB]) => {
+            const indexA = CATEGORY_ORDER.indexOf(categoryA);
+            const indexB = CATEGORY_ORDER.indexOf(categoryB);
+            return (indexA === -1 ? Number.MAX_SAFE_INTEGER : indexA) - (indexB === -1 ? Number.MAX_SAFE_INTEGER : indexB);
+        })
+        : [];
 
     // Komponenta pro tlačítko objemu - používá se jak v kartě, tak v seznamu
     const VolumeButton = ({ product, volume, label }: { product: Product, volume: string | number, label: string }) => {
@@ -496,7 +508,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                     </div>
                 ) : isGrouped ? (
                     // Seskupené zobrazení karet podle kategorií
-                    Object.entries(groupedProducts!).map(([category, categoryProducts]) => (
+                    groupedProductEntries.map(([category, categoryProducts]) => (
                         <div key={category} className="mb-4">
                             <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2 px-1 py-2">
                                 {getProductIcon(category)}
@@ -544,7 +556,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                 ) : isGrouped ? (
                     // Seskupené zobrazení podle kategorií
                     <div className="space-y-4 bg-white rounded-lg border">
-                        {Object.entries(groupedProducts!).map(([category, categoryProducts]) => (
+                        {groupedProductEntries.map(([category, categoryProducts]) => (
                             <div key={category} className="border-t first:border-t-0">
                                 <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2 px-3 py-2">
                                     {getProductIcon(category)}
