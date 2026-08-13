@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import Script from 'next/script';
+import Link from 'next/link';
 import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, Layout, LayoutList, Sparkles, Amphora } from 'lucide-react';
 import { Product } from '@/types/database';
 import { CATEGORY_ORDER, getAllowedVolumes, normalizeProductCategory, sortCatalogProducts } from '@/lib/product-config';
+import { getProductPath } from '@/lib/product-slug';
 
 type ProductListProps = {
     onAddToCart: (productId: string | number, volume: string | number) => void;
@@ -206,7 +208,11 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                            <h3 className="font-medium text-gray-900">{product.name}</h3>
+                            <h3 className="font-medium text-gray-900">
+                                <Link href={getProductPath(product)} className="hover:text-blue-700 hover:underline">
+                                    {product.name}
+                                </Link>
+                            </h3>
                             <span className={`px-1.5 py-0.5 rounded-full text-[11px] leading-none font-medium shrink-0 ${
                                 product.in_stock
                                     ? 'bg-green-100 text-green-800'
@@ -245,7 +251,11 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                     </div>
 
                     <div className="flex-grow min-w-0 flex items-center gap-2">
-                        <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
+                        <h3 className="font-medium text-gray-900 truncate">
+                            <Link href={getProductPath(product)} className="hover:text-blue-700 hover:underline">
+                                {product.name}
+                            </Link>
+                        </h3>
                         <span className={`px-1.5 py-0.5 rounded-full text-[11px] leading-none font-medium shrink-0 ${
                             product.in_stock
                                 ? 'bg-green-100 text-green-800'

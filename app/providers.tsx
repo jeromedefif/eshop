@@ -2,16 +2,24 @@
 
 import { AuthProvider } from "./contexts/AuthContext"
 import { CartProvider } from "./page"
-import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 
 export default function Providers({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     setIsLoading(false)
   }, [])
+
+  // Veřejné produktové stránky jsou samostatné SEO stránky. Nepotřebují
+  // autentizaci ani košík, takže při jejich návštěvě nevytváříme Supabase dotazy.
+  if (pathname.startsWith('/produkty/')) {
+    return children
+  }
 
   if (isLoading) {
     return (

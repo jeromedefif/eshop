@@ -1,4 +1,5 @@
 import localFont from "next/font/local";
+import type { Metadata } from 'next';
 import Providers from './providers'
 import "./globals.css";
 
@@ -14,16 +15,25 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
-export const metadata = {
-  metadataBase: new URL('https://beginy.cz'),
-  title: "VINARIA s.r.o.",
-  description: "VINARIA, objednávky, B2B",
+export const metadata: Metadata = {
+  metadataBase: new URL('https://www.beginy.cz'),
+  title: {
+    default: 'Velkoobchodní katalog vín a nápojů | Beginy.cz',
+    template: '%s | Beginy.cz'
+  },
+  description: 'B2B objednávkový katalog vín, nápojů a vinařských potřeb společnosti VINARIA s.r.o.',
   alternates: {
     canonical: '/',
   },
   openGraph: {
+    title: 'Velkoobchodní katalog vín a nápojů | Beginy.cz',
+    description: 'B2B objednávkový katalog společnosti VINARIA s.r.o.',
+    url: '/',
+    siteName: 'Beginy.cz',
+    type: 'website',
     locale: 'cs_CZ',
-  }
+  },
+  robots: { index: true, follow: true }
 };
 
 export default function RootLayout({

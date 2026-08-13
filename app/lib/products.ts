@@ -13,6 +13,19 @@ export type DeleteProductResult = {
     message: string;
 };
 
+async function refreshPublicProductPages(): Promise<void> {
+    try {
+        const response = await fetch('/api/products/revalidate', { method: 'POST' });
+        if (!response.ok) {
+            console.warn('Public product cache revalidation failed:', response.status);
+        }
+    } catch (error) {
+        // Uložení produktu už proběhlo. Dočasný problém s cache nesmí uživateli
+        // nahlásit, že se produkt neuložil; nejpozději do hodiny se obnoví sám.
+        console.warn('Public product cache revalidation failed:', error);
+    }
+}
+
 export async function fetchProducts(includeArchived = false): Promise<Product[]> {
     let query = supabase
         .from('products')
@@ -55,6 +68,8 @@ export async function createProduct(product: CreateProductInput): Promise<Produc
         throw new ProductError('Nepodařilo se vytvořit produkt - žádná data');
     }
 
+    await refreshPublicProductPages();
+
     return {
         ...data,
         id: data.id.toString()
@@ -78,6 +93,8 @@ export async function updateProduct(id: string, updates: UpdateProductInput): Pr
         throw new ProductError('Nepodařilo se aktualizovat produkt - žádná data');
     }
 
+    await refreshPublicProductPages();
+
     return {
         ...data,
         id: data.id.toString()
@@ -91,6 +108,7 @@ export async function deleteProduct(id: string): Promise<DeleteProductResult> {
         .eq('id', id);
 
     if (!error) {
+        await refreshPublicProductPages();
         return {
             mode: 'deleted',
             message: 'Produkt byl smazán'
@@ -112,6 +130,8 @@ export async function deleteProduct(id: string): Promise<DeleteProductResult> {
             console.error('Error archiving product after FK constraint:', archiveError);
             throw new ProductError('Produkt je použit v objednávkách a nepodařilo se jej archivovat');
         }
+
+        await refreshPublicProductPages();
 
         return {
             mode: 'archived',
