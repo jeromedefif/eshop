@@ -6,6 +6,7 @@
   "dev": "next dev",
   "build": "prisma generate && NODE_OPTIONS=\"--max_old_space_size=4096\" next build",
   "start": "next start",
+  "smoke:routes": "node scripts/smoke-routes.mjs",
   "lint": "next lint",
   "clean": "rm -rf .next && rm -rf node_modules/.cache"
  },

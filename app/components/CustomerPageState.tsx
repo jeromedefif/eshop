@@ -2,8 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
-import Header from '@/components/Header';
-import SiteFooter from '@/components/SiteFooter';
+import CustomerPageShell from '@/components/CustomerPageShell';
 
 type CustomerPageStateProps = {
     title: string;
@@ -19,9 +18,7 @@ export default function CustomerPageState({
     loading = false
 }: CustomerPageStateProps) {
     return (
-        <div className="flex min-h-screen flex-col bg-slate-50">
-            <Header />
-            <main className="flex flex-1 items-start px-4 py-8 sm:py-12">
+        <CustomerPageShell width="3xl" mainClassName="flex items-start">
                 <div className="mx-auto w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-8">
                     {loading && (
                         <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin text-blue-600" aria-hidden="true" />
@@ -32,8 +29,6 @@ export default function CustomerPageState({
                     )}
                     {children && <div className="mt-5">{children}</div>}
                 </div>
-            </main>
-            <SiteFooter />
-        </div>
+        </CustomerPageShell>
     );
 }

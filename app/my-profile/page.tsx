@@ -5,9 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { User, Building, Phone, MapPin, Home, CheckCircle, Save, Mail } from 'lucide-react';
 import { toast } from 'react-toastify';
-import Header from '@/components/Header';
-import SiteFooter from '@/components/SiteFooter';
 import CustomerPageState from '@/components/CustomerPageState';
+import CustomerPageShell from '@/components/CustomerPageShell';
 
 export default function MyProfilePage() {
     const { user, profile, updateProfile, refreshProfile } = useAuth();
@@ -126,17 +125,15 @@ export default function MyProfilePage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
-            <Header />
-            <main className="flex-1 px-4 py-8 sm:py-12">
-                <div className="max-w-2xl mx-auto bg-white p-6 sm:p-8 rounded-lg shadow-md">
+        <CustomerPageShell width="3xl">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
                 <div className="mb-8 border-b pb-4">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Můj profil</h1>
-                    <p className="text-gray-600">Aktualizujte své kontaktní údaje a adresu pro objednávky.</p>
+                    <h1 className="mb-2 text-3xl font-bold tracking-tight text-slate-950">Můj profil</h1>
+                    <p className="text-slate-600">Aktualizujte své kontaktní údaje a adresu pro objednávky.</p>
                 </div>
 
                 {/* Email uživatele - needitovatelné pole */}
-                <div className="mb-6 bg-gray-50 p-4 rounded-lg">
+                <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-center">
                         <Mail className="w-5 h-5 text-gray-500 mr-2" />
                         <div>
@@ -148,7 +145,7 @@ export default function MyProfilePage() {
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Sekce s osobními údaji */}
-                    <div className="bg-blue-50 p-5 rounded-lg">
+                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-5">
                         <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                             <User className="w-5 h-5 mr-2 text-blue-600" />
                             Osobní údaje
@@ -208,7 +205,7 @@ export default function MyProfilePage() {
                     </div>
 
                     {/* Sekce s adresou */}
-                    <div className="bg-green-50 p-5 rounded-lg">
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-5">
                         <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                             <MapPin className="w-5 h-5 mr-2 text-green-600" />
                             Fakturační a dodací údaje
@@ -310,8 +307,6 @@ export default function MyProfilePage() {
                     </div>
                 </form>
                 </div>
-            </main>
-            <SiteFooter />
-        </div>
+        </CustomerPageShell>
     );
 }

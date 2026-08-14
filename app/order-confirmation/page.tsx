@@ -9,8 +9,7 @@ import { supabase } from '@/lib/supabase/client';
 import { toast } from 'react-toastify';
 import type { OrderStatus, OrderConfirmationData } from '@/types/orders';
 import { isVolumeAllowed } from '@/lib/product-config';
-import Header from '@/components/Header';
-import SiteFooter from '@/components/SiteFooter';
+import CustomerPageShell from '@/components/CustomerPageShell';
 
 export default function OrderConfirmationPage() {
     const router = useRouter();
@@ -159,9 +158,7 @@ export default function OrderConfirmationPage() {
 
     if (!orderData) {
         return (
-            <div className="flex min-h-screen flex-col bg-slate-50">
-                <Header />
-                <main className="flex flex-1 items-start px-4 py-8 sm:py-12">
+            <CustomerPageShell width="3xl">
                     <div className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                         <div className="py-10 text-center">
                             <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-blue-600" />
@@ -169,16 +166,12 @@ export default function OrderConfirmationPage() {
                             <p className="mt-2 text-sm text-slate-500">Kontrolujeme obsah objednávky před potvrzením.</p>
                         </div>
                     </div>
-                </main>
-                <SiteFooter />
-            </div>
+            </CustomerPageShell>
         );
     }
 
     return (
-        <div className="flex min-h-screen flex-col bg-slate-50">
-            <Header />
-            <main className="flex-1 px-4 py-8 sm:py-12">
+        <CustomerPageShell width="3xl">
             <div className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
                 <div className="mb-6">
                     <Link
@@ -305,8 +298,6 @@ export default function OrderConfirmationPage() {
                     </div>
                 )}
             </div>
-            </main>
-            <SiteFooter />
-        </div>
+        </CustomerPageShell>
     );
 }

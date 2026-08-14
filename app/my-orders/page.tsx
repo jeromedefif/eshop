@@ -8,10 +8,9 @@ import { Package, ShoppingCart, Loader2, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { useContext } from 'react';
 import { CartContext } from '@/contexts/CartContext';
-import Header from '@/components/Header';
 import { getAllowedVolumes } from '@/lib/product-config';
-import SiteFooter from '@/components/SiteFooter';
 import CustomerPageState from '@/components/CustomerPageState';
+import CustomerPageShell from '@/components/CustomerPageShell';
 
 // Konstanty - velmi minimální změna
 const PAGE_SIZE = 5;
@@ -213,21 +212,21 @@ const MyOrdersPage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
-            <Header />
-
-            <main className="container mx-auto flex-1 px-4 py-8">
+        <CustomerPageShell width="5xl">
                 <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900">Moje objednávky</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-slate-950">Moje objednávky</h1>
+                    <p className="mt-2 text-sm text-slate-600">Historie objednávek a rychlé vytvoření nové objednávky podle předchozího nákupu.</p>
                 </div>
 
                 {orders.length === 0 ? (
-                    <div className="bg-white rounded-lg shadow p-8 text-center">
-                        <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                        <p className="text-lg text-gray-500">Zatím nemáte žádné objednávky</p>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm sm:p-12">
+                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
+                            <Package className="h-7 w-7 text-slate-500" />
+                        </div>
+                        <p className="text-lg font-semibold text-slate-800">Zatím nemáte žádné objednávky</p>
                         <Link
                             href="/"
-                            className="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                            className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-blue-700 px-5 py-2.5 font-semibold text-white hover:bg-blue-800"
                         >
                             Přejít do katalogu
                         </Link>
@@ -236,8 +235,8 @@ const MyOrdersPage = () => {
                     <div>
                         <div className="space-y-4">
                             {orders.map((order) => (
-                                <div key={order.id} className="bg-white rounded-lg shadow overflow-hidden">
-                                    <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+                                <article key={order.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md">
+                                    <div className="flex flex-col gap-4 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
                                         <div>
                                             <div className="flex items-center space-x-3">
                                                 <span className="font-semibold text-gray-900">Objednávka #{order.id.substring(0, 8)}</span>
@@ -249,14 +248,14 @@ const MyOrdersPage = () => {
                                         </div>
                                         <button
                                             onClick={() => handleReorder(order)}
-                                            className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-700 px-4 py-2.5 font-semibold text-white hover:bg-blue-800"
                                         >
                                             <ShoppingCart className="h-4 w-4 mr-2" />
                                             Objednat znovu
                                         </button>
                                     </div>
 
-                                    <div className="p-4">
+                                    <div className="p-4 sm:p-5">
                                         <h3 className="font-medium text-gray-900 mb-2">Položky objednávky:</h3>
                                         <ul className="space-y-2">
                                             {order.order_items.map((item: any) => (
@@ -280,7 +279,7 @@ const MyOrdersPage = () => {
                                             <span className="font-bold text-blue-600">{order.total_volume}L</span>
                                         </div>
                                     </div>
-                                </div>
+                                </article>
                             ))}
                         </div>
 
@@ -290,8 +289,8 @@ const MyOrdersPage = () => {
                                 <button
                                     onClick={loadMoreOrders}
                                     disabled={isLoadingMore}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700
-                                             disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center mx-auto"
+                                    className="mx-auto flex min-h-11 items-center rounded-xl bg-blue-700 px-5 py-2.5 font-semibold text-white hover:bg-blue-800
+                                             disabled:cursor-not-allowed disabled:bg-blue-300"
                                 >
                                     {isLoadingMore ? (
                                         <>
@@ -309,9 +308,7 @@ const MyOrdersPage = () => {
                         )}
                     </div>
                 )}
-            </main>
-            <SiteFooter />
-        </div>
+        </CustomerPageShell>
     );
 };
 
