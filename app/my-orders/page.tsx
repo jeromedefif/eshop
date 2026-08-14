@@ -11,6 +11,7 @@ import { CartContext } from '@/contexts/CartContext';
 import Header from '@/components/Header';
 import { getAllowedVolumes } from '@/lib/product-config';
 import SiteFooter from '@/components/SiteFooter';
+import CustomerPageState from '@/components/CustomerPageState';
 
 // Konstanty - velmi minimální změna
 const PAGE_SIZE = 5;
@@ -203,9 +204,11 @@ const MyOrdersPage = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex justify-center items-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
+            <CustomerPageState
+                loading
+                title="Načítáme vaše objednávky"
+                description="Připravujeme historii objednávek a jejich položky."
+            />
         );
     }
 

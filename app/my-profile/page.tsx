@@ -7,6 +7,7 @@ import { User, Building, Phone, MapPin, Home, CheckCircle, Save, Mail } from 'lu
 import { toast } from 'react-toastify';
 import Header from '@/components/Header';
 import SiteFooter from '@/components/SiteFooter';
+import CustomerPageState from '@/components/CustomerPageState';
 
 export default function MyProfilePage() {
     const { user, profile, updateProfile, refreshProfile } = useAuth();
@@ -116,12 +117,11 @@ export default function MyProfilePage() {
     // Pokud uživatel není přihlášen nebo profil se načítá, zobrazíme loading
     if (!user || !profile) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4 inline-block"></div>
-                    <p className="text-gray-900">Načítání profilu...</p>
-                </div>
-            </div>
+            <CustomerPageState
+                loading
+                title="Načítáme váš profil"
+                description="Kontrolujeme kontaktní a fakturační údaje."
+            />
         );
     }
 

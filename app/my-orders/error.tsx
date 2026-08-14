@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertTriangle } from 'lucide-react';
+import CustomerPageState from '@/components/CustomerPageState';
 
 export default function MyOrdersError({
   reset
@@ -9,20 +10,17 @@ export default function MyOrdersError({
   reset: () => void;
 }) {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-lg bg-white rounded-lg shadow border border-gray-200 p-6 text-center">
-        <AlertTriangle className="h-10 w-10 text-red-500 mx-auto mb-3" />
-        <h1 className="text-xl font-semibold text-gray-900">Nepodařilo se načíst moje objednávky</h1>
-        <p className="text-sm text-gray-600 mt-2">
-          Došlo k neočekávané chybě. Zkuste stránku načíst znovu.
-        </p>
+    <CustomerPageState
+      title="Nepodařilo se načíst vaše objednávky"
+      description="Došlo k neočekávané chybě. Vaše uložené objednávky tím nejsou ovlivněné."
+    >
+        <AlertTriangle className="mx-auto h-10 w-10 text-red-500" aria-hidden="true" />
         <button
           onClick={reset}
-          className="mt-5 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
           Zkusit znovu
         </button>
-      </div>
-    </div>
+    </CustomerPageState>
   );
 }

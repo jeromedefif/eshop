@@ -14,6 +14,7 @@ import { sortCatalogProducts } from '@/lib/product-config';
 import { archiveProduct, createProduct, deleteProduct, restoreProduct, updateProduct } from '@/lib/products';
 import { CartContext } from '@/contexts/CartContext';
 import SiteFooter from '@/components/SiteFooter';
+import CustomerPageState from '@/components/CustomerPageState';
 
 export default function Home() {
    const cartContext = useContext(CartContext);
@@ -66,9 +67,11 @@ export default function Home() {
 
    if (isLoading) {
        return (
-           <div className="min-h-screen bg-gray-50 flex justify-center items-center">
-               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-           </div>
+           <CustomerPageState
+               loading
+               title="Načítáme katalog produktů"
+               description="Připravujeme aktuální nabídku a dostupné objemy."
+           />
        );
    }
 
