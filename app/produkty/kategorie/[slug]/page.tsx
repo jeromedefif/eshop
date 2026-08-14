@@ -5,6 +5,7 @@ import { PublicCategoryIcon, PublicProductCard } from '@/components/PublicCatalo
 import { CATEGORY_DETAILS, PRODUCT_CATEGORIES, getCategoryBySlug, normalizeProductCategory } from '@/lib/product-config';
 import { getPublicProducts } from '@/lib/public-products';
 import SiteFooter from '@/components/SiteFooter';
+import PublicHeader from '@/components/PublicHeader';
 
 export const revalidate = 3600;
 
@@ -55,12 +56,7 @@ export default async function PublicCategoryPage({ params }: CategoryPageProps) 
     return (
         <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#dbeafe,_transparent_32%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] text-slate-900">
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData).replace(/</g, '\\u003c') }} />
-            <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
-                <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5">
-                    <Link href="/produkty" className="text-xl font-bold tracking-tight text-slate-950">VINARIA s.r.o.</Link>
-                    <Link href="/login" className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-800">Přihlásit do B2B katalogu</Link>
-                </div>
-            </header>
+            <PublicHeader />
 
             <div className="mx-auto max-w-7xl px-5 py-10 sm:py-14">
                 <nav aria-label="Drobečková navigace" className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-500">

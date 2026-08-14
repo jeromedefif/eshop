@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { PublicCategoryCard, PublicProductCard } from '@/components/PublicCatalog';
 import { CATEGORY_DETAILS, PRODUCT_CATEGORIES, normalizeProductCategory } from '@/lib/product-config';
 import { getPublicProducts } from '@/lib/public-products';
 import SiteFooter from '@/components/SiteFooter';
+import PublicHeader from '@/components/PublicHeader';
 
 export const revalidate = 3600;
 
@@ -34,12 +34,7 @@ export default async function PublicProductsPage() {
 
     return (
         <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#dbeafe,_transparent_32%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] text-slate-900">
-            <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
-                <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5">
-                    <Link href="/" className="text-xl font-bold tracking-tight text-slate-950">VINARIA s.r.o.</Link>
-                    <Link href="/login" className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-800">Přihlásit do B2B katalogu</Link>
-                </div>
-            </header>
+            <PublicHeader />
 
             <section className="mx-auto max-w-7xl px-5 pb-10 pt-12 sm:pt-16">
                 <p className="text-sm font-bold uppercase tracking-[0.2em] text-blue-700">Beginy.cz</p>

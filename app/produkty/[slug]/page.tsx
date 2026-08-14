@@ -6,6 +6,7 @@ import { getAllowedVolumes, getCategoryPath, normalizeProductCategory } from '@/
 import { getProductIdFromSlug, getProductPath, getProductSlug } from '@/lib/product-slug';
 import { getPublicProductById } from '@/lib/public-products';
 import SiteFooter from '@/components/SiteFooter';
+import PublicHeader from '@/components/PublicHeader';
 
 export const revalidate = 3600;
 
@@ -107,14 +108,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData).replace(/</g, '\\u003c') }}
             />
 
-            <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
-                <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
-                    <Link href="/produkty" className="text-xl font-bold tracking-tight text-slate-950">
-                        VINARIA s.r.o.
-                    </Link>
-                    <span className="text-sm font-semibold text-blue-700">Beginy.cz</span>
-                </div>
-            </header>
+            <PublicHeader />
 
             <div className="mx-auto max-w-6xl px-5 py-10 sm:py-16">
                 <nav aria-label="Drobečková navigace" className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-500">
