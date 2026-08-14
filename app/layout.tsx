@@ -34,7 +34,8 @@ export const metadata: Metadata = {
     locale: 'cs_CZ',
   },
   other: {
-    'seznam-wmt': 'rBzZYXqHHDpvBim1U1OJo2M1QHaWKlmL'
+    'seznam-wmt': 'rBzZYXqHHDpvBim1U1OJo2M1QHaWKlmL',
+    'google-site-verification': 'sIJsBcr19awNikNAkYvvHOQEp7wFHnTeneFwQPKbJtA'
   },
   robots: { index: true, follow: true }
 };
