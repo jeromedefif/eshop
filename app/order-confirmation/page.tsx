@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase/client';
 import { toast } from 'react-toastify';
 import type { OrderStatus, OrderConfirmationData } from '@/types/orders';
 import { isVolumeAllowed } from '@/lib/product-config';
+import Header from '@/components/Header';
+import SiteFooter from '@/components/SiteFooter';
 
 export default function OrderConfirmationPage() {
     const router = useRouter();
@@ -157,20 +159,27 @@ export default function OrderConfirmationPage() {
 
     if (!orderData) {
         return (
-            <div className="min-h-screen bg-gray-50 py-12">
-                <div className="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-md">
-                    <div className="text-center py-8">
-                        <Loader2 className="w-12 h-12 mx-auto mb-4 text-blue-600 animate-spin" />
-                        <h2 className="text-lg font-medium">Načítání dat objednávky...</h2>
+            <div className="flex min-h-screen flex-col bg-slate-50">
+                <Header />
+                <main className="flex flex-1 items-start px-4 py-8 sm:py-12">
+                    <div className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <div className="py-10 text-center">
+                            <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-blue-600" />
+                            <h2 className="text-lg font-semibold text-slate-900">Načítání dat objednávky...</h2>
+                            <p className="mt-2 text-sm text-slate-500">Kontrolujeme obsah objednávky před potvrzením.</p>
+                        </div>
                     </div>
-                </div>
+                </main>
+                <SiteFooter />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
-            <div className="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-md">
+        <div className="flex min-h-screen flex-col bg-slate-50">
+            <Header />
+            <main className="flex-1 px-4 py-8 sm:py-12">
+            <div className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
                 <div className="mb-6">
                     <Link
                         href="/order-summary"
@@ -296,6 +305,8 @@ export default function OrderConfirmationPage() {
                     </div>
                 )}
             </div>
+            </main>
+            <SiteFooter />
         </div>
     );
 }
