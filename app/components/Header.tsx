@@ -2,271 +2,287 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
-import { List, UserCog, LogOut, ShoppingCart, Package, User, FileText, RotateCcw, Menu, X } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import {
+  FileText,
+  List,
+  LogOut,
+  Menu,
+  Package,
+  RotateCcw,
+  ShoppingCart,
+  User,
+  UserCog,
+  X
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useQuickReorder } from '@/hooks/useQuickReorder';
 import Cart from './Cart';
 
 const Header = () => {
-   const router = useRouter();
-   const pathname = usePathname();
-   const [isCartOpen, setIsCartOpen] = useState(false);
-   const [isSigningOut, setIsSigningOut] = useState(false);
-   const [isQuickReordering, setIsQuickReordering] = useState(false);
-   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-   const { user, profile, signOut } = useAuth();
-   const { cartItems, products, totalVolume, removeFromCart, clearCart } = useCart();
-   const quickReorder = useQuickReorder();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isQuickReordering, setIsQuickReordering] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, profile, signOut } = useAuth();
+  const { cartItems, products, totalVolume, removeFromCart, clearCart } = useCart();
+  const quickReorder = useQuickReorder();
 
-   const cartItemsCount = Object.values(cartItems).reduce((sum, count) => sum + count, 0);
+  const cartItemsCount = Object.values(cartItems).reduce((sum, count) => sum + count, 0);
+  const displayName = profile?.full_name || user?.email || 'Můj účet';
 
-   const handleSignOut = async () => {
-       if (isSigningOut) return;
+  const isActive = (href: string) => {
+    if (href === '/') return pathname === '/';
+    if (href === '/order-summary') {
+      return pathname === '/order-summary' || pathname === '/order-confirmation';
+    }
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
-       setIsSigningOut(true);
-       try {
-           await signOut();
-       } catch (error) {
-           console.error('Error signing out:', error);
-       } finally {
-           setIsSigningOut(false);
-       }
-   };
+  const desktopLinkClass = (href: string) =>
+    `inline-flex min-h-11 items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+      isActive(href)
+        ? 'bg-blue-50 text-blue-800 ring-1 ring-inset ring-blue-100'
+        : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+    }`;
 
-   const handleMobileMenuToggle = () => {
-       setMobileMenuOpen(!mobileMenuOpen);
-   };
+  const mobileLinkClass = (href: string) =>
+    `flex min-h-12 w-full items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold transition ${
+      isActive(href)
+        ? 'bg-blue-50 text-blue-800 ring-1 ring-inset ring-blue-100'
+        : 'text-slate-800 hover:bg-slate-100'
+    }`;
 
-   const handleQuickReorder = async () => {
-      if (isQuickReordering) return;
-      setIsQuickReordering(true);
-      try {
-        await quickReorder();
-      } finally {
-        setIsQuickReordering(false);
-      }
-   };
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
-   return (
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+
+    setIsSigningOut(true);
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+
+  const handleQuickReorder = async () => {
+    if (isQuickReordering) return;
+    setIsQuickReordering(true);
+    try {
+      await quickReorder();
+    } finally {
+      setIsQuickReordering(false);
+    }
+  };
+
+  return (
     <>
-      <header className="bg-white border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center">
-              <Link href="/" className="text-lg font-bold text-gray-900">
+      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="flex min-h-[72px] items-center gap-3">
+            <Link href="/" className="group shrink-0" aria-label="VINARIA s.r.o. – objednávkový katalog">
+              <span className="block text-lg font-bold leading-tight tracking-tight text-slate-950 transition group-hover:text-blue-800 sm:text-xl">
                 VINARIA s.r.o.
-              </Link>
-            </div>
+              </span>
+              <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-blue-700 sm:text-xs">
+                Beginy.cz
+              </span>
+            </Link>
 
-            {/* Navigace - zobrazená na větších zařízeních */}
-            <nav className="hidden md:ml-6 md:flex md:space-x-4">
-              <Link
-                href="/"
-                className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                  pathname === '/'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                <List className="mr-1.5 h-5 w-5" />
-                Katalog produktů
+            <nav aria-label="Hlavní navigace" className="ml-5 hidden items-center gap-1 lg:flex">
+              <Link href="/" className={desktopLinkClass('/')} aria-current={isActive('/') ? 'page' : undefined}>
+                <List className="h-4 w-4" />
+                Katalog
               </Link>
               <Link
                 href="/order-summary"
-                className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                  pathname === '/order-summary'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-900 hover:bg-gray-100'
-                }`}
+                className={desktopLinkClass('/order-summary')}
+                aria-current={isActive('/order-summary') ? 'page' : undefined}
               >
-                <FileText className="mr-1.5 h-5 w-5" />
+                <FileText className="h-4 w-4" />
                 Souhrn objednávky
               </Link>
             </nav>
 
-            {/* Hamburger menu tlačítko - zobrazeno jen na mobilech */}
-            <button
-              className="md:hidden p-2 rounded-md text-gray-700 hover:bg-gray-100"
-              onClick={handleMobileMenuToggle}
-            >
-              {mobileMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
-            </button>
-
-            {/* Pravá část s profilem a košíkem */}
-            <div className="flex items-center space-x-4">
+            <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
               {user && (
-                <div className="hidden md:flex items-center space-x-2">
-                  <button
-                    onClick={handleQuickReorder}
-                    disabled={isQuickReordering}
-                    className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <RotateCcw className="mr-1.5 h-4 w-4" />
-                    {isQuickReordering ? 'Načítám...' : 'Objednat poslední'}
-                  </button>
-                  <Link
-                    href="/my-orders"
-                    className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-900 hover:bg-gray-100"
-                  >
-                    Moje objednávky
-                  </Link>
-                </div>
+                <button
+                  onClick={handleQuickReorder}
+                  disabled={isQuickReordering}
+                  className="hidden min-h-11 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 transition hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 xl:inline-flex"
+                >
+                  <RotateCcw className={`h-4 w-4 ${isQuickReordering ? 'animate-spin' : ''}`} />
+                  {isQuickReordering ? 'Načítám...' : 'Objednat poslední'}
+                </button>
+              )}
+
+              {user && (
+                <Link href="/my-orders" className={`${desktopLinkClass('/my-orders')} hidden xl:inline-flex`}>
+                  <Package className="h-4 w-4" />
+                  Moje objednávky
+                </Link>
               )}
 
               {profile?.is_admin && (
-                <Link
-                href="/admin/orders"  // První se zobrazí objednávky Změna zde!
-                  className="hidden md:inline-flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-900 hover:bg-gray-100"
-                >
-                  <UserCog className="mr-1.5 h-5 w-5" />
-                  <span className="hidden lg:inline">Administrace</span>
+                <Link href="/admin/orders" className={`${desktopLinkClass('/admin')} hidden lg:inline-flex`}>
+                  <UserCog className="h-4 w-4" />
+                  <span className="hidden 2xl:inline">Administrace</span>
                 </Link>
               )}
 
               {user ? (
-                <div className="flex items-center space-x-4">
-                  <div className="relative group">
-                    <button
-                      className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
-                    >
-                      <User className="h-5 w-5 text-gray-600 md:mr-1" />
-                      <span className="hidden md:inline">{profile?.full_name || user.email}</span>
-                    </button>
+                <div className="group relative hidden lg:block">
+                  <button
+                    type="button"
+                    className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                      isActive('/my-profile')
+                        ? 'bg-blue-50 text-blue-800'
+                        : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                    }`}
+                    aria-label="Otevřít nabídku uživatelského účtu"
+                  >
+                    <User className="h-5 w-5" />
+                    <span className="hidden max-w-36 truncate 2xl:inline">{displayName}</span>
+                  </button>
 
-                    {/* Dropdown menu */}
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg overflow-hidden z-20 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                      <Link
-                        href="/my-profile"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-                      >
-                        <User className="h-4 w-4 mr-2" />
+                  <div className="invisible absolute right-0 top-full z-[60] w-56 translate-y-1 pt-2 opacity-0 transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                      <div className="border-b border-slate-100 px-3 py-2 2xl:hidden">
+                        <p className="truncate text-sm font-semibold text-slate-900">{displayName}</p>
+                      </div>
+                      <Link href="/my-profile" className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100">
+                        <User className="h-4 w-4" />
                         Můj profil
                       </Link>
-
-                      <Link
-                        href="/my-orders"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                      <button
+                        onClick={handleQuickReorder}
+                        disabled={isQuickReordering}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-blue-800 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 xl:hidden"
                       >
-                        <Package className="h-4 w-4 mr-2" />
+                        <RotateCcw className={`h-4 w-4 ${isQuickReordering ? 'animate-spin' : ''}`} />
+                        {isQuickReordering ? 'Načítám...' : 'Objednat poslední'}
+                      </button>
+                      <Link href="/my-orders" className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 xl:hidden">
+                        <Package className="h-4 w-4" />
                         Moje objednávky
                       </Link>
-
                       <button
                         onClick={handleSignOut}
                         disabled={isSigningOut}
-                        className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <LogOut className="h-4 w-4 mr-2" />
+                        <LogOut className="h-4 w-4" />
                         {isSigningOut ? 'Odhlašuji...' : 'Odhlásit'}
                       </button>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center space-x-4">
-                  <Link
-                    href="/login"
-                    className="md:px-4 md:py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md flex items-center"
-                  >
-                    <User className="h-5 w-5 md:mr-1" />
-                    <span className="hidden md:inline">Přihlásit</span>
-                  </Link>
-                </div>
+                <Link href="/login" className={`${desktopLinkClass('/login')} hidden lg:inline-flex`}>
+                  <User className="h-5 w-5" />
+                  Přihlásit
+                </Link>
               )}
 
               <button
+                type="button"
                 onClick={() => setIsCartOpen(true)}
-                className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
+                className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-900 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                aria-label={`Otevřít košík, ${cartItemsCount} položek`}
               >
                 {cartItemsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs
-                                 rounded-full h-5 w-5 flex items-center justify-center">
-                    {cartItemsCount}
+                  <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-blue-700 px-1 text-[11px] font-bold text-white ring-2 ring-white">
+                    {cartItemsCount > 99 ? '99+' : cartItemsCount}
                   </span>
                 )}
-                <ShoppingCart className="h-6 w-6 text-gray-900" />
+                <ShoppingCart className="h-6 w-6" />
+              </button>
+
+              <button
+                type="button"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-800 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 lg:hidden"
+                onClick={() => setMobileMenuOpen((open) => !open)}
+                aria-expanded={mobileMenuOpen}
+                aria-controls="mobile-customer-navigation"
+                aria-label={mobileMenuOpen ? 'Zavřít navigaci' : 'Otevřít navigaci'}
+              >
+                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </button>
             </div>
           </div>
         </div>
 
-        {/* Mobilní menu - zobrazí se jen na mobilech když je otevřeno */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white border-t border-gray-200 py-2">
-            <div className="px-4 pt-2 pb-3 space-y-1">
-              <Link
-                href="/"
-                className={`block px-3 py-2 rounded-md text-base font-medium ${
-                  pathname === '/'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-900 hover:bg-gray-100'
-                }`}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <List className="inline-block mr-2 h-5 w-5" />
+          <div id="mobile-customer-navigation" className="border-t border-slate-200 bg-white lg:hidden">
+            <nav aria-label="Mobilní navigace" className="mx-auto max-w-7xl space-y-1 px-4 py-4 sm:px-6">
+              {user && (
+                <div className="mb-3 rounded-xl bg-slate-50 px-4 py-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Přihlášený uživatel</p>
+                  <p className="mt-1 truncate text-sm font-semibold text-slate-900">{displayName}</p>
+                </div>
+              )}
+
+              <Link href="/" className={mobileLinkClass('/')} onClick={closeMobileMenu}>
+                <List className="h-5 w-5" />
                 Katalog produktů
               </Link>
-              <Link
-                href="/order-summary"
-                className={`block px-3 py-2 rounded-md text-base font-medium ${
-                  pathname === '/order-summary'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-900 hover:bg-gray-100'
-                }`}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <FileText className="inline-block mr-2 h-5 w-5" />
+              <Link href="/order-summary" className={mobileLinkClass('/order-summary')} onClick={closeMobileMenu}>
+                <FileText className="h-5 w-5" />
                 Souhrn objednávky
               </Link>
-              {user && (
+
+              {user ? (
                 <>
                   <button
                     onClick={() => {
+                      closeMobileMenu();
                       void handleQuickReorder();
-                      setMobileMenuOpen(false);
                     }}
                     disabled={isQuickReordering}
-                    className={`block w-full px-3 py-2 rounded-md text-base font-medium text-left ${
-                      isQuickReordering
-                        ? 'bg-blue-50 text-blue-700 opacity-70 cursor-not-allowed'
-                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                    }`}
+                    className="flex min-h-12 w-full items-center gap-3 rounded-xl bg-blue-700 px-4 py-3 text-left text-base font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <RotateCcw className="inline-block mr-2 h-5 w-5" />
+                    <RotateCcw className={`h-5 w-5 ${isQuickReordering ? 'animate-spin' : ''}`} />
                     {isQuickReordering ? 'Načítám...' : 'Objednat poslední'}
                   </button>
-                  <Link
-                    href="/my-orders"
-                    className={`block px-3 py-2 rounded-md text-base font-medium ${
-                      pathname === '/my-orders'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'text-gray-900 hover:bg-gray-100'
-                    }`}
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Package className="inline-block mr-2 h-5 w-5" />
+                  <Link href="/my-orders" className={mobileLinkClass('/my-orders')} onClick={closeMobileMenu}>
+                    <Package className="h-5 w-5" />
                     Moje objednávky
                   </Link>
+                  <Link href="/my-profile" className={mobileLinkClass('/my-profile')} onClick={closeMobileMenu}>
+                    <User className="h-5 w-5" />
+                    Můj profil
+                  </Link>
+                  {profile?.is_admin && (
+                    <Link href="/admin/orders" className={mobileLinkClass('/admin')} onClick={closeMobileMenu}>
+                      <UserCog className="h-5 w-5" />
+                      Administrace
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => {
+                      closeMobileMenu();
+                      void handleSignOut();
+                    }}
+                    disabled={isSigningOut}
+                    className="flex min-h-12 w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-base font-semibold text-slate-800 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    {isSigningOut ? 'Odhlašuji...' : 'Odhlásit'}
+                  </button>
                 </>
-              )}
-              {profile?.is_admin && (
-                <Link
-                  href="/admin/products"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-900 hover:bg-gray-100"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <UserCog className="inline-block mr-2 h-5 w-5" />
-                  Administrace
+              ) : (
+                <Link href="/login" className={mobileLinkClass('/login')} onClick={closeMobileMenu}>
+                  <User className="h-5 w-5" />
+                  Přihlásit
                 </Link>
               )}
-            </div>
+            </nav>
           </div>
         )}
       </header>
@@ -285,7 +301,7 @@ const Header = () => {
         totalVolume={totalVolume}
       />
     </>
-   );
+  );
 };
 
 export default Header;

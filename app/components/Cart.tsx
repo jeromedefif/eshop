@@ -76,12 +76,12 @@ const Cart = ({
        <>
            {/* Overlay */}
            <div
-               className="fixed inset-0 bg-black bg-opacity-50 transition-opacity z-40"
+               className="fixed inset-0 z-[60] bg-black bg-opacity-50 transition-opacity"
                onClick={onClose}
            />
 
             {/* Panel */}
-            <div className="fixed inset-y-0 right-0 h-[100dvh] max-h-[100dvh] max-w-xl w-full bg-white shadow-xl z-50 flex flex-col overflow-hidden">
+            <div className="fixed inset-y-0 right-0 z-[70] flex h-[100dvh] max-h-[100dvh] w-full max-w-xl flex-col overflow-hidden bg-white shadow-xl">
                 {/* Hlavička */}
                 <div className="shrink-0 p-4 border-b flex justify-between items-center">
                     <div className="flex items-center">

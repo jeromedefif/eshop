@@ -78,9 +78,7 @@ export default function Home() {
    return (
        <div className="min-h-screen bg-gray-50 flex flex-col">
            <SuccessNotification />
-           <div className="sticky top-0 z-50">
-               <Header />
-           </div>
+           <Header />
 
            <main className="container mx-auto flex-1 px-4 py-6">
                {currentView === 'catalog' && (

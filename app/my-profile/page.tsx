@@ -127,9 +127,7 @@ export default function MyProfilePage() {
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
-            <div className="sticky top-0 z-50">
-                <Header />
-            </div>
+            <Header />
             <main className="flex-1 px-4 py-8 sm:py-12">
                 <div className="max-w-2xl mx-auto bg-white p-6 sm:p-8 rounded-lg shadow-md">
                 <div className="mb-8 border-b pb-4">

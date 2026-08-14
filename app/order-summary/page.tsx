@@ -56,9 +56,7 @@ const OrderSummaryPage = () => {
     return (
         <>
           <div className="min-h-screen bg-gray-50 flex flex-col">
-                <div className="sticky top-0 z-50">
-                    <Header />
-                </div>
+                <Header />
 
                 <main className="container mx-auto flex-1 px-4 py-6 notranslate">
                     {Object.keys(cartItems).length === 0 ? (
