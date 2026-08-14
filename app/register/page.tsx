@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
 import type { RegistrationFormData, SignUpData } from '@/types/auth';
-import { ArrowLeft, Mail, Building, Phone, MapPin, Home, User, Lock, BookOpen, CheckCircle, XCircle } from 'lucide-react';
+import { Mail, Building, Phone, MapPin, Home, User, Lock, BookOpen, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
+import AuthPageShell from '@/components/AuthPageShell';
 
 export default function RegisterPage() {
     const [formData, setFormData] = useState<RegistrationFormData>({
@@ -180,18 +181,8 @@ export default function RegisterPage() {
     }, [formData, router, validateForm]);
 
     return (
-        <div className="min-h-screen bg-gray-50 py-12">
-            <div className="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-md">
-                <div className="mb-6">
-                    <Link
-                        href="/"
-                        className="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors"
-                    >
-                        <ArrowLeft className="w-4 h-4 mr-1" />
-                        Zpět na katalog
-                    </Link>
-                </div>
-
+        <AuthPageShell active="register" width="2xl">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
                 <div className="mb-8 border-b pb-4">
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">Registrace nového účtu</h1>
                     <p className="text-gray-600">Vytvořte si účet pro přístup k B2B katalogu produktů VINARIA s.r.o.</p>
@@ -420,7 +411,7 @@ export default function RegisterPage() {
 
                     <div className="flex justify-between items-center pt-4 border-t">
                         <Link
-                            href="/"
+                            href="/produkty"
                             className="px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                         >
                             Zrušit
@@ -452,6 +443,6 @@ export default function RegisterPage() {
                     </Link>
                 </div>
             </div>
-        </div>
+        </AuthPageShell>
     );
 }

@@ -2,30 +2,13 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { CheckCircle, ArrowLeft, Mail, RefreshCw, Wine, Home } from 'lucide-react';
+import { CheckCircle, Mail, RefreshCw, Home } from 'lucide-react';
+import AuthPageShell from '@/components/AuthPageShell';
 
 export default function RegisterSuccessPage() {
     return (
-        <div className="min-h-screen bg-gray-50 py-12">
-            <div className="max-w-xl mx-auto">
-                {/* Horní navigační lišta */}
-                <div className="bg-white shadow-sm rounded-t-lg p-4 mb-1 flex justify-between items-center">
-                    <Link
-                        href="/"
-                        className="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors"
-                    >
-                        <ArrowLeft className="w-4 h-4 mr-1" />
-                        <span className="hidden sm:inline">Zpět na katalog</span>
-                        <span className="sm:hidden">Zpět</span>
-                    </Link>
-                    <div className="flex items-center">
-                        <Wine className="h-5 w-5 text-blue-600 mr-2" />
-                        <span className="font-semibold text-gray-900">VINARIA s.r.o.</span>
-                    </div>
-                </div>
-
-                {/* Hlavní obsah */}
-                <div className="bg-white p-8 rounded-b-lg shadow-md">
+        <AuthPageShell active="register" width="xl">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
                     <div className="text-center mb-8">
                         <div className="inline-flex items-center justify-center h-20 w-20 bg-green-100 rounded-full mb-4">
                             <CheckCircle className="w-10 h-10 text-green-500" />
@@ -80,7 +63,7 @@ export default function RegisterSuccessPage() {
                             Přejít na přihlášení
                         </Link>
                         <Link
-                            href="/"
+                            href="/produkty"
                             className="inline-flex items-center justify-center px-5 py-3 bg-gray-100 text-gray-800 font-medium rounded-lg
                                      hover:bg-gray-200 transition-colors"
                         >
@@ -92,10 +75,9 @@ export default function RegisterSuccessPage() {
 
                 <div className="mt-4 text-center">
                     <p className="text-sm text-gray-500">
-                        Potřebujete pomoc? Kontaktujte nás na <a href="mailto:info@vinaria.cz" className="text-blue-600 hover:underline">info@vinaria.cz</a>
+                        Potřebujete pomoc? Kontaktujte nás na <a href="mailto:fiala@vinaria.cz" className="text-blue-600 hover:underline">fiala@vinaria.cz</a>
                     </p>
                 </div>
-            </div>
-        </div>
+        </AuthPageShell>
     );
 }

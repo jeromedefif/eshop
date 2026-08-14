@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle, Mail, Lock, LogIn, Eye, EyeOff, Wine, AlertCircle } from 'lucide-react';
+import { CheckCircle, Mail, Lock, LogIn, Eye, EyeOff, Wine, AlertCircle } from 'lucide-react';
+import AuthPageShell from '@/components/AuthPageShell';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -74,18 +75,8 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 py-12">
-            <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
-                <div className="mb-6">
-                    <Link
-                        href="/"
-                        className="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors"
-                    >
-                        <ArrowLeft className="w-4 h-4 mr-1" />
-                        Zpět na katalog
-                    </Link>
-                </div>
-
+        <AuthPageShell active="login" width="md">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
                 <div className="text-center mb-8">
                     <div className="inline-flex items-center justify-center h-16 w-16 bg-blue-100 rounded-full text-blue-600 mb-4">
                         <Wine className="h-8 w-8" />
@@ -201,6 +192,6 @@ export default function LoginPage() {
                     </div>
                 </form>
             </div>
-        </div>
+        </AuthPageShell>
     );
 }
