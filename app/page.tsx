@@ -1,7 +1,6 @@
 'use client';
 
 import { useContext, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import Header from '@/components/Header';
@@ -11,12 +10,11 @@ import AdminProducts from '@/components/AdminProducts';
 import AuthDialog from '@/components/AuthDialog';
 import SuccessNotification from '@/components/SuccessNotification';
 import type { Product } from '@/types/database';
-import { getAllowedVolumes, sortCatalogProducts } from '@/lib/product-config';
+import { sortCatalogProducts } from '@/lib/product-config';
 import { archiveProduct, createProduct, deleteProduct, restoreProduct, updateProduct } from '@/lib/products';
 import { CartContext } from '@/contexts/CartContext';
 
 export default function Home() {
-   const router = useRouter();
    const cartContext = useContext(CartContext);
    const { user, profile } = useAuth();
    const [currentView, setCurrentView] = useState<'catalog' | 'order' | 'admin'>('catalog');
@@ -28,9 +26,12 @@ export default function Home() {
    }
 
    const {
-       cartItems, setCartItems,
+       cartItems,
        products, setProducts,
-       totalVolume
+       totalVolume,
+       addToCart,
+       removeFromCart,
+       clearCart
    } = cartContext;
 
    const loadProducts = async () => {
@@ -62,118 +63,6 @@ export default function Home() {
        // Odstranili jsme kód pro toast, protože používáme vlastní SuccessNotification komponentu
    }, []);
 
-   const handleAddToCart = (productId: string | number, volume: number | string) => {
-       setCartItems(prev => {
-           const key = `${productId}-${volume}`;
-           const product = products.find((item) => String(item.id) === String(productId));
-           const minimumQuantity = product?.min_order_qty || 1;
-           const currentQuantity = prev[key] || 0;
-           return {
-               ...prev,
-               [key]: currentQuantity === 0 ? minimumQuantity : currentQuantity + 1
-           };
-       });
-   };
-
-   const handleRemoveFromCart = (productId: string | number, volume: number | string) => {
-       setCartItems(prev => {
-           const key = `${productId}-${volume}`;
-           const currentCount = prev[key] || 0;
-           const product = products.find((item) => String(item.id) === String(productId));
-           const minimumQuantity = product?.min_order_qty || 1;
-
-           if (currentCount <= minimumQuantity) {
-               const newCart = Object.fromEntries(
-                   Object.entries(prev).filter(([k]) => k !== key)
-               );
-               return newCart;
-           }
-
-           return {
-               ...prev,
-               [key]: currentCount - 1
-           };
-       });
-   };
-
-   const handleClearCart = () => {
-       setCartItems({});
-   };
-
-   const handleQuickReorder = async () => {
-       if (!user) {
-           router.push('/login');
-           return;
-       }
-
-       try {
-           const { data, error } = await supabase
-               .from('orders')
-               .select(`
-                   id,
-                   created_at,
-                   status,
-                   order_items (
-                       id,
-                       product_id,
-                       volume,
-                       quantity,
-                       product:products (
-                           id,
-                           name,
-                           category,
-                           in_stock,
-                           is_archived,
-                           allowed_volumes
-                       )
-                   )
-               `)
-               .eq('user_id', user.id)
-               .in('status', ['confirmed', 'completed'])
-               .order('created_at', { ascending: false })
-               .limit(1);
-
-           if (error) {
-               throw error;
-           }
-
-           const latestOrder = data?.[0];
-           if (!latestOrder) {
-               alert('Nemáte žádnou předchozí objednávku k opakování.');
-               return;
-           }
-
-           const nextCartItems: { [key: string]: number } = {};
-           let unavailableItems = 0;
-
-           latestOrder.order_items.forEach((item: any) => {
-               if (!item.product?.in_stock || item.product?.is_archived || !getAllowedVolumes(item.product).includes(String(item.volume))) {
-                   unavailableItems += 1;
-                   return;
-               }
-
-               const key = `${item.product_id}-${item.volume}`;
-               nextCartItems[key] = item.quantity;
-           });
-
-           if (Object.keys(nextCartItems).length === 0) {
-               alert('Poslední objednávka obsahuje pouze nedostupné položky.');
-               return;
-           }
-
-           setCartItems(nextCartItems);
-
-           if (unavailableItems > 0) {
-               alert('Některé položky nebyly skladem a nebyly přidány.');
-           }
-
-           router.push('/order-summary');
-       } catch (error) {
-           console.error('Error creating reorder from latest order:', error);
-           alert('Objednávku se nepodařilo načíst. Zkuste to prosím znovu.');
-       }
-   };
-
    if (isLoading) {
        return (
            <div className="min-h-screen bg-gray-50 flex justify-center items-center">
@@ -186,21 +75,14 @@ export default function Home() {
        <div className="min-h-screen bg-gray-50">
            <SuccessNotification />
            <div className="sticky top-0 z-50">
-               <Header
-                   cartItems={cartItems}
-                   products={products}
-                   totalVolume={totalVolume}
-                   onRemoveFromCart={handleRemoveFromCart}
-                   onClearCart={handleClearCart}
-                   onQuickReorder={handleQuickReorder}
-               />
+               <Header />
            </div>
 
            <main className="container mx-auto px-4 py-6">
                {currentView === 'catalog' && (
                    <ProductList
-                       onAddToCart={handleAddToCart}
-                       onRemoveFromCart={handleRemoveFromCart}
+                       onAddToCart={addToCart}
+                       onRemoveFromCart={removeFromCart}
                        cartItems={cartItems}
                        products={products}
                    />
@@ -210,9 +92,9 @@ export default function Home() {
                    <OrderForm
                        cartItems={cartItems}
                        products={products}
-                       onRemoveFromCart={handleRemoveFromCart}
-                       onAddToCart={handleAddToCart}
-                       onClearCart={handleClearCart}
+                       onRemoveFromCart={removeFromCart}
+                       onAddToCart={addToCart}
+                       onClearCart={clearCart}
                        totalVolume={totalVolume}
                        user={user}
                        profile={profile}

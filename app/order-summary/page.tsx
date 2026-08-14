@@ -1,18 +1,14 @@
 'use client';
 
 import { useContext } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { CartContext } from '@/contexts/CartContext';
-import { supabase } from '@/lib/supabase/client';
 import OrderForm from '@/components/OrderForm';
 import Header from '@/components/Header';
 import Link from 'next/link';
 import { ShoppingBag, ArrowLeft } from 'lucide-react';
-import { getAllowedVolumes } from '@/lib/product-config';
 
 const OrderSummaryPage = () => {
-    const router = useRouter();
     const { user, profile } = useAuth();
     const cartContext = useContext(CartContext);
 
@@ -22,122 +18,14 @@ const OrderSummaryPage = () => {
 
     const {
         cartItems,
-        setCartItems,
         products,
-        totalVolume
+        totalVolume,
+        addToCart,
+        removeFromCart,
+        clearCart
     } = cartContext;
 
     // Odstraněno přesměrování - místo toho budeme zobrazovat prázdný stav košíku
-
-    const handleAddToCart = (productId: string | number, volume: number | string) => {
-        setCartItems(prev => {
-            const key = `${productId}-${volume}`;
-            const product = products.find((item) => String(item.id) === String(productId));
-            const minimumQuantity = product?.min_order_qty || 1;
-            const currentQuantity = prev[key] || 0;
-            return {
-                ...prev,
-                [key]: currentQuantity === 0 ? minimumQuantity : currentQuantity + 1
-            };
-        });
-    };
-
-    const handleRemoveFromCart = (productId: string | number, volume: number | string) => {
-        setCartItems(prev => {
-            const key = `${productId}-${volume}`;
-            const currentCount = prev[key] || 0;
-            const product = products.find((item) => String(item.id) === String(productId));
-            const minimumQuantity = product?.min_order_qty || 1;
-
-            if (currentCount <= minimumQuantity) {
-                const newCart = Object.fromEntries(
-                    Object.entries(prev).filter(([k]) => k !== key)
-                );
-                return newCart;
-            }
-
-            return {
-                ...prev,
-                [key]: currentCount - 1
-            };
-        });
-    };
-
-    const handleClearCart = () => {
-        setCartItems({});
-    };
-
-    const handleQuickReorder = async () => {
-        if (!user) {
-            router.push('/login');
-            return;
-        }
-
-        try {
-            const { data, error } = await supabase
-                .from('orders')
-                .select(`
-                    id,
-                    created_at,
-                    status,
-                    order_items (
-                        id,
-                        product_id,
-                        volume,
-                        quantity,
-                        product:products (
-                            id,
-                            name,
-                            category,
-                            in_stock,
-                            is_archived,
-                            allowed_volumes
-                        )
-                    )
-                `)
-                .eq('user_id', user.id)
-                .in('status', ['confirmed', 'completed'])
-                .order('created_at', { ascending: false })
-                .limit(1);
-
-            if (error) {
-                throw error;
-            }
-
-            const latestOrder = data?.[0];
-            if (!latestOrder) {
-                alert('Nemáte žádnou předchozí objednávku k opakování.');
-                return;
-            }
-
-            const nextCartItems: { [key: string]: number } = {};
-            let unavailableItems = 0;
-
-            latestOrder.order_items.forEach((item: any) => {
-                if (!item.product?.in_stock || item.product?.is_archived || !getAllowedVolumes(item.product).includes(String(item.volume))) {
-                    unavailableItems += 1;
-                    return;
-                }
-
-                const key = `${item.product_id}-${item.volume}`;
-                nextCartItems[key] = item.quantity;
-            });
-
-            if (Object.keys(nextCartItems).length === 0) {
-                alert('Poslední objednávka obsahuje pouze nedostupné položky.');
-                return;
-            }
-
-            setCartItems(nextCartItems);
-
-            if (unavailableItems > 0) {
-                alert('Některé položky nebyly skladem a nebyly přidány.');
-            }
-        } catch (error) {
-            console.error('Error creating reorder from latest order:', error);
-            alert('Objednávku se nepodařilo načíst. Zkuste to prosím znovu.');
-        }
-    };
 
     // Obsah pro prázdný košík
     const EmptyCartContent = () => (
@@ -168,14 +56,7 @@ const OrderSummaryPage = () => {
         <>
           <div className="min-h-screen bg-gray-50">
                 <div className="sticky top-0 z-50">
-                    <Header
-                        cartItems={cartItems}
-                        products={products}
-                        totalVolume={totalVolume}
-                        onRemoveFromCart={handleRemoveFromCart}
-                        onClearCart={handleClearCart}
-                        onQuickReorder={handleQuickReorder}
-                    />
+                    <Header />
                 </div>
 
                 <main className="container mx-auto px-4 py-6 notranslate">
@@ -194,9 +75,9 @@ const OrderSummaryPage = () => {
                             <OrderForm
                                 cartItems={cartItems}
                                 products={products}
-                                onRemoveFromCart={handleRemoveFromCart}
-                                onAddToCart={handleAddToCart}
-                                onClearCart={handleClearCart}
+                                onRemoveFromCart={removeFromCart}
+                                onAddToCart={addToCart}
+                                onClearCart={clearCart}
                                 totalVolume={totalVolume}
                                 user={user}
                                 profile={profile}

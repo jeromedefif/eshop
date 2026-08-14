@@ -5,26 +5,11 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { List, UserCog, LogOut, ShoppingCart, Package, User, FileText, RotateCcw, Menu, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
+import { useQuickReorder } from '@/hooks/useQuickReorder';
 import Cart from './Cart';
-import { Product } from '@/types/database';
 
-type HeaderProps = {
-   cartItems: {[key: string]: number};
-   products: Product[];
-   totalVolume: number;
-   onRemoveFromCart: (productId: string | number, volume: string | number) => void;
-   onClearCart: () => void;
-   onQuickReorder?: () => Promise<void>;
-};
-
-const Header = ({
-   cartItems,
-   products,
-   totalVolume,
-   onRemoveFromCart,
-   onClearCart,
-   onQuickReorder
-}: HeaderProps) => {
+const Header = () => {
    const router = useRouter();
    const pathname = usePathname();
    const [isCartOpen, setIsCartOpen] = useState(false);
@@ -32,6 +17,8 @@ const Header = ({
    const [isQuickReordering, setIsQuickReordering] = useState(false);
    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
    const { user, profile, signOut } = useAuth();
+   const { cartItems, products, totalVolume, removeFromCart, clearCart } = useCart();
+   const quickReorder = useQuickReorder();
 
    const cartItemsCount = Object.values(cartItems).reduce((sum, count) => sum + count, 0);
 
@@ -53,10 +40,10 @@ const Header = ({
    };
 
    const handleQuickReorder = async () => {
-      if (!onQuickReorder || isQuickReordering) return;
+      if (isQuickReordering) return;
       setIsQuickReordering(true);
       try {
-        await onQuickReorder();
+        await quickReorder();
       } finally {
         setIsQuickReordering(false);
       }
@@ -118,7 +105,7 @@ const Header = ({
                 <div className="hidden md:flex items-center space-x-2">
                   <button
                     onClick={handleQuickReorder}
-                    disabled={!onQuickReorder || isQuickReordering}
+                    disabled={isQuickReordering}
                     className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
                   >
                     <RotateCcw className="mr-1.5 h-4 w-4" />
@@ -245,9 +232,9 @@ const Header = ({
                       void handleQuickReorder();
                       setMobileMenuOpen(false);
                     }}
-                    disabled={!onQuickReorder || isQuickReordering}
+                    disabled={isQuickReordering}
                     className={`block w-full px-3 py-2 rounded-md text-base font-medium text-left ${
-                      !onQuickReorder || isQuickReordering
+                      isQuickReordering
                         ? 'bg-blue-50 text-blue-700 opacity-70 cursor-not-allowed'
                         : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
                     }`}
@@ -289,8 +276,8 @@ const Header = ({
         onClose={() => setIsCartOpen(false)}
         cartItems={cartItems}
         products={products}
-        onRemoveFromCart={onRemoveFromCart}
-        onClearCart={onClearCart}
+        onRemoveFromCart={removeFromCart}
+        onClearCart={clearCart}
         onGoToOrder={() => {
           setIsCartOpen(false);
           router.push('/order-summary');

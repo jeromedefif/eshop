@@ -31,7 +31,7 @@ const MyOrdersPage = () => {
         return null;
     }
 
-    const { cartItems, setCartItems, products, totalVolume } = cartContext;
+    const { setCartItems } = cartContext;
 
     // Upravený useEffect - podobný původnímu
     useEffect(() => {
@@ -172,80 +172,6 @@ const MyOrdersPage = () => {
         router.push('/order-summary');
     };
 
-    const handleQuickReorder = async () => {
-        if (!user) {
-            router.push('/login');
-            return;
-        }
-
-        try {
-            const { data, error } = await supabase
-                .from('orders')
-                .select(`
-                    id,
-                    created_at,
-                    status,
-                    order_items (
-                        id,
-                        product_id,
-                        volume,
-                        quantity,
-                        product:products (
-                            id,
-                            name,
-                            category,
-                            in_stock,
-                            is_archived,
-                            min_order_qty,
-                            allowed_volumes
-                        )
-                    )
-                `)
-                .eq('user_id', user.id)
-                .in('status', ['confirmed', 'completed'])
-                .order('created_at', { ascending: false })
-                .limit(1);
-
-            if (error) {
-                throw error;
-            }
-
-            const latestOrder = data?.[0];
-            if (!latestOrder) {
-                alert('Nemáte žádnou předchozí objednávku k opakování.');
-                return;
-            }
-
-            await handleReorder(latestOrder);
-        } catch (error) {
-            console.error('Error creating reorder from latest order:', error);
-            alert('Objednávku se nepodařilo načíst. Zkuste to prosím znovu.');
-        }
-    };
-
-    const handleRemoveFromCart = (productId: string | number, volume: number | string) => {
-        setCartItems(prev => {
-            const key = `${productId}-${volume}`;
-            const currentCount = prev[key] || 0;
-
-            const product = products.find((item) => String(item.id) === String(productId));
-            const minOrderQty = product?.min_order_qty || 1;
-
-            if (currentCount <= minOrderQty) {
-                return Object.fromEntries(Object.entries(prev).filter(([k]) => k !== key));
-            }
-
-            return {
-                ...prev,
-                [key]: currentCount - 1
-            };
-        });
-    };
-
-    const handleClearCart = () => {
-        setCartItems({});
-    };
-
     // Zachování původní funkce formátování data
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -285,14 +211,7 @@ const MyOrdersPage = () => {
     return (
         <div className="min-h-screen bg-gray-50">
             <div className="sticky top-0 z-50">
-                <Header
-                    cartItems={cartItems}
-                    products={products}
-                    totalVolume={totalVolume}
-                    onRemoveFromCart={handleRemoveFromCart}
-                    onClearCart={handleClearCart}
-                    onQuickReorder={handleQuickReorder}
-                />
+                <Header />
             </div>
 
             <div className="container mx-auto px-4 py-8">

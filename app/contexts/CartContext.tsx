@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import { sortCatalogProducts } from '@/lib/product-config';
@@ -14,6 +14,9 @@ export type CartContextType = {
   products: Product[];
   setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
   totalVolume: number;
+  addToCart: (productId: string | number, volume: string | number) => void;
+  removeFromCart: (productId: string | number, volume: string | number) => void;
+  clearCart: () => void;
 };
 
 export const CartContext = createContext<CartContextType | null>(null);
@@ -100,9 +103,54 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setTotalVolume(volume);
   }, [cartItems]);
 
+  const addToCart = useCallback((productId: string | number, volume: string | number) => {
+    setCartItems((currentItems) => {
+      const key = `${productId}-${volume}`;
+      const product = products.find((item) => String(item.id) === String(productId));
+      const minimumQuantity = product?.min_order_qty || 1;
+      const currentQuantity = currentItems[key] || 0;
+
+      return {
+        ...currentItems,
+        [key]: currentQuantity === 0 ? minimumQuantity : currentQuantity + 1
+      };
+    });
+  }, [products]);
+
+  const removeFromCart = useCallback((productId: string | number, volume: string | number) => {
+    setCartItems((currentItems) => {
+      const key = `${productId}-${volume}`;
+      const currentQuantity = currentItems[key] || 0;
+      const product = products.find((item) => String(item.id) === String(productId));
+      const minimumQuantity = product?.min_order_qty || 1;
+
+      if (currentQuantity <= minimumQuantity) {
+        return Object.fromEntries(Object.entries(currentItems).filter(([itemKey]) => itemKey !== key));
+      }
+
+      return {
+        ...currentItems,
+        [key]: currentQuantity - 1
+      };
+    });
+  }, [products]);
+
+  const clearCart = useCallback(() => {
+    setCartItems({});
+  }, []);
+
   return (
     <CartContext.Provider
-      value={{ cartItems, setCartItems, products, setProducts, totalVolume }}
+      value={{
+        cartItems,
+        setCartItems,
+        products,
+        setProducts,
+        totalVolume,
+        addToCart,
+        removeFromCart,
+        clearCart
+      }}
     >
       {children}
     </CartContext.Provider>
