@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase/client';
 import { Package, ShoppingCart, Loader2, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { useContext } from 'react';
-import { CartContext } from '../page';
+import { CartContext } from '@/contexts/CartContext';
 import Header from '@/components/Header';
 import { getAllowedVolumes } from '@/lib/product-config';
 

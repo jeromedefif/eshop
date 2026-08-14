@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
@@ -13,106 +13,7 @@ import SuccessNotification from '@/components/SuccessNotification';
 import type { Product } from '@/types/database';
 import { getAllowedVolumes, sortCatalogProducts } from '@/lib/product-config';
 import { archiveProduct, createProduct, deleteProduct, restoreProduct, updateProduct } from '@/lib/products';
-
-export const CartContext = createContext<{
-   cartItems: {[key: string]: number};
-   setCartItems: (items: {[key: string]: number} | ((prev: {[key: string]: number}) => {[key: string]: number})) => void;
-   products: Product[];
-   setProducts: (products: Product[]) => void;
-   totalVolume: number;
-} | null>(null);
-
-const defaultCartItems: {[key: string]: number} = {};
-
-export const CartProvider = ({ children }: { children: React.ReactNode }) => {
-   const [cartItems, setCartItems] = useState<{[key: string]: number}>(defaultCartItems);
-   const [products, setProducts] = useState<Product[]>([]);
-   const [totalVolume, setTotalVolume] = useState(0);
-   const { user: authUser } = useAuth();
-
-   // Načtení produktů globálně pro všechny stránky (včetně /order-summary po refreshi)
-   useEffect(() => {
-       let isMounted = true;
-
-       const loadProductsForProvider = async () => {
-           try {
-               const { data, error } = await supabase
-                   .from('products')
-                   .select('*')
-                   .eq('is_archived', false)
-                   .order('is_new', { ascending: false })
-                   .order('is_featured', { ascending: false })
-                   .order('sort_priority', { ascending: false })
-                   .order('name');
-
-               if (error) {
-                   throw error;
-               }
-
-               if (isMounted) {
-                   setProducts(sortCatalogProducts(data || []));
-               }
-           } catch (error) {
-               console.error('Error loading products in CartProvider:', error);
-           }
-       };
-
-       loadProductsForProvider();
-
-       return () => {
-           isMounted = false;
-       };
-   }, [authUser?.id]);
-
-   // Načtení košíku z localStorage
-   useEffect(() => {
-       try {
-           const savedCart = localStorage.getItem('cart');
-           if (savedCart) {
-               setCartItems(JSON.parse(savedCart));
-           }
-       } catch (error) {
-           console.error('Error loading cart from localStorage:', error);
-           setCartItems(defaultCartItems);
-       }
-   }, []);
-
-   // Uložení košíku do localStorage při změně
-   useEffect(() => {
-       try {
-           localStorage.setItem('cart', JSON.stringify(cartItems));
-       } catch (error) {
-           console.error('Error saving cart to localStorage:', error);
-       }
-   }, [cartItems]);
-
-   // Výpočet celkového objemu
-   const getTotalVolume = () => {
-       return Object.entries(cartItems).reduce((total, [keyString, count]) => {
-           const [, volume] = keyString.split('-');
-           if (volume === 'maly' || volume === 'velky' || volume === 'baleni') {
-               return total;
-           }
-           return total + (parseInt(volume as string) * count);
-       }, 0);
-   };
-
-   useEffect(() => {
-       setTotalVolume(getTotalVolume());
-   }, [cartItems]);
-
-   return (
-       <CartContext.Provider value={{
-           cartItems,
-           setCartItems,
-           products,
-           setProducts,
-           totalVolume
-       }}>
-           {children}
-       </CartContext.Provider>
-   );
-};
+import { CartContext } from '@/contexts/CartContext';
 
 export default function Home() {
    const router = useRouter();
@@ -196,7 +97,7 @@ export default function Home() {
    };
 
    const handleClearCart = () => {
-       setCartItems(defaultCartItems);
+       setCartItems({});
    };
 
    const handleQuickReorder = async () => {

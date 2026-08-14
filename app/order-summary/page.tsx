@@ -3,7 +3,7 @@
 import { useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { CartContext } from '../page';
+import { CartContext } from '@/contexts/CartContext';
 import { supabase } from '@/lib/supabase/client';
 import OrderForm from '@/components/OrderForm';
 import Header from '@/components/Header';

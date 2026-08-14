@@ -1,7 +1,7 @@
 'use client'
 
 import { AuthProvider } from "./contexts/AuthContext"
-import { CartProvider } from "./page"
+import { CartProvider } from "./contexts/CartContext"
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { ToastContainer } from 'react-toastify'
