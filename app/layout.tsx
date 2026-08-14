@@ -15,6 +15,38 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
+const siteStructuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': 'https://www.beginy.cz/#website',
+      url: 'https://www.beginy.cz/',
+      name: 'Beginy.cz',
+      alternateName: 'VINARIA B2B',
+      inLanguage: 'cs-CZ',
+      publisher: { '@id': 'https://www.beginy.cz/#organization' }
+    },
+    {
+      '@type': 'Organization',
+      '@id': 'https://www.beginy.cz/#organization',
+      name: 'VINARIA s.r.o.',
+      alternateName: 'Beginy.cz',
+      url: 'https://www.beginy.cz/',
+      email: 'fiala@vinaria.cz',
+      telephone: '+420734720994',
+      sameAs: ['https://vinaria.cz/'],
+      contactPoint: {
+        '@type': 'ContactPoint',
+        contactType: 'sales',
+        telephone: '+420734720994',
+        email: 'fiala@vinaria.cz',
+        availableLanguage: ['cs', 'sk']
+      }
+    }
+  ]
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.beginy.cz'),
   title: {
@@ -49,6 +81,10 @@ export default function RootLayout({
     <html lang="cs">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(siteStructuredData).replace(/</g, '\\u003c') }}
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}

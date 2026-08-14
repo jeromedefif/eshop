@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, permanentRedirect } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, Grape, PackageOpen, Sparkles } from 'lucide-react';
-import { getAllowedVolumes, normalizeProductCategory } from '@/lib/product-config';
+import { CheckCircle2, Grape, PackageOpen, Sparkles } from 'lucide-react';
+import { getAllowedVolumes, getCategoryPath, normalizeProductCategory } from '@/lib/product-config';
 import { getProductIdFromSlug, getProductPath, getProductSlug } from '@/lib/product-slug';
 import { getPublicProductById } from '@/lib/public-products';
 
@@ -70,16 +70,29 @@ export default async function ProductPage({ params }: ProductPageProps) {
     const category = normalizeProductCategory(product.category);
     const volumes = getAllowedVolumes(product);
     const productUrl = `https://www.beginy.cz${getProductPath(product)}`;
+    const categoryPath = getCategoryPath(category);
+    const categoryUrl = `https://www.beginy.cz${categoryPath}`;
+    const description = `${product.name} – ${category}. Produkt z velkoobchodního katalogu VINARIA s.r.o. na Beginy.cz.`;
     const structuredData = {
         '@context': 'https://schema.org',
         '@type': 'Product',
         name: product.name,
+        description,
         category,
         url: productUrl,
         brand: {
             '@type': 'Brand',
             name: 'VINARIA'
         }
+    };
+    const breadcrumbData = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Produkty', item: 'https://www.beginy.cz/produkty' },
+            { '@type': 'ListItem', position: 2, name: category, item: categoryUrl },
+            { '@type': 'ListItem', position: 3, name: product.name, item: productUrl }
+        ]
     };
 
     return (
@@ -88,10 +101,14 @@ export default async function ProductPage({ params }: ProductPageProps) {
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}
             />
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData).replace(/</g, '\\u003c') }}
+            />
 
             <header className="border-b border-slate-200 bg-white/90 backdrop-blur">
                 <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
-                    <Link href="/" className="text-xl font-bold tracking-tight text-slate-950">
+                    <Link href="/produkty" className="text-xl font-bold tracking-tight text-slate-950">
                         VINARIA s.r.o.
                     </Link>
                     <span className="text-sm font-semibold text-blue-700">Beginy.cz</span>
@@ -99,10 +116,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
             </header>
 
             <div className="mx-auto max-w-6xl px-5 py-10 sm:py-16">
-                <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700 hover:text-blue-900">
-                    <ArrowLeft className="h-4 w-4" />
-                    Zpět do katalogu
-                </Link>
+                <nav aria-label="Drobečková navigace" className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-500">
+                    <Link href="/produkty" className="hover:text-blue-700">Produkty</Link>
+                    <span aria-hidden="true">/</span>
+                    <Link href={categoryPath} className="hover:text-blue-700">{category}</Link>
+                    <span aria-hidden="true">/</span>
+                    <span className="text-slate-900">{product.name}</span>
+                </nav>
 
                 <article className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_24px_70px_-40px_rgba(15,23,42,0.45)]">
                     <div className="grid lg:grid-cols-[0.72fr_1.28fr]">
@@ -121,7 +141,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
                         <div className="p-7 sm:p-10 lg:p-12">
                             <div className="flex flex-wrap items-center gap-2">
-                                <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-800">{category}</span>
+                                <Link href={categoryPath} className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-800 hover:bg-blue-100">{category}</Link>
                                 {product.is_new && <span className="rounded-full bg-violet-50 px-3 py-1 text-sm font-semibold text-violet-800">Novinka</span>}
                                 {product.is_featured && <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-semibold text-orange-800">Akce</span>}
                             </div>

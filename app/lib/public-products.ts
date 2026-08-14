@@ -11,6 +11,31 @@ export type PublicProduct = {
     allowed_volumes: string[];
 };
 
+export const getPublicProducts = unstable_cache(
+    async (): Promise<PublicProduct[]> => {
+        const products = await prisma.product.findMany({
+            where: { is_archived: false },
+            select: {
+                id: true,
+                name: true,
+                category: true,
+                in_stock: true,
+                is_new: true,
+                is_featured: true,
+                allowed_volumes: true
+            },
+            orderBy: { name: 'asc' }
+        });
+
+        return products.map((product) => ({
+            ...product,
+            id: product.id.toString()
+        }));
+    },
+    ['public-products-catalog'],
+    { revalidate: 3600, tags: ['public-products'] }
+);
+
 export const getPublicProductById = unstable_cache(
     async (id: string): Promise<PublicProduct | null> => {
         if (!/^\d+$/.test(id)) return null;

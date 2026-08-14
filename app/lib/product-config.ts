@@ -2,6 +2,39 @@ import type { Product } from '@/types/database';
 
 export const PRODUCT_CATEGORIES = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák', 'Plyny', 'PET'] as const;
 
+export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
+
+export const CATEGORY_DETAILS: Record<ProductCategory, { slug: string; description: string }> = {
+    'Víno': {
+        slug: 'vino',
+        description: 'Velkoobchodní nabídka vín pro vinotéky, gastronomii a další profesionální odběratele.'
+    },
+    'Perlivé': {
+        slug: 'perlive',
+        description: 'Perlivá a sycená vína určená pro velkoobchodní odběr a gastronomické provozy.'
+    },
+    'Nápoje': {
+        slug: 'napoje',
+        description: 'Velkoobchodní sortiment nápojů v praktických objemech pro profesionální odběratele.'
+    },
+    'Ovocné víno': {
+        slug: 'ovocne-vino',
+        description: 'Ovocná vína a nápoje dostupné ve více variantách balení pro B2B zákazníky.'
+    },
+    'Burčák': {
+        slug: 'burcak',
+        description: 'Sezónní nabídka burčáku pro vinotéky, gastronomii a další velkoobchodní zákazníky.'
+    },
+    'Plyny': {
+        slug: 'plyny',
+        description: 'Technické a potravinářské plyny v lahvích pro provozy a profesionální odběratele.'
+    },
+    'PET': {
+        slug: 'pet',
+        description: 'PET lahve a související obalový materiál pro stáčení a distribuci nápojů.'
+    }
+};
+
 export const CATEGORY_ORDER = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák', 'Plyny', 'PET'];
 
 export const LITER_VOLUMES = ['3', '5', '10', '20', '30', '50'];
@@ -10,6 +43,20 @@ export const PACKAGE_VOLUMES = ['baleni'];
 
 export function normalizeProductCategory(category: string): string {
     return category === 'Dusík' ? 'Plyny' : category;
+}
+
+export function getCategoryDetails(category: string) {
+    const normalized = normalizeProductCategory(category) as ProductCategory;
+    return CATEGORY_DETAILS[normalized] || null;
+}
+
+export function getCategoryBySlug(slug: string): ProductCategory | null {
+    return PRODUCT_CATEGORIES.find((category) => CATEGORY_DETAILS[category].slug === slug) || null;
+}
+
+export function getCategoryPath(category: string): string {
+    const details = getCategoryDetails(category);
+    return details ? `/produkty/kategorie/${details.slug}` : '/produkty';
 }
 
 export function getDefaultAllowedVolumes(category: string): string[] {
