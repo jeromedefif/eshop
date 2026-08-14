@@ -5,6 +5,7 @@ import { CheckCircle2, Grape, PackageOpen, Sparkles } from 'lucide-react';
 import { getAllowedVolumes, getCategoryPath, normalizeProductCategory } from '@/lib/product-config';
 import { getProductIdFromSlug, getProductPath, getProductSlug } from '@/lib/product-slug';
 import { getPublicProductById } from '@/lib/public-products';
+import SiteFooter from '@/components/SiteFooter';
 
 export const revalidate = 3600;
 
@@ -182,6 +183,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                     </div>
                 </article>
             </div>
+            <SiteFooter />
         </main>
     );
 }

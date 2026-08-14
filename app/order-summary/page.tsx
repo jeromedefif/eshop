@@ -7,6 +7,7 @@ import OrderForm from '@/components/OrderForm';
 import Header from '@/components/Header';
 import Link from 'next/link';
 import { ShoppingBag, ArrowLeft } from 'lucide-react';
+import SiteFooter from '@/components/SiteFooter';
 
 const OrderSummaryPage = () => {
     const { user, profile } = useAuth();
@@ -54,12 +55,12 @@ const OrderSummaryPage = () => {
 
     return (
         <>
-          <div className="min-h-screen bg-gray-50">
+          <div className="min-h-screen bg-gray-50 flex flex-col">
                 <div className="sticky top-0 z-50">
                     <Header />
                 </div>
 
-                <main className="container mx-auto px-4 py-6 notranslate">
+                <main className="container mx-auto flex-1 px-4 py-6 notranslate">
                     {Object.keys(cartItems).length === 0 ? (
                         <EmptyCartContent />
                     ) : (
@@ -85,6 +86,7 @@ const OrderSummaryPage = () => {
                         </div>
                     )}
                 </main>
+                <SiteFooter />
             </div>
         </>
     );

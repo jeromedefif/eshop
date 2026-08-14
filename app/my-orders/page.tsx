@@ -10,6 +10,7 @@ import { useContext } from 'react';
 import { CartContext } from '@/contexts/CartContext';
 import Header from '@/components/Header';
 import { getAllowedVolumes } from '@/lib/product-config';
+import SiteFooter from '@/components/SiteFooter';
 
 // Konstanty - velmi minimální změna
 const PAGE_SIZE = 5;
@@ -209,12 +210,12 @@ const MyOrdersPage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50 flex flex-col">
             <div className="sticky top-0 z-50">
                 <Header />
             </div>
 
-            <div className="container mx-auto px-4 py-8">
+            <main className="container mx-auto flex-1 px-4 py-8">
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold text-gray-900">Moje objednávky</h1>
                 </div>
@@ -307,7 +308,8 @@ const MyOrdersPage = () => {
                         )}
                     </div>
                 )}
-            </div>
+            </main>
+            <SiteFooter />
         </div>
     );
 };

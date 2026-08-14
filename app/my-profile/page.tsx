@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft, User, Building, Phone, MapPin, Home, CheckCircle, Save, Mail } from 'lucide-react';
+import { User, Building, Phone, MapPin, Home, CheckCircle, Save, Mail } from 'lucide-react';
 import { toast } from 'react-toastify';
+import Header from '@/components/Header';
+import SiteFooter from '@/components/SiteFooter';
 
 export default function MyProfilePage() {
     const { user, profile, updateProfile, refreshProfile } = useAuth();
@@ -125,18 +126,12 @@ export default function MyProfilePage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-12">
-            <div className="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-md">
-                <div className="mb-6">
-                    <Link
-                        href="/"
-                        className="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors"
-                    >
-                        <ArrowLeft className="w-4 h-4 mr-1" />
-                        Zpět na katalog
-                    </Link>
-                </div>
-
+        <div className="min-h-screen bg-gray-50 flex flex-col">
+            <div className="sticky top-0 z-50">
+                <Header />
+            </div>
+            <main className="flex-1 px-4 py-8 sm:py-12">
+                <div className="max-w-2xl mx-auto bg-white p-6 sm:p-8 rounded-lg shadow-md">
                 <div className="mb-8 border-b pb-4">
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">Můj profil</h1>
                     <p className="text-gray-600">Aktualizujte své kontaktní údaje a adresu pro objednávky.</p>
@@ -289,16 +284,7 @@ export default function MyProfilePage() {
                         </div>
                     )}
 
-                    <div className="flex justify-between pt-4 border-t">
-                        {/* Přidané tlačítko "Zpět na katalog" */}
-                        <Link
-                            href="/"
-                            className="px-6 py-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
-                        >
-                            <ArrowLeft className="w-5 h-5" />
-                            Zpět na katalog
-                        </Link>
-
+                    <div className="flex justify-end pt-4 border-t">
                         <button
                             type="submit"
                             className={`px-6 py-3 rounded-lg transition-colors flex items-center gap-2 ${
@@ -325,7 +311,9 @@ export default function MyProfilePage() {
                         </button>
                     </div>
                 </form>
-            </div>
+                </div>
+            </main>
+            <SiteFooter />
         </div>
     );
 }

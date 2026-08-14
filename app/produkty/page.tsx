@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { PublicCategoryCard, PublicProductCard } from '@/components/PublicCatalog';
 import { CATEGORY_DETAILS, PRODUCT_CATEGORIES, normalizeProductCategory } from '@/lib/product-config';
 import { getPublicProducts } from '@/lib/public-products';
+import SiteFooter from '@/components/SiteFooter';
 
 export const revalidate = 3600;
 
@@ -76,12 +77,7 @@ export default async function PublicProductsPage() {
                 </section>
             )}
 
-            <footer className="mt-10 border-t border-slate-200 bg-white">
-                <div className="mx-auto flex max-w-7xl flex-col gap-2 px-5 py-8 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
-                    <span>VINARIA s.r.o. – velkoobchod vínem a nápoji</span>
-                    <a href="mailto:fiala@vinaria.cz" className="font-semibold text-blue-700">fiala@vinaria.cz</a>
-                </div>
-            </footer>
+            <SiteFooter />
         </main>
     );
 }

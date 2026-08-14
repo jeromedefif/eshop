@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { PublicCategoryIcon, PublicProductCard } from '@/components/PublicCatalog';
 import { CATEGORY_DETAILS, PRODUCT_CATEGORIES, getCategoryBySlug, normalizeProductCategory } from '@/lib/product-config';
 import { getPublicProducts } from '@/lib/public-products';
+import SiteFooter from '@/components/SiteFooter';
 
 export const revalidate = 3600;
 
@@ -92,6 +93,7 @@ export default async function PublicCategoryPage({ params }: CategoryPageProps) 
                     <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-8 text-slate-600">V této kategorii nyní nejsou zveřejněné žádné produkty.</div>
                 )}
             </div>
+            <SiteFooter />
         </main>
     );
 }

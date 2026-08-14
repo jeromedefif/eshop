@@ -13,6 +13,7 @@ import type { Product } from '@/types/database';
 import { sortCatalogProducts } from '@/lib/product-config';
 import { archiveProduct, createProduct, deleteProduct, restoreProduct, updateProduct } from '@/lib/products';
 import { CartContext } from '@/contexts/CartContext';
+import SiteFooter from '@/components/SiteFooter';
 
 export default function Home() {
    const cartContext = useContext(CartContext);
@@ -72,13 +73,13 @@ export default function Home() {
    }
 
    return (
-       <div className="min-h-screen bg-gray-50">
+       <div className="min-h-screen bg-gray-50 flex flex-col">
            <SuccessNotification />
            <div className="sticky top-0 z-50">
                <Header />
            </div>
 
-           <main className="container mx-auto px-4 py-6">
+           <main className="container mx-auto flex-1 px-4 py-6">
                {currentView === 'catalog' && (
                    <ProductList
                        onAddToCart={addToCart}
@@ -116,6 +117,8 @@ export default function Home() {
                    />
                )}
            </main>
+
+           <SiteFooter />
 
            <AuthDialog
                isOpen={isLoginDialogOpen}
