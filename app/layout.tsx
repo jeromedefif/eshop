@@ -81,6 +81,7 @@ export default function RootLayout({
     <html lang="cs">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta httpEquiv="content-language" content="cs" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(siteStructuredData).replace(/</g, '\\u003c') }}

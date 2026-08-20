@@ -17,14 +17,22 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   // Veřejné produktové stránky jsou samostatné SEO stránky. Nepotřebují
   // autentizaci ani košík, takže při jejich návštěvě nevytváříme Supabase dotazy.
-  if (pathname.startsWith('/produkty/')) {
+  if (pathname === '/produkty' || pathname.startsWith('/produkty/')) {
     return children
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-white px-6">
+        <div className="max-w-xl text-center">
+          <div className="mx-auto animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <h1 className="mt-5 text-xl font-semibold text-slate-900">
+            Načítáme velkoobchodní katalog vín a nápojů
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Připravujeme aktuální nabídku produktů společnosti VINARIA s.r.o., dostupné objemy a možnosti objednání.
+          </p>
+        </div>
       </div>
     )
   }
