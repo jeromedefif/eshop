@@ -644,44 +644,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       console.log('[Auth] Updating profile');
-      const { error } = await supabase
+      const updatedAt = new Date().toISOString();
+      const { data: updatedProfile, error } = await supabase
         .from('profiles')
         .update({
-          ...data,
-          updated_at: new Date().toISOString(),
+          full_name: data.full_name,
+          company: data.company,
+          phone: data.phone,
+          address: data.address,
+          city: data.city,
+          postal_code: data.postal_code,
+          updated_at: updatedAt,
         })
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select('*')
+        .single();
 
       // Kontrola zrušení operace
       if (currentOperationId !== authOperationCounterRef.current) return;
 
       if (error) throw error;
 
-      // KLÍČOVÁ OPTIMALIZACE: Místo fetchProfile použijeme přímou aktualizaci profilu
-      // Tím zabráníme zbytečným API voláním
-      if (profile) {
-        const updatedProfile = {
-          ...profile,
-          ...data,
-          updated_at: new Date().toISOString()
-        };
-
-        // Aktualizace cache
-        profileCache[user.id] = {
-          data: updatedProfile,
-          timestamp: Date.now()
-        };
-
-        // Aktualizace stavu
-        setProfile(updatedProfile);
-      } else {
-        // Fallback když nemáme stávající profil
-        const updatedProfile = await fetchProfile(user.id);
-        if (!updatedProfile) {
-          throw new Error('Nepodařilo se načíst aktualizovaný profil');
-        }
-        setProfile(updatedProfile);
+      if (!updatedProfile || updatedProfile.id !== user.id) {
+        throw new Error('Databáze nepotvrdila aktualizaci profilu');
       }
+
+      // Stav i cache aktualizujeme výhradně daty skutečně vrácenými databází.
+      profileCache[user.id] = {
+        data: updatedProfile,
+        timestamp: Date.now()
+      };
+      setProfile(updatedProfile);
 
       toast.success('Profil byl úspěšně aktualizován');
     } catch (error) {
