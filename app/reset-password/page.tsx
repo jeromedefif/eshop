@@ -1,11 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Lock, Eye, EyeOff, AlertCircle, CheckCircle, Wine } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { supabase } from '@/lib/supabase/client';
 import AuthPageShell from '@/components/AuthPageShell';
 
 export default function ResetPasswordPage() {
@@ -15,7 +13,40 @@ export default function ResetPasswordPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isReset, setIsReset] = useState(false);
-    const router = useRouter();
+    const [sessionStatus, setSessionStatus] = useState<'checking' | 'valid' | 'invalid'>('checking');
+
+    useEffect(() => {
+        let mounted = true;
+
+        const verifyRecoverySession = async () => {
+            try {
+                const response = await fetch('/api/auth/reset-password', {
+                    method: 'GET',
+                    cache: 'no-store',
+                });
+
+                if (!mounted) return;
+
+                if (response.ok) {
+                    setSessionStatus('valid');
+                    return;
+                }
+
+                setSessionStatus('invalid');
+                setError('Odkaz pro reset hesla je neplatný nebo vypršel. Vyžádejte si prosím nový odkaz.');
+            } catch {
+                if (!mounted) return;
+                setSessionStatus('invalid');
+                setError('Nepodařilo se ověřit odkaz pro reset hesla. Zkuste to prosím znovu.');
+            }
+        };
+
+        verifyRecoverySession();
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
@@ -37,28 +68,37 @@ export default function ResetPasswordPage() {
             return;
         }
 
+        if (sessionStatus !== 'valid') {
+            setError('Odkaz pro reset hesla není platný. Vyžádejte si prosím nový odkaz.');
+            return;
+        }
+
         setIsLoading(true);
 
         try {
             console.log('Pokus o aktualizaci hesla');
 
-            // Přímé volání Supabase API pro aktualizaci hesla
-            const { error } = await supabase.auth.updateUser({
-                password: password
+            const response = await fetch('/api/auth/reset-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ password }),
             });
 
-            if (error) {
-                console.error('Chyba při aktualizaci hesla:', error);
-                throw error;
+            const result = await response.json().catch(() => null);
+
+            if (!response.ok || !result?.success) {
+                throw new Error(result?.error || 'Heslo se nepodařilo změnit. Vyžádejte si nový odkaz.');
             }
 
             console.log('Heslo bylo úspěšně aktualizováno');
             toast.success('Heslo bylo úspěšně změněno');
             setIsReset(true);
 
-            // Přesměrování na login po úspěšném resetu
+            // Server recovery session ukončil. Hard redirect zaručí čistý auth stav.
             setTimeout(() => {
-                router.push('/login');
+                window.location.replace('/login?reset=success');
             }, 3000);
         } catch (error) {
             console.error('Chyba při resetování hesla:', error);
@@ -100,10 +140,27 @@ export default function ResetPasswordPage() {
                             Vaše heslo bylo úspěšně resetováno. Nyní budete přesměrováni na přihlašovací stránku.
                         </p>
                         <Link
-                            href="/login"
+                            href="/login?reset=success"
                             className="inline-block px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
                         >
                             Přejít na přihlášení
+                        </Link>
+                    </div>
+                ) : sessionStatus === 'checking' ? (
+                    <div className="py-8 text-center">
+                        <div className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600" />
+                        <p className="mt-3 text-gray-600">Ověřuji odkaz pro reset hesla...</p>
+                    </div>
+                ) : sessionStatus === 'invalid' ? (
+                    <div className="rounded-lg bg-red-50 p-6 text-center">
+                        <AlertCircle className="mx-auto mb-4 h-12 w-12 text-red-500" />
+                        <h2 className="mb-2 text-xl font-semibold text-gray-900">Neplatný odkaz</h2>
+                        <p className="mb-5 text-gray-700">{error}</p>
+                        <Link
+                            href="/forgot-password"
+                            className="inline-block rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700"
+                        >
+                            Vyžádat nový odkaz
                         </Link>
                     </div>
                 ) : (

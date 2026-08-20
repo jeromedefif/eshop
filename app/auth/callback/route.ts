@@ -2,15 +2,20 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
+const PASSWORD_RECOVERY_COOKIE = 'beginy-password-recovery-user'
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   // Získání typu akce z URL parametrů (může být signup, recovery, invite atd.)
   const type = requestUrl.searchParams.get('type')
 
-  // Definice pevné základní URL pro přesměrování
-  // Prioritně používá proměnnou prostředí, s fallbackem na localhost
-  const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  const isLocalRequest = ['localhost', '127.0.0.1'].includes(requestUrl.hostname)
+  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '')
+  // Lokálně zachováme i aktuální port. V produkci používáme kanonickou doménu.
+  const BASE_URL = isLocalRequest
+    ? requestUrl.origin
+    : configuredSiteUrl || requestUrl.origin
 
   console.log(`Auth callback processing - type: ${type}, code present: ${Boolean(code)}`)
   console.log(`Using base URL for redirects: ${BASE_URL}`)
@@ -23,14 +28,13 @@ export async function GET(request: Request) {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
           cookies: {
-            get(name: string) {
-              return cookieStore.get(name)?.value
+            getAll() {
+              return cookieStore.getAll()
             },
-            set(name: string, value: string, options: any) {
-              cookieStore.set({ name, value, ...options })
-            },
-            remove(name: string, options: any) {
-              cookieStore.set({ name, value: '', ...options })
+            setAll(cookiesToSet) {
+              cookiesToSet.forEach(({ name, value, options }) => {
+                cookieStore.set(name, value, options)
+              })
             },
           },
         }
@@ -51,6 +55,13 @@ export async function GET(request: Request) {
       // To vyřeší případy, kdy typ není správně předán v URL
       if (type === 'recovery' || requestUrl.toString().includes('recovery')) {
         console.log('Redirecting to reset-password page')
+        cookieStore.set(PASSWORD_RECOVERY_COOKIE, data.session.user.id, {
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+          path: '/',
+          maxAge: 15 * 60,
+        })
         return NextResponse.redirect(`${BASE_URL}/reset-password`)
       }
 

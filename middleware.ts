@@ -13,13 +13,9 @@ export async function middleware(request: NextRequest) {
 
   try {
     const { supabase, response } = await createMiddlewareClient(request)
-    await supabase.auth.getSession()
+    await supabase.auth.getUser()
 
-    return NextResponse.next({
-      request: {
-        headers: request.headers,
-      },
-    });
+    return response
   } catch (error) {
     console.error('Middleware error:', error)
     return NextResponse.next()

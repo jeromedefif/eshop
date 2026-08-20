@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Mail, Send, AlertCircle, Wine } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { supabase } from '@/lib/supabase/client';
+import { getPasswordRecoveryRedirectUrl } from '@/lib/auth/redirect-url';
 import AuthPageShell from '@/components/AuthPageShell';
 
 export default function ForgotPasswordPage() {
@@ -21,10 +22,7 @@ export default function ForgotPasswordPage() {
         setIsLoading(true);
 
         try {
-          // KLÍČOVÁ ZMĚNA: Použijeme hardcoded URL místo detekce z window.location
-// Tímto zajistíme konzistenci i při nasazení
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.beginy.cz';
-const redirectUrl = `${baseUrl}/auth/callback?type=recovery`;
+const redirectUrl = getPasswordRecoveryRedirectUrl();
 
 console.log('Odesílám email pro reset hesla na:', email);
 console.log('Redirect URL:', redirectUrl);

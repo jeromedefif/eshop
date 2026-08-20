@@ -14,6 +14,7 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showVerificationMessage, setShowVerificationMessage] = useState(false);
+    const [showPasswordResetMessage, setShowPasswordResetMessage] = useState(false);
     const { signIn, user } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -22,10 +23,15 @@ export default function LoginPage() {
     useEffect(() => {
         // Ověříme, zda přicházíme z verifikačního emailu
         const isVerified = searchParams.get('verified') === 'true';
+        const isPasswordReset = searchParams.get('reset') === 'success';
 
         if (isVerified) {
             // Zobrazit zprávu o úspěšné verifikaci
             setShowVerificationMessage(true);
+        }
+
+        if (isPasswordReset) {
+            setShowPasswordResetMessage(true);
         }
 
         // Načtení uloženého emailu z localStorage, pokud existuje
@@ -90,6 +96,13 @@ export default function LoginPage() {
                     <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-lg flex items-center">
                         <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0" />
                         <span>Váš email byl úspěšně ověřen! Nyní se můžete přihlásit.</span>
+                    </div>
+                )}
+
+                {showPasswordResetMessage && (
+                    <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-lg flex items-center">
+                        <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+                        <span>Heslo bylo úspěšně změněno. Přihlaste se prosím novým heslem.</span>
                     </div>
                 )}
 

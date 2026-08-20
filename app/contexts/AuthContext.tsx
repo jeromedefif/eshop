@@ -4,6 +4,7 @@ let lastSignOutEventTime = 0;
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
+import { getPasswordRecoveryRedirectUrl } from '@/lib/auth/redirect-url'
 import type { AuthContextType, UserProfile, SignUpData, UpdateProfileData } from '@/types/auth'
 import { toast } from 'react-toastify'
 import debounce from 'lodash/debounce';
@@ -416,9 +417,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('[Auth] Odesílám email pro reset hesla na:', email);
 
-      // Správná URL pro přesměrování - přímá cesta na /reset-password
-      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.beginy.cz';
-      const redirectURL = `${baseUrl}/reset-password`;
+      const redirectURL = getPasswordRecoveryRedirectUrl();
 
       console.log('[Auth] Redirect URL:', redirectURL);
 
