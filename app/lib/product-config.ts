@@ -38,6 +38,7 @@ export const CATEGORY_DETAILS: Record<ProductCategory, { slug: string; descripti
 export const CATEGORY_ORDER = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák', 'Plyny', 'PET'];
 
 export const LITER_VOLUMES = ['3', '5', '10', '20', '30', '50'];
+export const BURCAK_VOLUMES = ['3', '5', '10', '20', '25', '50'];
 export const GAS_VOLUMES = ['maly', 'velky'];
 export const PACKAGE_VOLUMES = ['baleni'];
 
@@ -65,8 +66,9 @@ export function getDefaultAllowedVolumes(category: string): string[] {
         case 'Perlivé':
         case 'Nápoje':
         case 'Ovocné víno':
-        case 'Burčák':
             return LITER_VOLUMES;
+        case 'Burčák':
+            return BURCAK_VOLUMES;
         case 'Plyny':
             return GAS_VOLUMES;
         case 'PET':
@@ -77,9 +79,22 @@ export function getDefaultAllowedVolumes(category: string): string[] {
 }
 
 export function getAllowedVolumes(product: Pick<Product, 'category' | 'allowed_volumes'>): string[] {
-    return product.allowed_volumes?.length
+    const volumes = product.allowed_volumes?.length
         ? product.allowed_volumes
         : getDefaultAllowedVolumes(product.category);
+
+    // Existing Burčák products can still contain the former 30L value until
+    // the data migration is applied. Keep the UI and validation consistent.
+    if (normalizeProductCategory(product.category) === 'Burčák') {
+        const currentVolumes = volumes.map((volume) => volume === '30' ? '25' : volume);
+        const uniqueVolumes = new Set([...currentVolumes, '25']);
+        return [
+            ...BURCAK_VOLUMES.filter((volume) => uniqueVolumes.has(volume)),
+            ...Array.from(uniqueVolumes).filter((volume) => !BURCAK_VOLUMES.includes(volume))
+        ];
+    }
+
+    return volumes;
 }
 
 export function isVolumeAllowed(product: Pick<Product, 'category' | 'allowed_volumes'>, volume: string | number): boolean {

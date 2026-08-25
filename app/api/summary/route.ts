@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 const LITER_CATEGORIES = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák', 'Ovocné'];
-const PACKAGE_SIZES = [3, 5, 10, 20, 30, 50];
+// Keep 30L for historical orders and include the current 25L Burčák packaging.
+const PACKAGE_SIZES = [3, 5, 10, 20, 25, 30, 50];
 
 type Period = 'week' | 'month' | 'year' | 'all';
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { CATEGORY_DETAILS, PRODUCT_CATEGORIES, normalizeProductCategory } from '@/lib/product-config';
+import { CATEGORY_DETAILS, PRODUCT_CATEGORIES, getAllowedVolumes, normalizeProductCategory } from '@/lib/product-config';
 import { getProductPath } from '@/lib/product-slug';
 import { getPublicProducts } from '@/lib/public-products';
 
@@ -20,7 +20,7 @@ export async function GET() {
                     inStock: product.in_stock,
                     isNew: product.is_new,
                     isFeatured: product.is_featured,
-                    allowedVolumes: product.allowed_volumes
+                    allowedVolumes: getAllowedVolumes(product)
                 }));
 
             return {
