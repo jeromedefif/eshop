@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Script from 'next/script';
 import Link from 'next/link';
 import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, Layout, LayoutList, Sparkles, Amphora } from 'lucide-react';
@@ -11,6 +11,7 @@ type ProductListProps = {
     onRemoveFromCart: (productId: string | number, volume: string | number) => void;
     cartItems: {[key: string]: number};
     products: Product[];
+    initialProductId?: string | null;
 };
 
 // Definice barev ikon pro kategorie
@@ -36,7 +37,7 @@ const categoryButtons = [
     { id: 'PET', icon: <Box className="h-5 w-5" />, label: 'PET' }
 ];
 
-const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: ProductListProps) => {
+const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initialProductId }: ProductListProps) => {
     const [selectedCategory, setSelectedCategory] = useState("Všechny");
     const [searchQuery, setSearchQuery] = useState('');
     const [isGrouped, setIsGrouped] = useState(false);
@@ -44,6 +45,35 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [directProductId, setDirectProductId] = useState<string | null>(null);
+
+    const clearDirectProduct = (clearSearch = true) => {
+        setDirectProductId(null);
+        if (clearSearch) setSearchQuery('');
+
+        const url = new URL(window.location.href);
+        url.searchParams.delete('produkt');
+        window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    };
+
+    useEffect(() => {
+        if (!initialProductId) return;
+
+        setSelectedCategory('Všechny');
+        setIsGrouped(false);
+        setDirectProductId(initialProductId);
+
+        const product = products.find((item) => String(item.id) === initialProductId);
+        if (!product) return;
+
+        setSearchQuery(product.name);
+        const timer = window.setTimeout(() => {
+            const layout = window.matchMedia('(min-width: 768px)').matches ? 'desktop' : 'mobile';
+            document.getElementById(`product-${layout}-${product.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+
+        return () => window.clearTimeout(timer);
+    }, [initialProductId, products]);
 
     const openOfferModal = () => {
         setIsOfferModalOpen(true);
@@ -130,6 +160,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
 
     const filteredProducts = sortCatalogProducts(products).filter(product => {
         if (product.is_archived) return false;
+        if (directProductId) return String(product.id) === directProductId;
         const category = normalizeProductCategory(product.category);
         const categoryMatch = selectedCategory === "Všechny" ? true : category === selectedCategory;
         const searchMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -201,7 +232,13 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
         const productButtons = getVolumeButtons(product);
 
         return (
-            <div key={product.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
+            <div
+                id={`product-mobile-${product.id}`}
+                key={product.id}
+                className={`bg-white rounded-lg shadow-sm border p-3 mb-3 transition ${
+                    directProductId === String(product.id) ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200'
+                }`}
+            >
                 <div className="flex items-start gap-2 mb-2">
                     <div className="mt-0.5">
                         {getProductIcon(product.category)}
@@ -242,9 +279,11 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
         const productButtons = getVolumeButtons(product);
 
         return (
-            <div key={product.id} className="flex flex-col sm:flex-row items-start sm:items-center py-2 px-3 bg-white
+            <div id={`product-desktop-${product.id}`} key={product.id} className={`flex flex-col sm:flex-row items-start sm:items-center py-2 px-3 bg-white
                         hover:bg-blue-50/80 transition-all duration-150
-                        border-b last:border-b-0 hover:shadow-md min-h-[40px] first:pt-1.5">
+                        border-b last:border-b-0 hover:shadow-md min-h-[40px] first:pt-1.5 ${
+                            directProductId === String(product.id) ? 'bg-blue-50 ring-2 ring-inset ring-blue-200' : ''
+                        }`}>
                 <div className="flex items-center flex-grow min-w-0 gap-2">
                     <div className="opacity-75">
                         {getProductIcon(product.category)}
@@ -304,14 +343,17 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                         <input
                             type="text"
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onChange={(e) => {
+                                if (directProductId) clearDirectProduct(false);
+                                setSearchQuery(e.target.value);
+                            }}
                             placeholder="Vyhledat produkt..."
                             className="block w-full pl-9 pr-4 py-1.5 text-sm border border-gray-300 rounded-lg
                                          focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                         />
-                        {searchQuery && (
+                        {(searchQuery || directProductId) && (
                             <button
-                                onClick={() => setSearchQuery('')}
+                                onClick={() => directProductId ? clearDirectProduct() : setSearchQuery('')}
                                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
                             >
                                 <X className="h-4 w-4" />
@@ -321,6 +363,14 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                     {searchQuery && (
                         <div className="mt-1 text-xs text-gray-600">
                             Nalezeno {filteredProducts.length} produktů
+                        </div>
+                    )}
+                    {directProductId && filteredProducts.length > 0 && (
+                        <div className="mt-2 flex items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                            <span>Zobrazen produkt z přímého odkazu.</span>
+                            <button type="button" onClick={() => clearDirectProduct()} className="font-semibold hover:underline">
+                                Zobrazit celý katalog
+                            </button>
                         </div>
                     )}
                 </div>
@@ -333,7 +383,10 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                             return (
                                 <button
                                     key={cat.id}
-                                    onClick={() => setSelectedCategory(cat.id)}
+                                    onClick={() => {
+                                        if (directProductId) clearDirectProduct();
+                                        setSelectedCategory(cat.id);
+                                    }}
                                     className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors ${
                                         selectedCategory === cat.id
                                             ? 'bg-blue-100 text-blue-700'
@@ -493,13 +546,15 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                     <div className="text-center py-6">
                         <Search className="h-10 w-10 text-gray-400 mx-auto mb-2" />
                         <p className="text-gray-600 text-base">
-                            {searchQuery
+                            {directProductId
+                                ? "Produkt z odkazu již není v katalogu dostupný"
+                                : searchQuery
                                 ? "Nenalezeny žádné produkty odpovídající vašemu hledání"
                                 : "V této kategorii nejsou žádné produkty"}
                         </p>
-                        {searchQuery && (
+                        {(searchQuery || directProductId) && (
                             <button
-                                onClick={() => setSearchQuery('')}
+                                onClick={() => directProductId ? clearDirectProduct() : setSearchQuery('')}
                                 className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
                             >
                                 Zobrazit všechny produkty
@@ -540,13 +595,15 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products }: Pro
                     <div className="text-center py-6">
                         <Search className="h-10 w-10 text-gray-400 mx-auto mb-2" />
                         <p className="text-gray-600 text-base">
-                            {searchQuery
+                            {directProductId
+                                ? "Produkt z odkazu již není v katalogu dostupný"
+                                : searchQuery
                                 ? "Nenalezeny žádné produkty odpovídající vašemu hledání"
                                 : "V této kategorii nejsou žádné produkty"}
                         </p>
-                        {searchQuery && (
+                        {(searchQuery || directProductId) && (
                             <button
-                                onClick={() => setSearchQuery('')}
+                                onClick={() => directProductId ? clearDirectProduct() : setSearchQuery('')}
                                 className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
                             >
                                 Zobrazit všechny produkty

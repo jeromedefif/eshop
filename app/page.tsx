@@ -22,6 +22,7 @@ export default function Home() {
    const [currentView, setCurrentView] = useState<'catalog' | 'order' | 'admin'>('catalog');
    const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
    const [isLoading, setIsLoading] = useState(true);
+   const [linkedProductId, setLinkedProductId] = useState<string | null>(null);
 
    if (!cartContext) {
        return null;
@@ -65,6 +66,10 @@ export default function Home() {
        // Odstranili jsme kód pro toast, protože používáme vlastní SuccessNotification komponentu
    }, []);
 
+   useEffect(() => {
+       setLinkedProductId(new URLSearchParams(window.location.search).get('produkt'));
+   }, []);
+
    if (isLoading) {
        return (
            <CustomerPageState
@@ -87,6 +92,7 @@ export default function Home() {
                        onRemoveFromCart={removeFromCart}
                        cartItems={cartItems}
                        products={products}
+                       initialProductId={linkedProductId}
                    />
                )}
 

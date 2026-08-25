@@ -169,8 +169,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
                                 <p className="max-w-2xl text-sm leading-6 text-slate-600">
                                     Objednávky probíhají bez zobrazení cen v zabezpečeném B2B katalogu. Po přihlášení můžete zvolit požadovanou variantu a množství.
                                 </p>
-                                <Link href="/" className="mt-5 inline-flex rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-800">
-                                    Otevřít objednávkový katalog
+                                <Link href={`/?produkt=${product.id}`} className="mt-5 inline-flex rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-800">
+                                    Najít v objednávkovém katalogu
                                 </Link>
                             </div>
                         </div>
