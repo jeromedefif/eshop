@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
-import { Package, ShoppingCart, Loader2, ChevronDown, Bookmark, Heart, Pencil, Trash2, Plus } from 'lucide-react';
+import { Package, ShoppingCart, Loader2, ChevronDown, Bookmark, Heart, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useCart, type CartItems } from '@/contexts/CartContext';
 import { usePurchasing } from '@/contexts/PurchasingContext';
@@ -39,7 +39,7 @@ const MyOrdersPage = () => {
     const router = useRouter();
     const [orders, setOrders] = useState<CustomerOrder[]>([]);
     const [loading, setLoading] = useState(true);
-    const { requestCartImport, addToCart, products } = useCart();
+    const { requestCartImport, addToCart, removeFromCart, cartItems, products } = useCart();
     const { templates, favoriteProductIds, isLoading: isPurchasingLoading, createTemplate, renameTemplate, deleteTemplate } = usePurchasing();
     const [activeTab, setActiveTab] = useState<'history' | 'templates' | 'favorites'>('history');
     const [savingOrderId, setSavingOrderId] = useState<string | null>(null);
@@ -453,9 +453,39 @@ const MyOrdersPage = () => {
                                     <div key={product.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                                         <div><h2 className="font-bold text-slate-900">{product.name}</h2><p className="text-sm text-slate-500">{product.category}</p></div>
                                         <div className="flex flex-wrap gap-2">
-                                            {getAllowedVolumes(product).map((volume) => (
-                                                <button key={volume} type="button" disabled={!product.in_stock || product.is_archived} onClick={() => addToCart(product.id, volume)} className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-blue-200 px-3 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"><Plus className="h-3.5 w-3.5" />{volume === 'maly' ? 'malý' : volume === 'velky' ? 'velký' : volume === 'baleni' ? 'balení' : `${volume}L`}</button>
-                                            ))}
+                                            {getAllowedVolumes(product).map((volume) => {
+                                                const count = cartItems[`${product.id}-${volume}`] || 0;
+                                                const isInCart = count > 0;
+                                                const label = volume === 'maly' ? 'malý' : volume === 'velky' ? 'velký' : volume === 'baleni' ? 'balení' : `${volume}L`;
+
+                                                return (
+                                                    <div key={`${product.id}-${volume}`} className="relative">
+                                                        <button
+                                                            type="button"
+                                                            disabled={!product.in_stock || product.is_archived}
+                                                            onClick={() => addToCart(product.id, volume)}
+                                                            className={`min-h-10 min-w-[48px] rounded-lg border px-3 text-sm font-semibold transition-colors duration-150 ${
+                                                                isInCart
+                                                                    ? 'border-blue-500 bg-blue-600/15 text-blue-700 hover:bg-blue-600/25'
+                                                                    : 'border-gray-300 bg-white text-gray-900 hover:border-blue-400 hover:bg-blue-50 active:bg-blue-100'
+                                                            } disabled:cursor-not-allowed disabled:opacity-40`}
+                                                        >
+                                                            {label}
+                                                        </button>
+                                                        {isInCart && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeFromCart(product.id, volume)}
+                                                                className="absolute -right-1.5 -top-1.5 flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white shadow-sm transition-colors duration-150 hover:bg-red-600"
+                                                                aria-label={`Snížit množství ${product.name}, ${label} o 1`}
+                                                                title="Kliknutím snížíte počet o 1"
+                                                            >
+                                                                {count}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 ))}
