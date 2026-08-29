@@ -20,6 +20,19 @@ export interface Order {
     customer_email: string;
     customer_phone: string | null;
     customer_company: string | null;
+    customer_company_id: string | null;
+    customer_vat_id: string | null;
+    billing_address: string | null;
+    billing_city: string | null;
+    billing_postal_code: string | null;
+    billing_country: string | null;
+    shipping_company: string | null;
+    shipping_contact_name: string | null;
+    shipping_address: string | null;
+    shipping_city: string | null;
+    shipping_postal_code: string | null;
+    shipping_country: string | null;
+    delivery_instructions: string | null;
     total_volume: string;
     status: 'pending' | 'confirmed' | 'completed';
     note: string | null;
@@ -40,6 +53,23 @@ export interface UserProfile {
     full_name: string | null;
     company: string | null;
     phone: string | null;
+    address?: string | null;
+    city?: string | null;
+    postal_code?: string | null;
+    company_id?: string | null;
+    vat_id?: string | null;
+    billing_address?: string | null;
+    billing_city?: string | null;
+    billing_postal_code?: string | null;
+    billing_country?: string | null;
+    shipping_same_as_billing?: boolean;
+    shipping_company?: string | null;
+    shipping_contact_name?: string | null;
+    shipping_address?: string | null;
+    shipping_city?: string | null;
+    shipping_postal_code?: string | null;
+    shipping_country?: string | null;
+    delivery_instructions?: string | null;
 }
 
 // Typy pro OrderForm
@@ -62,6 +92,19 @@ export interface OrderCustomer {
     email: string;
     phone: string;
     company?: string;
+    companyId?: string;
+    vatId?: string;
+    billingAddress?: string;
+    billingCity?: string;
+    billingPostalCode?: string;
+    billingCountry?: string;
+    shippingCompany?: string;
+    shippingContactName?: string;
+    shippingAddress?: string;
+    shippingCity?: string;
+    shippingPostalCode?: string;
+    shippingCountry?: string;
+    deliveryInstructions?: string;
     note?: string;
 }
 
@@ -114,6 +157,19 @@ export interface OrderCreateData {
     customer_email: string;
     customer_phone: string | null;
     customer_company: string | null;
+    customer_company_id: string | null;
+    customer_vat_id: string | null;
+    billing_address: string | null;
+    billing_city: string | null;
+    billing_postal_code: string | null;
+    billing_country: string | null;
+    shipping_company: string | null;
+    shipping_contact_name: string | null;
+    shipping_address: string | null;
+    shipping_city: string | null;
+    shipping_postal_code: string | null;
+    shipping_country: string | null;
+    delivery_instructions: string | null;
     note: string;
     status: 'pending';
 }

@@ -4,8 +4,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
   schemas   = ["public", "auth"]
 }
@@ -29,20 +29,33 @@ model Product {
 }
 
 model Order {
-  id               String      @id @default(uuid()) @db.Uuid
-  created_at       DateTime    @default(now()) @db.Timestamptz(6)
-  updated_at       DateTime    @default(now()) @db.Timestamptz(6)
-  user_id          String?     @db.Uuid
-  customer_name    String      @db.Text
-  customer_email   String      @db.Text
-  customer_phone   String?     @db.Text
-  customer_company String?     @db.Text
-  total_volume     Decimal     @db.Decimal
-  status          String      @default("pending") @db.Text
-  note            String?     @db.Text
-  order_items     OrderItem[]
-  internal_note   OrderInternalNote?
-  user            User?       @relation(fields: [user_id], references: [id], map: "orders_user_id_fkey")
+  id                    String             @id @default(uuid()) @db.Uuid
+  created_at            DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime           @default(now()) @db.Timestamptz(6)
+  user_id               String?            @db.Uuid
+  customer_name         String             @db.Text
+  customer_email        String             @db.Text
+  customer_phone        String?            @db.Text
+  customer_company      String?            @db.Text
+  customer_company_id   String?            @db.Text
+  customer_vat_id       String?            @db.Text
+  billing_address       String?            @db.Text
+  billing_city          String?            @db.Text
+  billing_postal_code   String?            @db.Text
+  billing_country       String?            @db.Text
+  shipping_company      String?            @db.Text
+  shipping_contact_name String?            @db.Text
+  shipping_address      String?            @db.Text
+  shipping_city         String?            @db.Text
+  shipping_postal_code  String?            @db.Text
+  shipping_country      String?            @db.Text
+  delivery_instructions String?            @db.Text
+  total_volume          Decimal            @db.Decimal
+  status                String             @default("pending") @db.Text
+  note                  String?            @db.Text
+  order_items           OrderItem[]
+  internal_note         OrderInternalNote?
+  user                  User?              @relation(fields: [user_id], references: [id], map: "orders_user_id_fkey")
 
   @@map("orders")
   @@schema("public")
@@ -62,38 +75,53 @@ model OrderInternalNote {
 }
 
 model OrderItem {
-  id         String   @id @default(uuid()) @db.Uuid
-  order_id   String   @db.Uuid
+  id         String  @id @default(uuid()) @db.Uuid
+  order_id   String  @db.Uuid
   product_id BigInt
   quantity   Int
-  volume     String   @db.Text
-  order      Order    @relation(fields: [order_id], references: [id], map: "order_items_order_id_fkey")
-  product    Product  @relation(fields: [product_id], references: [id], map: "order_items_product_id_fkey")
+  volume     String  @db.Text
+  order      Order   @relation(fields: [order_id], references: [id], map: "order_items_order_id_fkey")
+  product    Product @relation(fields: [product_id], references: [id], map: "order_items_product_id_fkey")
 
   @@map("order_items")
   @@schema("public")
 }
 
 model Profile {
-  id            String    @id @db.Uuid
-  email         String?   @unique @db.Text
-  full_name     String?   @db.Text
-  company       String?   @db.Text
-  phone         String?   @db.Text
-  address       String?   @db.Text
-  city          String?   @db.Text
-  postal_code   String?   @db.Text
-  is_admin      Boolean   @default(false)
-  created_at    DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+  id                       String   @id @db.Uuid
+  email                    String?  @unique @db.Text
+  full_name                String?  @db.Text
+  company                  String?  @db.Text
+  phone                    String?  @db.Text
+  address                  String?  @db.Text
+  city                     String?  @db.Text
+  postal_code              String?  @db.Text
+  company_id               String?  @db.Text
+  vat_id                   String?  @db.Text
+  billing_address          String?  @db.Text
+  billing_city             String?  @db.Text
+  billing_postal_code      String?  @db.Text
+  billing_country          String?  @default("Česká republika") @db.Text
+  shipping_same_as_billing Boolean  @default(true)
+  shipping_company         String?  @db.Text
+  shipping_contact_name    String?  @db.Text
+  shipping_address         String?  @db.Text
+  shipping_city            String?  @db.Text
+  shipping_postal_code     String?  @db.Text
+  shipping_country         String?  @default("Česká republika") @db.Text
+  delivery_instructions    String?  @db.Text
+  show_ordering_help       Boolean  @default(true)
+  is_admin                 Boolean  @default(false)
+  created_at               DateTime @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime @default(now()) @db.Timestamptz(6)
 
   @@map("profiles")
   @@schema("public")
 }
 
 model User {
-  id      String   @id @db.Uuid
-  orders  Order[]
+  id     String  @id @db.Uuid
+  orders Order[]
 
   @@map("users")
   @@schema("auth")

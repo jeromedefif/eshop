@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import Script from 'next/script';
 import Link from 'next/link';
-import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, Layout, LayoutList, Sparkles, Amphora } from 'lucide-react';
+import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, Layout, LayoutList, Sparkles, Amphora, Info } from 'lucide-react';
 import { Product } from '@/types/database';
 import { CATEGORY_ORDER, getAllowedVolumes, normalizeProductCategory, sortCatalogProducts } from '@/lib/product-config';
 import { getProductPath } from '@/lib/product-slug';
+import { useAuth } from '@/contexts/AuthContext';
 
 type ProductListProps = {
     onAddToCart: (productId: string | number, volume: string | number) => void;
@@ -38,6 +39,7 @@ const categoryButtons = [
 ];
 
 const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initialProductId }: ProductListProps) => {
+    const { profile } = useAuth();
     const [selectedCategory, setSelectedCategory] = useState("Všechny");
     const [searchQuery, setSearchQuery] = useState('');
     const [isGrouped, setIsGrouped] = useState(false);
@@ -45,7 +47,17 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [isOrderingHelpDismissed, setIsOrderingHelpDismissed] = useState(false);
     const [directProductId, setDirectProductId] = useState<string | null>(null);
+
+    useEffect(() => {
+        setIsOrderingHelpDismissed(sessionStorage.getItem('ordering-help-dismissed') === 'true');
+    }, []);
+
+    const dismissOrderingHelp = () => {
+        sessionStorage.setItem('ordering-help-dismissed', 'true');
+        setIsOrderingHelpDismissed(true);
+    };
 
     const clearDirectProduct = (clearSearch = true) => {
         setDirectProductId(null);
@@ -431,6 +443,55 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                     </button>
                 </div>
             </div>
+
+            {profile?.show_ordering_help !== false && !isOrderingHelpDismissed && (
+                <section className="relative my-3 overflow-hidden rounded-xl border border-blue-200 bg-blue-50/70 px-4 py-3 text-gray-800">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                        <span className="flex items-center gap-2 text-sm font-semibold text-blue-950">
+                            <Info className="h-4 w-4 text-blue-600" />
+                            Jak objednávat
+                        </span>
+                        <button
+                            type="button"
+                            onClick={dismissOrderingHelp}
+                            className="rounded-md p-1 text-blue-700 hover:bg-blue-100 hover:text-blue-950"
+                            aria-label="Skrýt nápovědu pro tuto návštěvu"
+                            title="Skrýt nápovědu"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+
+                    <div id="ordering-help">
+                        <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
+                            <div className="grid gap-2 text-xs leading-relaxed text-gray-700 sm:grid-cols-3 sm:gap-4">
+                                <p><strong className="text-gray-900">1.</strong> Kliknutím na zvolený objem přidáte jeden kus.</p>
+                                <p><strong className="text-gray-900">2.</strong> Dalším kliknutím na objem přidáváte další kusy.</p>
+                                <p><strong className="text-gray-900">3.</strong> Kliknutím na červené kolečko množství o jeden kus snížíte.</p>
+                            </div>
+
+                            <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-white px-3 py-2 shadow-sm">
+                                <div className="relative shrink-0">
+                                    <span className="flex min-w-[52px] items-center justify-center rounded-md border border-blue-500 bg-blue-600/15 px-3 py-2 text-sm font-medium text-blue-700">
+                                        20L
+                                    </span>
+                                    <span className="absolute -right-2 -top-2 flex h-[20px] min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white shadow-sm">
+                                        3
+                                    </span>
+                                </div>
+                                <div className="text-[11px] leading-snug text-gray-600">
+                                    <strong className="block text-gray-900">Ukázka</strong>
+                                    3 kusy po 20 litrech
+                                </div>
+                            </div>
+                        </div>
+                        <p className="mt-3 text-[11px] text-gray-500">
+                            Celou objednávku můžete kdykoliv zkontrolovat a upravit v Souhrnu objednávky. Nápovědu lze trvale vypnout v sekci{' '}
+                            <Link href="/my-profile" className="font-semibold text-blue-700 hover:underline">Můj profil</Link>.
+                        </p>
+                    </div>
+                </section>
+            )}
 
             {isOfferModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">

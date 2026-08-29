@@ -14,6 +14,21 @@ export interface UserProfile {
    address: string | null;
    city: string | null;
    postal_code: string | null;
+   company_id: string | null;
+   vat_id: string | null;
+   billing_address: string | null;
+   billing_city: string | null;
+   billing_postal_code: string | null;
+   billing_country: string | null;
+   shipping_same_as_billing: boolean;
+   shipping_company: string | null;
+   shipping_contact_name: string | null;
+   shipping_address: string | null;
+   shipping_city: string | null;
+   shipping_postal_code: string | null;
+   shipping_country: string | null;
+   delivery_instructions: string | null;
+   show_ordering_help: boolean;
    is_admin: boolean;
    last_sign_in_at?: string | null;
    created_at: string;
@@ -40,6 +55,21 @@ export interface UpdateProfileData {
    address?: string;
    city?: string;
    postal_code?: string;
+   company_id?: string;
+   vat_id?: string;
+   billing_address?: string;
+   billing_city?: string;
+   billing_postal_code?: string;
+   billing_country?: string;
+   shipping_same_as_billing?: boolean;
+   shipping_company?: string;
+   shipping_contact_name?: string;
+   shipping_address?: string;
+   shipping_city?: string;
+   shipping_postal_code?: string;
+   shipping_country?: string;
+   delivery_instructions?: string;
+   show_ordering_help?: boolean;
 }
 
 export interface AuthContextType {

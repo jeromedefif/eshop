@@ -645,15 +645,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('[Auth] Updating profile');
       const updatedAt = new Date().toISOString();
+      const billingAddress = data.billing_address ?? data.address;
+      const billingCity = data.billing_city ?? data.city;
+      const billingPostalCode = data.billing_postal_code ?? data.postal_code;
       const { data: updatedProfile, error } = await supabase
         .from('profiles')
         .update({
           full_name: data.full_name,
           company: data.company,
           phone: data.phone,
-          address: data.address,
-          city: data.city,
-          postal_code: data.postal_code,
+          // Keep legacy address columns synchronized while older deployments still read them.
+          address: billingAddress,
+          city: billingCity,
+          postal_code: billingPostalCode,
+          company_id: data.company_id,
+          vat_id: data.vat_id,
+          billing_address: billingAddress,
+          billing_city: billingCity,
+          billing_postal_code: billingPostalCode,
+          billing_country: data.billing_country,
+          shipping_same_as_billing: data.shipping_same_as_billing,
+          shipping_company: data.shipping_company,
+          shipping_contact_name: data.shipping_contact_name,
+          shipping_address: data.shipping_address,
+          shipping_city: data.shipping_city,
+          shipping_postal_code: data.shipping_postal_code,
+          shipping_country: data.shipping_country,
+          delivery_instructions: data.delivery_instructions,
+          show_ordering_help: data.show_ordering_help,
           updated_at: updatedAt,
         })
         .eq('id', user.id)

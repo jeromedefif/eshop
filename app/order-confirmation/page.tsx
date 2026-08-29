@@ -70,10 +70,23 @@ export default function OrderConfirmationPage() {
             const orderInput = {
                 user_id: user.id,
                 total_volume: orderData.totalVolume,
-                customer_name: profile.full_name,
-                customer_email: profile.email,
-                customer_phone: profile.phone,
-                customer_company: profile.company,
+                customer_name: orderData.customer.name,
+                customer_email: orderData.customer.email,
+                customer_phone: orderData.customer.phone,
+                customer_company: orderData.customer.company || null,
+                customer_company_id: orderData.customer.companyId || null,
+                customer_vat_id: orderData.customer.vatId || null,
+                billing_address: orderData.customer.billingAddress || null,
+                billing_city: orderData.customer.billingCity || null,
+                billing_postal_code: orderData.customer.billingPostalCode || null,
+                billing_country: orderData.customer.billingCountry || null,
+                shipping_company: orderData.customer.shippingCompany || null,
+                shipping_contact_name: orderData.customer.shippingContactName || null,
+                shipping_address: orderData.customer.shippingAddress || null,
+                shipping_city: orderData.customer.shippingCity || null,
+                shipping_postal_code: orderData.customer.shippingPostalCode || null,
+                shipping_country: orderData.customer.shippingCountry || null,
+                delivery_instructions: orderData.customer.deliveryInstructions || null,
                 note: orderData.customer.note || '',
                 status: 'pending'
             };
@@ -254,6 +267,18 @@ export default function OrderConfirmationPage() {
                                 <span>{orderData.customer.company}</span>
                             </div>
                         )}
+                        {orderData.customer.companyId && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 text-gray-700">
+                                <span className="font-medium">IČO:</span>
+                                <span>{orderData.customer.companyId}</span>
+                            </div>
+                        )}
+                        {orderData.customer.vatId && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 text-gray-700">
+                                <span className="font-medium">DIČ:</span>
+                                <span>{orderData.customer.vatId}</span>
+                            </div>
+                        )}
                         {orderData.customer.note && (
                             <div className="grid grid-cols-1 md:grid-cols-2 text-gray-700">
                                 <span className="font-medium">Poznámka:</span>
@@ -262,6 +287,30 @@ export default function OrderConfirmationPage() {
                         )}
                     </div>
                 </div>
+
+                {(orderData.customer.billingAddress || orderData.customer.shippingAddress) && (
+                    <div className="mb-6 grid gap-3 md:grid-cols-2">
+                        {orderData.customer.billingAddress && (
+                            <div className="rounded-lg bg-gray-50 p-4 text-sm text-gray-700">
+                                <h3 className="mb-2 font-semibold text-gray-900">Fakturační adresa</h3>
+                                <p>{orderData.customer.billingAddress}</p>
+                                <p>{[orderData.customer.billingPostalCode, orderData.customer.billingCity].filter(Boolean).join(' ')}</p>
+                                <p>{orderData.customer.billingCountry}</p>
+                            </div>
+                        )}
+                        {orderData.customer.shippingAddress && (
+                            <div className="rounded-lg bg-blue-50 p-4 text-sm text-gray-700">
+                                <h3 className="mb-2 font-semibold text-gray-900">Dodací adresa</h3>
+                                {orderData.customer.shippingCompany && <p className="font-medium">{orderData.customer.shippingCompany}</p>}
+                                {orderData.customer.shippingContactName && <p>{orderData.customer.shippingContactName}</p>}
+                                <p>{orderData.customer.shippingAddress}</p>
+                                <p>{[orderData.customer.shippingPostalCode, orderData.customer.shippingCity].filter(Boolean).join(' ')}</p>
+                                <p>{orderData.customer.shippingCountry}</p>
+                                {orderData.customer.deliveryInstructions && <p className="mt-2 border-t border-blue-100 pt-2">{orderData.customer.deliveryInstructions}</p>}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Akční tlačítka */}
                 {orderStatus === 'error' ? (

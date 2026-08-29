@@ -147,6 +147,18 @@ export default function RegisterPage() {
                         address: formData.address,
                         city: formData.city,
                         postal_code: formData.postal_code,
+                        billing_address: formData.address,
+                        billing_city: formData.city,
+                        billing_postal_code: formData.postal_code,
+                        billing_country: 'Česká republika',
+                        shipping_same_as_billing: true,
+                        shipping_company: formData.company,
+                        shipping_contact_name: formData.full_name,
+                        shipping_address: formData.address,
+                        shipping_city: formData.city,
+                        shipping_postal_code: formData.postal_code,
+                        shipping_country: 'Česká republika',
+                        show_ordering_help: true,
                         is_admin: false,
                     });
 

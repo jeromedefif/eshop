@@ -1,312 +1,164 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { User, Building, Phone, MapPin, Home, CheckCircle, Save, Mail } from 'lucide-react';
-import { toast } from 'react-toastify';
+import { Building, CheckCircle, Eye, FileText, Mail, MapPin, Phone, Save, Truck, User } from 'lucide-react';
 import CustomerPageState from '@/components/CustomerPageState';
 import CustomerPageShell from '@/components/CustomerPageShell';
 
+const DEFAULT_COUNTRY = 'Česká republika';
+const emptyForm = {
+    full_name: '', company: '', phone: '', company_id: '', vat_id: '',
+    billing_address: '', billing_city: '', billing_postal_code: '', billing_country: DEFAULT_COUNTRY,
+    shipping_same_as_billing: true, shipping_company: '', shipping_contact_name: '',
+    shipping_address: '', shipping_city: '', shipping_postal_code: '', shipping_country: DEFAULT_COUNTRY,
+    delivery_instructions: '', show_ordering_help: true,
+};
+type ProfileFormData = typeof emptyForm;
+const inputClassName = 'w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-100';
+
 export default function MyProfilePage() {
-    const { user, profile, updateProfile, refreshProfile } = useAuth();
+    const { user, profile, updateProfile } = useAuth();
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
     const [error, setError] = useState('');
-    const [formData, setFormData] = useState({
-        full_name: '',
-        company: '',
-        phone: '',
-        address: '',
-        city: '',
-        postal_code: ''
-    });
+    const [formData, setFormData] = useState<ProfileFormData>(emptyForm);
+    const [originalData, setOriginalData] = useState<ProfileFormData | null>(null);
 
-    // Přidané stavy pro sledování změn formuláře
-    const [hasChanges, setHasChanges] = useState(false);
-    const [originalData, setOriginalData] = useState<typeof formData | null>(null);
+    useEffect(() => { if (!user) router.push('/login'); }, [user, router]);
 
-    // Přesměrování nepřihlášeného uživatele
     useEffect(() => {
-        if (!user) {
-            router.push('/login');
-        }
-    }, [user, router]);
-
-    // Načtení dat profilu
-    useEffect(() => {
-        if (profile) {
-            const profileData = {
-                full_name: profile.full_name || '',
-                company: profile.company || '',
-                phone: profile.phone || '',
-                address: profile.address || '',
-                city: profile.city || '',
-                postal_code: profile.postal_code || ''
-            };
-
-            // Nastavení dat formuláře
-            setFormData(profileData);
-
-            // Uložení původních dat pro porovnání změn
-            setOriginalData(profileData);
-
-            // Reset stavu změn
-            setHasChanges(false);
-        }
+        if (!profile) return;
+        const billingAddress = profile.billing_address || profile.address || '';
+        const billingCity = profile.billing_city || profile.city || '';
+        const billingPostalCode = profile.billing_postal_code || profile.postal_code || '';
+        const profileData: ProfileFormData = {
+            full_name: profile.full_name || '', company: profile.company || '', phone: profile.phone || '',
+            company_id: profile.company_id || '', vat_id: profile.vat_id || '',
+            billing_address: billingAddress, billing_city: billingCity, billing_postal_code: billingPostalCode,
+            billing_country: profile.billing_country || DEFAULT_COUNTRY,
+            shipping_same_as_billing: profile.shipping_same_as_billing !== false,
+            shipping_company: profile.shipping_company || profile.company || '',
+            shipping_contact_name: profile.shipping_contact_name || profile.full_name || '',
+            shipping_address: profile.shipping_address || billingAddress,
+            shipping_city: profile.shipping_city || billingCity,
+            shipping_postal_code: profile.shipping_postal_code || billingPostalCode,
+            shipping_country: profile.shipping_country || profile.billing_country || DEFAULT_COUNTRY,
+            delivery_instructions: profile.delivery_instructions || '',
+            show_ordering_help: profile.show_ordering_help !== false,
+        };
+        setFormData(profileData);
+        setOriginalData(profileData);
     }, [profile]);
 
-    // Effect pro detekci změn ve formuláři
-    useEffect(() => {
-        if (originalData) {
-            // Porovnání aktuálních hodnot s původními
-            const isDifferent =
-                formData.full_name !== originalData.full_name ||
-                formData.company !== originalData.company ||
-                formData.phone !== originalData.phone ||
-                formData.address !== originalData.address ||
-                formData.city !== originalData.city ||
-                formData.postal_code !== originalData.postal_code;
+    const hasChanges = useMemo(
+        () => Boolean(originalData && JSON.stringify(formData) !== JSON.stringify(originalData)),
+        [formData, originalData]
+    );
 
-            setHasChanges(isDifferent);
-        }
-    }, [formData, originalData]);
-
-    // Aktualizace dat při změně v inputech
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
+    const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value, type } = event.target;
+        const nextValue = type === 'checkbox' ? (event.target as HTMLInputElement).checked : value;
+        setFormData(current => ({ ...current, [name]: nextValue }));
     };
 
-    // Zpracování formuláře
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setSuccessMessage('');
-        setIsLoading(true);
-
+    const handleSubmit = async (event: React.FormEvent) => {
+        event.preventDefault();
+        setError(''); setSuccessMessage(''); setIsLoading(true);
+        const normalizedData = formData.shipping_same_as_billing ? {
+            ...formData,
+            shipping_company: formData.company,
+            shipping_contact_name: formData.full_name,
+            shipping_address: formData.billing_address,
+            shipping_city: formData.billing_city,
+            shipping_postal_code: formData.billing_postal_code,
+            shipping_country: formData.billing_country,
+        } : formData;
         try {
-            await updateProfile(formData);
-            await refreshProfile();
-
-            // Zobrazíme zprávu o úspěchu - pouze interní zprávu, ne toast
-            setSuccessMessage('Profil byl úspěšně aktualizován');
-
-            // Aktualizujeme originalData - důležité pro reset stavu tlačítka
-            setOriginalData({...formData});
-            setHasChanges(false);
-
-            // Zpráva zmizí po 3 sekundách
-            setTimeout(() => {
-                setSuccessMessage('');
-            }, 3000);
-        } catch (error) {
-            console.error('Error updating profile:', error);
-            setError(error instanceof Error ? error.message : 'Chyba při aktualizaci profilu');
-            // Odstranili jsme toast notifikaci při chybě
-        } finally {
-            setIsLoading(false);
-        }
+            await updateProfile(normalizedData);
+            setFormData(normalizedData); setOriginalData(normalizedData);
+            setSuccessMessage('Profil byl úspěšně aktualizován.');
+            window.setTimeout(() => setSuccessMessage(''), 3000);
+        } catch (updateError) {
+            console.error('Error updating profile:', updateError);
+            setError(updateError instanceof Error ? updateError.message : 'Chyba při aktualizaci profilu.');
+        } finally { setIsLoading(false); }
     };
 
-    // Pokud uživatel není přihlášen nebo profil se načítá, zobrazíme loading
-    if (!user || !profile) {
-        return (
-            <CustomerPageState
-                loading
-                title="Načítáme váš profil"
-                description="Kontrolujeme kontaktní a fakturační údaje."
-            />
-        );
-    }
+    if (!user || !profile) return <CustomerPageState loading title="Načítáme váš profil" description="Kontrolujeme kontaktní, fakturační a dodací údaje." />;
 
     return (
-        <CustomerPageShell width="3xl">
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-                <div className="mb-8 border-b pb-4">
-                    <h1 className="mb-2 text-3xl font-bold tracking-tight text-slate-950">Můj profil</h1>
-                    <p className="text-slate-600">Aktualizujte své kontaktní údaje a adresu pro objednávky.</p>
+        <CustomerPageShell width="5xl">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+                <div className="mb-6 border-b border-slate-200 pb-5">
+                    <h1 className="text-3xl font-bold tracking-tight text-slate-950">Můj profil</h1>
+                    <p className="mt-2 text-slate-600">Udržujte aktuální kontaktní, fakturační a dodací údaje pro nové objednávky.</p>
                 </div>
-
-                {/* Email uživatele - needitovatelné pole */}
-                <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex items-center">
-                        <Mail className="w-5 h-5 text-gray-500 mr-2" />
-                        <div>
-                            <p className="text-sm text-gray-600">Email</p>
-                            <p className="font-medium text-gray-900">{user.email}</p>
-                        </div>
-                    </div>
-                </div>
-
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Sekce s osobními údaji */}
-                    <div className="rounded-xl border border-blue-100 bg-blue-50 p-5">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                            <User className="w-5 h-5 mr-2 text-blue-600" />
-                            Osobní údaje
-                        </h2>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label htmlFor="full_name" className="block text-sm font-medium text-gray-900 mb-1">
-                                    Jméno a příjmení
-                                </label>
-                                <input
-                                    type="text"
-                                    id="full_name"
-                                    name="full_name"
-                                    value={formData.full_name}
-                                    onChange={handleInputChange}
-                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900"
-                                    required
-                                    disabled={isLoading}
-                                />
-                            </div>
-
-                            <div>
-                                <label htmlFor="company" className="block text-sm font-medium text-gray-900 mb-1 flex items-center">
-                                    <Building className="w-4 h-4 mr-1 text-gray-600" />
-                                    Název firmy
-                                </label>
-                                <input
-                                    type="text"
-                                    id="company"
-                                    name="company"
-                                    value={formData.company}
-                                    onChange={handleInputChange}
-                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900"
-                                    required
-                                    disabled={isLoading}
-                                />
-                            </div>
-
-                            <div>
-                                <label htmlFor="phone" className="block text-sm font-medium text-gray-900 mb-1 flex items-center">
-                                    <Phone className="w-4 h-4 mr-1 text-gray-600" />
-                                    Telefon
-                                </label>
-                                <input
-                                    type="tel"
-                                    id="phone"
-                                    name="phone"
-                                    value={formData.phone}
-                                    onChange={handleInputChange}
-                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900"
-                                    required
-                                    disabled={isLoading}
-                                />
+                    <Section title="Kontaktní údaje" icon={<User className="h-5 w-5 text-blue-600" />} className="border-blue-100 bg-blue-50/70">
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Field label="Jméno a příjmení" name="full_name"><input id="full_name" name="full_name" value={formData.full_name} onChange={handleInputChange} className={inputClassName} required disabled={isLoading} /></Field>
+                            <Field label="Telefon" name="phone" icon={<Phone className="h-4 w-4" />}><input type="tel" id="phone" name="phone" value={formData.phone} onChange={handleInputChange} className={inputClassName} required disabled={isLoading} /></Field>
+                            <div className="rounded-lg border border-blue-100 bg-white/80 px-4 py-3 md:col-span-2">
+                                <div className="flex items-center gap-2 text-sm text-slate-500"><Mail className="h-4 w-4" /> Email přihlašovacího účtu</div>
+                                <a href={`mailto:${user.email}`} className="mt-1 inline-block font-medium text-blue-700 hover:underline">{user.email}</a>
                             </div>
                         </div>
-                    </div>
+                    </Section>
 
-                    {/* Sekce s adresou */}
-                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-5">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                            <MapPin className="w-5 h-5 mr-2 text-green-600" />
-                            Fakturační a dodací údaje
-                        </h2>
+                    <Section title="Firma a fakturační údaje" icon={<Building className="h-5 w-5 text-emerald-700" />} className="border-emerald-100 bg-emerald-50/70">
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Field label="Název firmy" name="company"><input id="company" name="company" value={formData.company} onChange={handleInputChange} className={inputClassName} required disabled={isLoading} /></Field>
+                            <Field label="IČO" name="company_id"><input id="company_id" name="company_id" value={formData.company_id} onChange={handleInputChange} className={inputClassName} inputMode="numeric" disabled={isLoading} /></Field>
+                            <Field label="DIČ" name="vat_id"><input id="vat_id" name="vat_id" value={formData.vat_id} onChange={handleInputChange} className={inputClassName} disabled={isLoading} /></Field>
+                            <div className="hidden md:block" />
+                            <Field label="Fakturační adresa" name="billing_address" icon={<MapPin className="h-4 w-4" />} className="md:col-span-2"><input id="billing_address" name="billing_address" value={formData.billing_address} onChange={handleInputChange} className={inputClassName} required disabled={isLoading} /></Field>
+                            <Field label="Město" name="billing_city"><input id="billing_city" name="billing_city" value={formData.billing_city} onChange={handleInputChange} className={inputClassName} required disabled={isLoading} /></Field>
+                            <Field label="PSČ" name="billing_postal_code"><input id="billing_postal_code" name="billing_postal_code" value={formData.billing_postal_code} onChange={handleInputChange} className={inputClassName} disabled={isLoading} /></Field>
+                            <Field label="Země" name="billing_country" className="md:col-span-2"><input id="billing_country" name="billing_country" value={formData.billing_country} onChange={handleInputChange} className={inputClassName} disabled={isLoading} /></Field>
+                        </div>
+                    </Section>
 
-                        <div className="space-y-4">
-                            <div>
-                                <label htmlFor="address" className="block text-sm font-medium text-gray-900 mb-1 flex items-center">
-                                    <Home className="w-4 h-4 mr-1 text-gray-600" />
-                                    Dodací adresa (ulice a číslo popisné)
-                                </label>
-                                <input
-                                    type="text"
-                                    id="address"
-                                    name="address"
-                                    value={formData.address}
-                                    onChange={handleInputChange}
-                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900"
-                                    required
-                                    disabled={isLoading}
-                                />
+                    <Section title="Dodací údaje" icon={<Truck className="h-5 w-5 text-amber-700" />} className="border-amber-100 bg-amber-50/70" action={
+                        <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700"><input type="checkbox" name="shipping_same_as_billing" checked={formData.shipping_same_as_billing} onChange={handleInputChange} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" disabled={isLoading} /> Stejné jako fakturační</label>
+                    }>
+                        {formData.shipping_same_as_billing ? <div className="rounded-lg border border-amber-200 bg-white/70 px-4 py-3 text-sm text-slate-600">Do nové objednávky se použije fakturační adresa uvedená výše.</div> : (
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <Field label="Firma / provozovna" name="shipping_company"><input id="shipping_company" name="shipping_company" value={formData.shipping_company} onChange={handleInputChange} className={inputClassName} disabled={isLoading} /></Field>
+                                <Field label="Kontaktní osoba" name="shipping_contact_name"><input id="shipping_contact_name" name="shipping_contact_name" value={formData.shipping_contact_name} onChange={handleInputChange} className={inputClassName} disabled={isLoading} /></Field>
+                                <Field label="Dodací adresa" name="shipping_address" icon={<MapPin className="h-4 w-4" />} className="md:col-span-2"><input id="shipping_address" name="shipping_address" value={formData.shipping_address} onChange={handleInputChange} className={inputClassName} required disabled={isLoading} /></Field>
+                                <Field label="Město" name="shipping_city"><input id="shipping_city" name="shipping_city" value={formData.shipping_city} onChange={handleInputChange} className={inputClassName} required disabled={isLoading} /></Field>
+                                <Field label="PSČ" name="shipping_postal_code"><input id="shipping_postal_code" name="shipping_postal_code" value={formData.shipping_postal_code} onChange={handleInputChange} className={inputClassName} disabled={isLoading} /></Field>
+                                <Field label="Země" name="shipping_country" className="md:col-span-2"><input id="shipping_country" name="shipping_country" value={formData.shipping_country} onChange={handleInputChange} className={inputClassName} disabled={isLoading} /></Field>
                             </div>
+                        )}
+                        <Field label="Pokyny k doručení" name="delivery_instructions" icon={<FileText className="h-4 w-4" />} className="mt-4"><textarea id="delivery_instructions" name="delivery_instructions" value={formData.delivery_instructions} onChange={handleInputChange} className={`${inputClassName} min-h-24 resize-y`} placeholder="Např. zavolat před závozem nebo upřesnění vjezdu." disabled={isLoading} /></Field>
+                    </Section>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label htmlFor="city" className="block text-sm font-medium text-gray-900 mb-1 flex items-center">
-                                        <MapPin className="w-4 h-4 mr-1 text-gray-600" />
-                                        Město
-                                    </label>
-                                    <input
-                                        type="text"
-                                        id="city"
-                                        name="city"
-                                        value={formData.city}
-                                        onChange={handleInputChange}
-                                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900"
-                                        required
-                                        disabled={isLoading}
-                                    />
-                                </div>
+                    <Section title="Nastavení katalogu" icon={<Eye className="h-5 w-5 text-slate-600" />} className="border-slate-200 bg-slate-50">
+                        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white p-4">
+                            <input type="checkbox" name="show_ordering_help" checked={formData.show_ordering_help} onChange={handleInputChange} className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" disabled={isLoading} />
+                            <span><span className="block font-medium text-slate-900">Zobrazovat nápovědu „Jak objednávat“</span><span className="mt-1 block text-sm text-slate-600">Nápovědu lze na katalogu dočasně zavřít nebo zde trvale vypnout.</span></span>
+                        </label>
+                    </Section>
 
-                                <div>
-                                    <label htmlFor="postal_code" className="block text-sm font-medium text-gray-900 mb-1">
-                                        PSČ
-                                    </label>
-                                    <input
-                                        type="text"
-                                        id="postal_code"
-                                        name="postal_code"
-                                        value={formData.postal_code || ''}
-                                        onChange={handleInputChange}
-                                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900"
-                                        disabled={isLoading}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {error && (
-                        <div className="p-4 bg-red-50 text-red-600 rounded-lg text-sm flex items-start">
-                            <div className="flex-shrink-0 w-5 h-5 mr-2 text-red-500">⚠️</div>
-                            <div>{error}</div>
-                        </div>
-                    )}
-
-                    {successMessage && (
-                        <div className="p-4 bg-green-50 text-green-700 rounded-lg text-sm flex items-center">
-                            <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0" />
-                            <span>{successMessage}</span>
-                        </div>
-                    )}
-
-                    <div className="flex justify-end pt-4 border-t">
-                        <button
-                            type="submit"
-                            className={`px-6 py-3 rounded-lg transition-colors flex items-center gap-2 ${
-                                hasChanges
-                                    ? "bg-blue-600 text-white hover:bg-blue-700"
-                                    : "bg-blue-300 text-white cursor-not-allowed"
-                            }`}
-                            disabled={isLoading || !hasChanges}
-                        >
-                            {isLoading ? (
-                                <>
-                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Ukládám...
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="w-5 h-5" />
-                                    Uložit změny
-                                </>
-                            )}
-                        </button>
+                    {error && <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+                    {successMessage && <div className="flex items-center rounded-lg bg-green-50 p-4 text-sm text-green-700"><CheckCircle className="mr-2 h-5 w-5" />{successMessage}</div>}
+                    <div className="sticky bottom-3 flex justify-end rounded-xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+                        <button type="submit" className={`flex items-center gap-2 rounded-lg px-6 py-3 font-medium transition-colors ${hasChanges ? 'bg-blue-600 text-white hover:bg-blue-700' : 'cursor-not-allowed bg-slate-200 text-slate-500'}`} disabled={isLoading || !hasChanges}><Save className="h-5 w-5" />{isLoading ? 'Ukládám...' : 'Uložit změny'}</button>
                     </div>
                 </form>
-                </div>
+            </div>
         </CustomerPageShell>
     );
+}
+
+function Section({ title, icon, action, className, children }: { title: string; icon: React.ReactNode; action?: React.ReactNode; className: string; children: React.ReactNode }) {
+    return <section className={`rounded-xl border p-5 ${className}`}><div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><h2 className="flex items-center gap-2 text-lg font-semibold text-slate-950">{icon}{title}</h2>{action}</div>{children}</section>;
+}
+
+function Field({ label, name, icon, className = '', children }: { label: string; name: string; icon?: React.ReactNode; className?: string; children: React.ReactNode }) {
+    return <div className={className}><label htmlFor={name} className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-800">{icon}{label}</label>{children}</div>;
 }

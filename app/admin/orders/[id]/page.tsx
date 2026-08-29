@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
-import { ArrowLeft, CheckCircle, AlertCircle, Loader2, Trash2, Grape, Martini, Wine, FlaskConical, Package, Sparkles, Amphora, Copy, MessageSquare, LockKeyhole, Mail, Phone, Building2, CalendarDays } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertCircle, Loader2, Trash2, Grape, Martini, Wine, FlaskConical, Package, Sparkles, Amphora, Copy, MessageSquare, LockKeyhole, Mail, Phone, Building2, CalendarDays, MapPin, ReceiptText, Truck } from 'lucide-react';
 import Link from 'next/link';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
 import { toast } from 'react-toastify';
@@ -386,6 +386,17 @@ const OrderDetailPage = () => {
 
     const isInternalNoteDirty = internalNote.trim() !== savedInternalNote.trim();
     const shortOrderId = order.id.slice(0, 8).toUpperCase();
+    const billingAddress = [
+        order.billing_address,
+        [order.billing_postal_code, order.billing_city].filter(Boolean).join(' '),
+        order.billing_country,
+    ].filter(Boolean);
+    const shippingAddress = [
+        order.shipping_address,
+        [order.shipping_postal_code, order.shipping_city].filter(Boolean).join(' '),
+        order.shipping_country,
+    ].filter(Boolean);
+    const hasAddressSnapshot = billingAddress.length > 0 || shippingAddress.length > 0;
 
     return (
         <div className="w-full">
@@ -424,6 +435,13 @@ const OrderDetailPage = () => {
                                 {order.customer_company && <Building2 className="h-4 w-4 shrink-0 text-slate-400" />}
                             </div>
                             {order.customer_company && <p className="truncate text-sm font-medium text-slate-600">{order.customer_company}</p>}
+                            {(order.customer_company_id || order.customer_vat_id) && (
+                                <p className="mt-1 text-xs text-slate-500">
+                                    {order.customer_company_id && <>IČO: {order.customer_company_id}</>}
+                                    {order.customer_company_id && order.customer_vat_id && <span className="mx-2">•</span>}
+                                    {order.customer_vat_id && <>DIČ: {order.customer_vat_id}</>}
+                                </p>
+                            )}
                             <div className="mt-2 flex flex-col gap-1 text-sm">
                                 <a href={`mailto:${order.customer_email}`} className="inline-flex items-center gap-2 text-slate-600 hover:text-blue-700 hover:underline">
                                     <Mail className="h-4 w-4 shrink-0 text-slate-400" /> {order.customer_email}
@@ -474,6 +492,36 @@ const OrderDetailPage = () => {
                         <div className="mb-4 flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
                             <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
                             <p className="whitespace-pre-wrap"><span className="font-semibold text-slate-900">Poznámka zákazníka:</span> {order.note}</p>
+                        </div>
+                    )}
+
+                    {hasAddressSnapshot && (
+                        <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-3 md:grid-cols-2">
+                            {billingAddress.length > 0 && (
+                                <div className="flex items-start gap-3 rounded-lg bg-slate-50 p-3">
+                                    <ReceiptText className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
+                                    <div className="min-w-0 text-sm text-slate-700">
+                                        <p className="mb-1 font-semibold text-slate-950">Fakturační adresa</p>
+                                        {billingAddress.map((line: string) => <p key={line}>{line}</p>)}
+                                    </div>
+                                </div>
+                            )}
+                            {shippingAddress.length > 0 && (
+                                <div className="flex items-start gap-3 rounded-lg bg-blue-50 p-3">
+                                    <Truck className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                                    <div className="min-w-0 text-sm text-slate-700">
+                                        <p className="mb-1 font-semibold text-slate-950">Dodací adresa</p>
+                                        {order.shipping_company && <p className="font-medium">{order.shipping_company}</p>}
+                                        {order.shipping_contact_name && <p>{order.shipping_contact_name}</p>}
+                                        {shippingAddress.map((line: string) => <p key={line}>{line}</p>)}
+                                        {order.delivery_instructions && (
+                                            <p className="mt-2 border-t border-blue-100 pt-2 text-slate-600">
+                                                <MapPin className="mr-1 inline h-3.5 w-3.5" />{order.delivery_instructions}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 

@@ -40,6 +40,11 @@ const OrderForm = ({
   };
 
   const getOrderSummary = (): OrderConfirmationData => {
+      const billingAddress = profile?.billing_address || profile?.address || '';
+      const billingCity = profile?.billing_city || profile?.city || '';
+      const billingPostalCode = profile?.billing_postal_code || profile?.postal_code || '';
+      const billingCountry = profile?.billing_country || 'Česká republika';
+      const useBillingForShipping = profile?.shipping_same_as_billing !== false;
       const items = Object.entries(cartItems).map(([key, quantity]) => {
           const [productId, volume] = key.split('-');
           const product = products.find(p => String(p.id) === productId);
@@ -69,6 +74,19 @@ const OrderForm = ({
               email: profile?.email || '',
               phone: profile?.phone || '',
               company: profile?.company || '',
+              companyId: profile?.company_id || '',
+              vatId: profile?.vat_id || '',
+              billingAddress,
+              billingCity,
+              billingPostalCode,
+              billingCountry,
+              shippingCompany: useBillingForShipping ? profile?.company || '' : profile?.shipping_company || '',
+              shippingContactName: useBillingForShipping ? profile?.full_name || '' : profile?.shipping_contact_name || '',
+              shippingAddress: useBillingForShipping ? billingAddress : profile?.shipping_address || '',
+              shippingCity: useBillingForShipping ? billingCity : profile?.shipping_city || '',
+              shippingPostalCode: useBillingForShipping ? billingPostalCode : profile?.shipping_postal_code || '',
+              shippingCountry: useBillingForShipping ? billingCountry : profile?.shipping_country || billingCountry,
+              deliveryInstructions: profile?.delivery_instructions || '',
               note: note
           }
       };
