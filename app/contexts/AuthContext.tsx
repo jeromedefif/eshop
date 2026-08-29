@@ -1,6 +1,5 @@
 // app/contexts/AuthContext.tsx
 'use client'
-let lastSignOutEventTime = 0;
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
@@ -260,40 +259,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           // Nastavení event listener pro autentizační změny
           const authListener = supabase.auth.onAuthStateChange(
-            async (event, session) => {
+            (event, session) => {
               console.log('[Auth] Auth state changed:', event);
 
               if (event === 'SIGNED_OUT') {
-                const now = Date.now();
-                if (now - lastSignOutEventTime < 1500) {
-                console.log('[Auth] Ignoring rapid consecutive SIGNED_OUT event to prevent loop');
-               return;
-               }
-               lastSignOutEventTime = now;
+                setUser(null);
+                setProfile(null);
+                setIsAdmin(false);
+                profileCache = {};
+                cleanupAuthStorage();
+                return;
+              }
 
-                 // Pokračujeme s normálním zpracováním
-                 await resetAuthState();
-                 return;
-               }
-
+              // Přihlášení a odhlášení si svůj profil zpracují samy. Druhé
+              // paralelní načtení by mohlo zrušit právě probíhající operaci.
+              if (inProgressRef.current) {
+                console.log('[Auth] Auth event handled by active operation:', event);
+                return;
+              }
 
               if (session?.user) {
-                // Pokusíme se použít cache při změně stavu autentizace
-                const cacheEntry = profileCache[session.user.id];
+                const sessionUser = session.user;
+                const cacheEntry = profileCache[sessionUser.id];
                 if (cacheEntry) {
-                  setUser(session.user);
+                  setUser(sessionUser);
                   setProfile(cacheEntry.data);
                   setIsAdmin(cacheEntry.data?.is_admin || false);
                 } else {
-                  const profileData = await fetchProfile(session.user.id);
+                  // Supabase API volání uvnitř onAuthStateChange může zablokovat
+                  // další auth požadavky. Profil proto načteme až po dokončení callbacku.
+                  window.setTimeout(async () => {
+                    if (!mounted) return;
+                    const profileData = await fetchProfile(sessionUser.id);
 
-                  if (profileData) {
-                    setUser(session.user);
-                    setProfile(profileData);
-                    setIsAdmin(profileData.is_admin);
-                  } else {
-                    await resetAuthState();
-                  }
+                    if (!mounted) return;
+                    if (profileData) {
+                      setUser(sessionUser);
+                      setProfile(profileData);
+                      setIsAdmin(profileData.is_admin);
+                    } else {
+                      await resetAuthState();
+                    }
+                  }, 0);
                 }
               }
             }
@@ -350,8 +357,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
 
     try {
-      // Před přihlášením se ujistíme, že uživatel je skutečně odhlášen
-      await resetAuthState();
+      // Odstraníme případný starý lokální stav bez dalšího auth požadavku.
+      // resetAuthState zde nelze použít, protože přihlašovací operace už drží zámek.
+      setUser(null);
+      setProfile(null);
+      setIsAdmin(false);
+      profileCache = {};
+      cleanupAuthStorage();
 
       // Kontrola, zda nebyla operace zrušena
       if (currentOperationId !== authOperationCounterRef.current) return;

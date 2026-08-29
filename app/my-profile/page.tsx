@@ -3,9 +3,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Building, CheckCircle, Eye, FileText, Mail, MapPin, Phone, Save, Truck, User } from 'lucide-react';
+import { Building, CheckCircle, Eye, FileText, LockKeyhole, Mail, MapPin, Phone, Save, Truck, User } from 'lucide-react';
 import CustomerPageState from '@/components/CustomerPageState';
 import CustomerPageShell from '@/components/CustomerPageShell';
+import { supabase } from '@/lib/supabase/client';
 
 const DEFAULT_COUNTRY = 'Česká republika';
 const emptyForm = {
@@ -26,6 +27,12 @@ export default function MyProfilePage() {
     const [error, setError] = useState('');
     const [formData, setFormData] = useState<ProfileFormData>(emptyForm);
     const [originalData, setOriginalData] = useState<ProfileFormData | null>(null);
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+    const [passwordError, setPasswordError] = useState('');
+    const [passwordSuccess, setPasswordSuccess] = useState('');
 
     useEffect(() => { if (!user) router.push('/login'); }, [user, router]);
 
@@ -85,6 +92,65 @@ export default function MyProfilePage() {
             console.error('Error updating profile:', updateError);
             setError(updateError instanceof Error ? updateError.message : 'Chyba při aktualizaci profilu.');
         } finally { setIsLoading(false); }
+    };
+
+    const handlePasswordChange = async (event: React.FormEvent) => {
+        event.preventDefault();
+        setPasswordError('');
+        setPasswordSuccess('');
+
+        const accountEmail = user?.email;
+        const accountUserId = user?.id;
+
+        if (!accountEmail || !accountUserId) {
+            setPasswordError('K účtu není přiřazený e-mail. Kontaktujte prosím administrátora.');
+            return;
+        }
+        if (newPassword.length < 8) {
+            setPasswordError('Nové heslo musí mít alespoň 8 znaků.');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setPasswordError('Nové heslo a jeho potvrzení se neshodují.');
+            return;
+        }
+        if (currentPassword === newPassword) {
+            setPasswordError('Nové heslo musí být odlišné od současného hesla.');
+            return;
+        }
+
+        setIsChangingPassword(true);
+        try {
+            const { data: verification, error: verificationError } = await supabase.auth.signInWithPassword({
+                email: accountEmail,
+                password: currentPassword,
+            });
+
+            if (verificationError || verification.user?.id !== accountUserId) {
+                throw new Error('Současné heslo není správné.');
+            }
+
+            const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+            if (updateError) {
+                if (updateError.message.toLowerCase().includes('password')) {
+                    throw new Error('Nové heslo nesplňuje bezpečnostní požadavky. Zvolte prosím silnější heslo.');
+                }
+                throw updateError;
+            }
+
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+            setPasswordSuccess('Heslo bylo úspěšně změněno. Nyní vás bezpečně odhlásíme.');
+
+            await supabase.auth.signOut({ scope: 'global' });
+            window.location.replace('/login?reset=success');
+        } catch (changeError) {
+            console.error('Password change error:', changeError);
+            setPasswordError(changeError instanceof Error ? changeError.message : 'Heslo se nepodařilo změnit.');
+        } finally {
+            setIsChangingPassword(false);
+        }
     };
 
     if (!user || !profile) return <CustomerPageState loading title="Načítáme váš profil" description="Kontrolujeme kontaktní, fakturační a dodací údaje." />;
@@ -149,6 +215,35 @@ export default function MyProfilePage() {
                     <div className="sticky bottom-3 flex justify-end rounded-xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
                         <button type="submit" className={`flex items-center gap-2 rounded-lg px-6 py-3 font-medium transition-colors ${hasChanges ? 'bg-blue-600 text-white hover:bg-blue-700' : 'cursor-not-allowed bg-slate-200 text-slate-500'}`} disabled={isLoading || !hasChanges}><Save className="h-5 w-5" />{isLoading ? 'Ukládám...' : 'Uložit změny'}</button>
                     </div>
+                </form>
+
+                <div className="my-8 border-t border-slate-200" />
+
+                <form onSubmit={handlePasswordChange}>
+                    <Section title="Změna hesla" icon={<LockKeyhole className="h-5 w-5 text-rose-700" />} className="border-rose-100 bg-rose-50/60">
+                        <p className="mb-4 text-sm text-slate-600">Po úspěšné změně hesla vás z bezpečnostních důvodů odhlásíme ze všech zařízení.</p>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Field label="Současné heslo" name="current_password" className="md:col-span-2">
+                                <input type="password" id="current_password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} className={inputClassName} autoComplete="current-password" required disabled={isChangingPassword} />
+                            </Field>
+                            <Field label="Nové heslo" name="new_password">
+                                <input type="password" id="new_password" value={newPassword} onChange={event => setNewPassword(event.target.value)} className={inputClassName} autoComplete="new-password" minLength={8} required disabled={isChangingPassword} />
+                            </Field>
+                            <Field label="Potvrzení nového hesla" name="confirm_password">
+                                <input type="password" id="confirm_password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} className={inputClassName} autoComplete="new-password" minLength={8} required disabled={isChangingPassword} />
+                            </Field>
+                        </div>
+
+                        {passwordError && <div className="mt-4 rounded-lg bg-red-100 p-4 text-sm text-red-800">{passwordError}</div>}
+                        {passwordSuccess && <div className="mt-4 flex items-center rounded-lg bg-green-100 p-4 text-sm text-green-800"><CheckCircle className="mr-2 h-5 w-5" />{passwordSuccess}</div>}
+
+                        <div className="mt-5 flex justify-end">
+                            <button type="submit" className="flex items-center gap-2 rounded-lg bg-slate-900 px-6 py-3 font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400" disabled={isChangingPassword}>
+                                <LockKeyhole className="h-5 w-5" />
+                                {isChangingPassword ? 'Měním heslo...' : 'Změnit heslo'}
+                            </button>
+                        </div>
+                    </Section>
                 </form>
             </div>
         </CustomerPageShell>
