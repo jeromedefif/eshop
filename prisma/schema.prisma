@@ -112,6 +112,11 @@ model Profile {
   delivery_instructions    String?  @db.Text
   show_ordering_help       Boolean  @default(true)
   is_admin                 Boolean  @default(false)
+  admin_registration_notification_status     String    @default("pending") @db.Text
+  admin_registration_notification_attempts   Int       @default(0)
+  admin_registration_notification_claimed_at DateTime? @db.Timestamptz(6)
+  admin_registration_notified_at              DateTime? @db.Timestamptz(6)
+  admin_registration_notification_error       String?   @db.Text
   created_at               DateTime @default(now()) @db.Timestamptz(6)
   updated_at               DateTime @default(now()) @db.Timestamptz(6)
 
