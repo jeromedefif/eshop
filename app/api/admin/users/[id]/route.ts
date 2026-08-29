@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
+import { requireAdmin } from '@/lib/auth/require-admin';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -14,34 +13,12 @@ type Params = {
   };
 };
 
-async function requireAdmin() {
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set() {},
-        remove() {},
-      },
-    }
-  );
-
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) return null;
-
-  const profile = await prisma.profile.findUnique({
-    where: { id: user.id },
-    select: { is_admin: true },
-  });
-
-  return profile?.is_admin ? user : null;
-}
-
 export async function GET(_request: Request, { params }: Params) {
+  const currentAdmin = await requireAdmin();
+  if (!currentAdmin) {
+    return NextResponse.json({ error: 'Nemáte oprávnění zobrazit detail uživatele.' }, { status: 403 });
+  }
+
   try {
     const userRows = await prisma.$queryRaw<
       Array<{
@@ -53,10 +30,26 @@ export async function GET(_request: Request, { params }: Params) {
         address: string | null;
         city: string | null;
         postal_code: string | null;
+        company_id: string | null;
+        vat_id: string | null;
+        billing_address: string | null;
+        billing_city: string | null;
+        billing_postal_code: string | null;
+        billing_country: string | null;
+        shipping_same_as_billing: boolean;
+        shipping_company: string | null;
+        shipping_contact_name: string | null;
+        shipping_address: string | null;
+        shipping_city: string | null;
+        shipping_postal_code: string | null;
+        shipping_country: string | null;
+        delivery_instructions: string | null;
+        show_ordering_help: boolean;
         is_admin: boolean;
         created_at: Date;
         updated_at: Date;
         last_sign_in_at: Date | null;
+        email_confirmed_at: Date | null;
       }>
     >`
       SELECT
@@ -68,10 +61,26 @@ export async function GET(_request: Request, { params }: Params) {
         p.address,
         p.city,
         p.postal_code,
+        p.company_id,
+        p.vat_id,
+        p.billing_address,
+        p.billing_city,
+        p.billing_postal_code,
+        p.billing_country,
+        p.shipping_same_as_billing,
+        p.shipping_company,
+        p.shipping_contact_name,
+        p.shipping_address,
+        p.shipping_city,
+        p.shipping_postal_code,
+        p.shipping_country,
+        p.delivery_instructions,
+        p.show_ordering_help,
         p.is_admin,
         p.created_at,
         p.updated_at,
-        u.last_sign_in_at
+        u.last_sign_in_at,
+        u.email_confirmed_at
       FROM public.profiles p
       LEFT JOIN auth.users u ON u.id = p.id
       WHERE p.id = ${params.id}::uuid

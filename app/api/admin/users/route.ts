@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAdmin } from '@/lib/auth/require-admin';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 export const revalidate = 0;
 
 export async function GET() {
+  const currentAdmin = await requireAdmin();
+  if (!currentAdmin) {
+    return NextResponse.json({ error: 'Nemáte oprávnění zobrazit uživatele.' }, { status: 403 });
+  }
+
   try {
     const users = await prisma.$queryRaw<
       Array<{
@@ -21,6 +27,7 @@ export async function GET() {
         created_at: Date;
         updated_at: Date;
         last_sign_in_at: Date | null;
+        email_confirmed_at: Date | null;
       }>
     >`
       SELECT
@@ -35,7 +42,8 @@ export async function GET() {
         p.is_admin,
         p.created_at,
         p.updated_at,
-        u.last_sign_in_at
+        u.last_sign_in_at,
+        u.email_confirmed_at
       FROM public.profiles p
       LEFT JOIN auth.users u ON u.id = p.id
       ORDER BY p.created_at DESC

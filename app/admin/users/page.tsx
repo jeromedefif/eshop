@@ -5,9 +5,24 @@
 
 import { useState, useEffect } from 'react';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
-import { Search, X, Mail, Building, Phone, Calendar, RefreshCw, User } from 'lucide-react';
+import { Search, X, Mail, Building, Phone, Calendar, RefreshCw, User, CircleCheck, Clock3 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { UserProfile } from '@/types/auth';
+
+const ActivationBadge = ({ user }: { user: UserProfile }) => {
+    const isActive = Boolean(user.email_confirmed_at);
+
+    return (
+        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+            isActive
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-amber-100 text-amber-900'
+        }`}>
+            {isActive ? <CircleCheck className="mr-1 h-3 w-3" /> : <Clock3 className="mr-1 h-3 w-3" />}
+            {isActive ? 'Aktivní' : 'Čeká na aktivaci'}
+        </span>
+    );
+};
 
 const AdminUsersPage = () => {
     const [users, setUsers] = useState<UserProfile[]>([]);
@@ -97,7 +112,10 @@ const AdminUsersPage = () => {
                     </div>
                     <div className="flex-1">
                         <div className="flex flex-col">
-                            <div className="font-medium text-gray-900">{user.full_name || 'Neuvedeno'}</div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <div className="font-medium text-gray-900">{user.full_name || 'Neuvedeno'}</div>
+                                <ActivationBadge user={user} />
+                            </div>
                             <div className="flex items-center text-sm text-gray-600">
                                 <Mail className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
                                 <span>{user.email}</span>
@@ -274,6 +292,9 @@ const AdminUsersPage = () => {
                                                                 ADMIN
                                                             </span>
                                                         )}
+                                                    </div>
+                                                    <div className="mt-1">
+                                                        <ActivationBadge user={user} />
                                                     </div>
                                                     <div className="text-sm text-gray-500 mt-0.5">
                                                         {user.company || 'Neuvedeno'}

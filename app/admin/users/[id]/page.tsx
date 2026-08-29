@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, User, Calendar, Mail, Building, Phone, MapPin, FileText, Loader2, Trash2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, User, Calendar, Mail, Building, Phone, MapPin, FileText, Loader2, Trash2, AlertTriangle, Truck, Settings2, CreditCard, CircleCheck, Clock3, Send } from 'lucide-react';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
+import type { UserProfile } from '@/types/auth';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 import { toast } from 'react-toastify';
@@ -14,12 +15,14 @@ const UserDetailPage = () => {
     const params = useParams();
     const userId = params.id as string;
 
-    const [profile, setProfile] = useState<any>(null);
+    const [profile, setProfile] = useState<UserProfile | null>(null);
     const [orders, setOrders] = useState<any[]>([]);
     const [ordersLoaded, setOrdersLoaded] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isDeletingUser, setIsDeletingUser] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isResendingConfirmation, setIsResendingConfirmation] = useState(false);
+    const [confirmationResent, setConfirmationResent] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -193,6 +196,30 @@ const UserDetailPage = () => {
         }
     };
 
+    const handleResendConfirmation = async () => {
+        if (!profile || profile.email_confirmed_at || isResendingConfirmation || confirmationResent) return;
+
+        setIsResendingConfirmation(true);
+        try {
+            const response = await fetch(`/api/admin/users/${userId}/resend-confirmation`, {
+                method: 'POST',
+            });
+            const data = await response.json().catch(() => null);
+
+            if (!response.ok) {
+                throw new Error(data?.error || 'Aktivační e-mail se nepodařilo odeslat.');
+            }
+
+            setConfirmationResent(true);
+            toast.success('Aktivační e-mail byl znovu odeslán.');
+        } catch (resendError) {
+            console.error('Chyba při odesílání aktivačního e-mailu:', resendError);
+            toast.error(resendError instanceof Error ? resendError.message : 'Aktivační e-mail se nepodařilo odeslat.');
+        } finally {
+            setIsResendingConfirmation(false);
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="max-w-4xl mx-auto p-6 flex justify-center items-center min-h-[50vh]">
@@ -219,7 +246,7 @@ const UserDetailPage = () => {
     }
 
     return (
-        <div className="max-w-4xl mx-auto p-6">
+        <div className="max-w-6xl mx-auto p-6">
             <div className="flex items-center mb-6">
                 <Link
                     href="/admin/users"
@@ -231,87 +258,221 @@ const UserDetailPage = () => {
 
             <div className="bg-white shadow-md rounded-lg overflow-hidden mb-6">
                 <div className="p-6">
-                    <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start gap-4">
                         <h1 className="text-2xl font-bold text-gray-900 mb-6">Detail uživatele</h1>
-                        <span className={`px-2 py-1 inline-flex text-xs font-medium rounded-full ${
-                            profile?.is_admin ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                            {profile?.is_admin ? 'Admin' : 'Uživatel'}
-                        </span>
+                        <div className="flex flex-wrap justify-end gap-2">
+                            <span className={`px-2 py-1 inline-flex text-xs font-medium rounded-full ${
+                                profile?.email_confirmed_at
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-amber-100 text-amber-900'
+                            }`}>
+                                {profile?.email_confirmed_at ? <CircleCheck className="mr-1 h-3.5 w-3.5" /> : <Clock3 className="mr-1 h-3.5 w-3.5" />}
+                                {profile?.email_confirmed_at ? 'Aktivní účet' : 'Čeká na aktivaci'}
+                            </span>
+                            <span className={`px-2 py-1 inline-flex text-xs font-medium rounded-full ${
+                                profile?.is_admin ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                                {profile?.is_admin ? 'Admin' : 'Uživatel'}
+                            </span>
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Základní informace */}
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                <User className="w-5 h-5 mr-2 text-gray-500" />
-                                Osobní údaje
+                    <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+                        <section className="rounded-xl border border-gray-200 bg-gray-50 p-5">
+                            <h2 className="mb-4 flex items-center text-lg font-semibold text-gray-900">
+                                <User className="mr-2 h-5 w-5 text-blue-600" />
+                                Kontakt a firma
                             </h2>
-                            <div className="space-y-3">
+                            <dl className="space-y-3 text-sm">
                                 <div>
-                                    <span className="text-sm font-medium text-gray-700">Jméno:</span>
-                                    <p className="font-medium text-gray-900">{profile?.full_name || 'Neuvedeno'}</p>
+                                    <dt className="font-medium text-gray-600">Jméno</dt>
+                                    <dd className="font-semibold text-gray-900">{profile?.full_name || 'Neuvedeno'}</dd>
                                 </div>
                                 <div>
-                                    <span className="text-sm font-medium text-gray-700">Email:</span>
-                                    <p className="font-medium text-gray-900 flex items-center">
-                                        <Mail className="w-4 h-4 mr-1 text-gray-500" />
-                                        {profile?.email}
-                                    </p>
-                                </div>
-                                <div>
-                                    <span className="text-sm font-medium text-gray-700">Telefon:</span>
-                                    <p className="font-medium text-gray-900 flex items-center">
-                                        <Phone className="w-4 h-4 mr-1 text-gray-500" />
-                                        {profile?.phone || 'Neuvedeno'}
-                                    </p>
-                                </div>
-                                <div>
-                                    <span className="text-sm font-medium text-gray-700">Společnost:</span>
-                                    <p className="font-medium text-gray-900 flex items-center">
-                                        <Building className="w-4 h-4 mr-1 text-gray-500" />
+                                    <dt className="font-medium text-gray-600">Společnost</dt>
+                                    <dd className="flex items-center font-semibold text-gray-900">
+                                        <Building className="mr-1.5 h-4 w-4 text-gray-500" />
                                         {profile?.company || 'Neuvedeno'}
-                                    </p>
+                                    </dd>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <dt className="font-medium text-gray-600">IČO</dt>
+                                        <dd className="font-semibold text-gray-900">{profile?.company_id || 'Neuvedeno'}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="font-medium text-gray-600">DIČ</dt>
+                                        <dd className="font-semibold text-gray-900">{profile?.vat_id || 'Neuvedeno'}</dd>
+                                    </div>
                                 </div>
                                 <div>
-                                    <span className="text-sm font-medium text-gray-700">Registrace:</span>
-                                    <p className="font-medium text-gray-900 flex items-center">
-                                        <Calendar className="w-4 h-4 mr-1 text-gray-500" />
-                                        {formatDate(profile?.created_at)}
-                                    </p>
+                                    <dt className="font-medium text-gray-600">E-mail</dt>
+                                    <dd>
+                                        <a href={`mailto:${profile?.email}`} className="inline-flex items-center font-semibold text-blue-700 hover:underline">
+                                            <Mail className="mr-1.5 h-4 w-4" />
+                                            {profile?.email || 'Neuvedeno'}
+                                        </a>
+                                    </dd>
                                 </div>
                                 <div>
-                                    <span className="text-sm font-medium text-gray-700">Poslední přihlášení:</span>
-                                    <p className="font-medium text-gray-900 flex items-center">
-                                        <Calendar className="w-4 h-4 mr-1 text-gray-500" />
-                                        {formatLastSignIn(profile?.last_sign_in_at)}
-                                    </p>
+                                    <dt className="font-medium text-gray-600">Telefon</dt>
+                                    <dd>
+                                        {profile?.phone ? (
+                                            <a href={`tel:${profile.phone.replace(/\s+/g, '')}`} className="inline-flex items-center font-semibold text-blue-700 hover:underline">
+                                                <Phone className="mr-1.5 h-4 w-4" />
+                                                {profile.phone}
+                                            </a>
+                                        ) : (
+                                            <span className="font-semibold text-gray-900">Neuvedeno</span>
+                                        )}
+                                    </dd>
                                 </div>
-                            </div>
-                        </div>
+                            </dl>
+                        </section>
 
-                        {/* Adresa a další údaje */}
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                <MapPin className="w-5 h-5 mr-2 text-gray-500" />
-                                Fakturační údaje
+                        <section className="rounded-xl border border-gray-200 bg-gray-50 p-5">
+                            <h2 className="mb-4 flex items-center text-lg font-semibold text-gray-900">
+                                <CreditCard className="mr-2 h-5 w-5 text-emerald-600" />
+                                Fakturační adresa
                             </h2>
-                            <div className="space-y-3">
+                            <dl className="space-y-3 text-sm">
                                 <div>
-                                    <span className="text-sm font-medium text-gray-700">Adresa:</span>
-                                    <p className="font-medium text-gray-900">{profile?.address || 'Neuvedeno'}</p>
+                                    <dt className="font-medium text-gray-600">Ulice a číslo</dt>
+                                    <dd className="font-semibold text-gray-900">{profile?.billing_address || profile?.address || 'Neuvedeno'}</dd>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <dt className="font-medium text-gray-600">Město</dt>
+                                        <dd className="font-semibold text-gray-900">{profile?.billing_city || profile?.city || 'Neuvedeno'}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="font-medium text-gray-600">PSČ</dt>
+                                        <dd className="font-semibold text-gray-900">{profile?.billing_postal_code || profile?.postal_code || 'Neuvedeno'}</dd>
+                                    </div>
                                 </div>
                                 <div>
-                                    <span className="text-sm font-medium text-gray-700">Město:</span>
-                                    <p className="font-medium text-gray-900">{profile?.city || 'Neuvedeno'}</p>
+                                    <dt className="font-medium text-gray-600">Země</dt>
+                                    <dd className="font-semibold text-gray-900">{profile?.billing_country || 'Česká republika'}</dd>
                                 </div>
-                                <div>
-                                    <span className="text-sm font-medium text-gray-700">PSČ:</span>
-                                    <p className="font-medium text-gray-900">{profile?.postal_code || 'Neuvedeno'}</p>
+                            </dl>
+                        </section>
+
+                        <section className="rounded-xl border border-gray-200 bg-gray-50 p-5">
+                            <h2 className="mb-4 flex items-center text-lg font-semibold text-gray-900">
+                                <Truck className="mr-2 h-5 w-5 text-orange-600" />
+                                Dodací adresa
+                            </h2>
+                            {profile?.shipping_same_as_billing ? (
+                                <div className="rounded-lg bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
+                                    Stejná jako fakturační adresa
                                 </div>
-                            </div>
-                        </div>
+                            ) : (
+                                <dl className="space-y-3 text-sm">
+                                    <div>
+                                        <dt className="font-medium text-gray-600">Firma / kontaktní osoba</dt>
+                                        <dd className="font-semibold text-gray-900">
+                                            {profile?.shipping_company || 'Neuvedeno'}
+                                            {profile?.shipping_contact_name && <span className="block font-medium text-gray-700">{profile.shipping_contact_name}</span>}
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt className="font-medium text-gray-600">Ulice a číslo</dt>
+                                        <dd className="font-semibold text-gray-900">{profile?.shipping_address || 'Neuvedeno'}</dd>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <dt className="font-medium text-gray-600">Město</dt>
+                                            <dd className="font-semibold text-gray-900">{profile?.shipping_city || 'Neuvedeno'}</dd>
+                                        </div>
+                                        <div>
+                                            <dt className="font-medium text-gray-600">PSČ</dt>
+                                            <dd className="font-semibold text-gray-900">{profile?.shipping_postal_code || 'Neuvedeno'}</dd>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <dt className="font-medium text-gray-600">Země</dt>
+                                        <dd className="font-semibold text-gray-900">{profile?.shipping_country || 'Česká republika'}</dd>
+                                    </div>
+                                </dl>
+                            )}
+                        </section>
                     </div>
+
+                    {profile?.delivery_instructions && (
+                        <section className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-5">
+                            <h2 className="mb-2 flex items-center font-semibold text-amber-950">
+                                <MapPin className="mr-2 h-5 w-5" />
+                                Instrukce k doručení
+                            </h2>
+                            <p className="whitespace-pre-wrap text-sm text-amber-950">{profile.delivery_instructions}</p>
+                        </section>
+                    )}
+
+                    <section className="mt-5 rounded-xl border border-gray-200 bg-white p-5">
+                        <h2 className="mb-4 flex items-center text-lg font-semibold text-gray-900">
+                            <Settings2 className="mr-2 h-5 w-5 text-gray-600" />
+                            Účet
+                        </h2>
+                        <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                            <div>
+                                <dt className="font-medium text-gray-600">Registrace</dt>
+                                <dd className="mt-1 flex items-center font-semibold text-gray-900">
+                                    <Calendar className="mr-1.5 h-4 w-4 text-gray-500" />
+                                    {formatDate(profile?.created_at)}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="font-medium text-gray-600">Poslední přihlášení</dt>
+                                <dd className="mt-1 flex items-center font-semibold text-gray-900">
+                                    <Calendar className="mr-1.5 h-4 w-4 text-gray-500" />
+                                    {formatLastSignIn(profile?.last_sign_in_at)}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="font-medium text-gray-600">Nápověda objednávání</dt>
+                                <dd className="mt-1 font-semibold text-gray-900">
+                                    {profile?.show_ordering_help ? 'Zobrazuje se' : 'Trvale skrytá'}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="font-medium text-gray-600">Aktivace účtu</dt>
+                                <dd className="mt-1">
+                                    {profile?.email_confirmed_at ? (
+                                        <span className="inline-flex items-center font-semibold text-emerald-700">
+                                            <CircleCheck className="mr-1.5 h-4 w-4" />
+                                            E-mail potvrzen
+                                        </span>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <span className="inline-flex items-center font-semibold text-amber-800">
+                                                <Clock3 className="mr-1.5 h-4 w-4" />
+                                                Čeká na potvrzení
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={handleResendConfirmation}
+                                                disabled={isResendingConfirmation || confirmationResent}
+                                                className="flex items-center rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-amber-300"
+                                            >
+                                                {isResendingConfirmation ? (
+                                                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                                                ) : confirmationResent ? (
+                                                    <CircleCheck className="mr-1.5 h-4 w-4" />
+                                                ) : (
+                                                    <Send className="mr-1.5 h-4 w-4" />
+                                                )}
+                                                {isResendingConfirmation
+                                                    ? 'Odesílám...'
+                                                    : confirmationResent
+                                                        ? 'E-mail odeslán'
+                                                        : 'Odeslat aktivaci znovu'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </dd>
+                            </div>
+                        </dl>
+                    </section>
                 </div>
             </div>
 
