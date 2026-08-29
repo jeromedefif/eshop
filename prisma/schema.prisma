@@ -23,6 +23,8 @@ model Product {
   min_order_qty   Int         @default(1)
   allowed_volumes String[]    @default([])
   order_items     OrderItem[]
+  favorite_products FavoriteProduct[]
+  saved_template_items SavedOrderTemplateItem[]
 
   @@map("products")
   @@schema("public")
@@ -124,9 +126,66 @@ model Profile {
   @@schema("public")
 }
 
+model FavoriteProduct {
+  user_id    String   @db.Uuid
+  product_id BigInt
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, product_id])
+  @@map("favorite_products")
+  @@schema("public")
+}
+
+model SavedOrderTemplate {
+  id         String                   @id @default(uuid()) @db.Uuid
+  user_id    String                   @db.Uuid
+  name       String                   @db.Text
+  created_at DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at DateTime                 @default(now()) @db.Timestamptz(6)
+  user       User                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  items      SavedOrderTemplateItem[]
+
+  @@unique([id, user_id])
+  @@map("saved_order_templates")
+  @@schema("public")
+}
+
+model SavedOrderTemplateItem {
+  id          String             @id @default(uuid()) @db.Uuid
+  template_id String             @db.Uuid
+  user_id     String             @db.Uuid
+  product_id  BigInt
+  volume      String             @db.Text
+  quantity    Int
+  created_at  DateTime           @default(now()) @db.Timestamptz(6)
+  template    SavedOrderTemplate @relation(fields: [template_id, user_id], references: [id, user_id], onDelete: Cascade)
+  user        User               @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  product     Product            @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@unique([template_id, product_id, volume])
+  @@map("saved_order_template_items")
+  @@schema("public")
+}
+
+model CustomerCart {
+  user_id    String   @id @db.Uuid
+  items      Json     @default("{}")
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("customer_carts")
+  @@schema("public")
+}
+
 model User {
-  id     String  @id @db.Uuid
-  orders Order[]
+  id                   String                   @id @db.Uuid
+  orders               Order[]
+  favorite_products    FavoriteProduct[]
+  saved_order_templates SavedOrderTemplate[]
+  saved_template_items SavedOrderTemplateItem[]
+  customer_cart        CustomerCart?
 
   @@map("users")
   @@schema("auth")

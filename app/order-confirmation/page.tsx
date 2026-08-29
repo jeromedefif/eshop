@@ -10,10 +10,12 @@ import { toast } from 'react-toastify';
 import type { OrderStatus, OrderConfirmationData } from '@/types/orders';
 import { isVolumeAllowed } from '@/lib/product-config';
 import CustomerPageShell from '@/components/CustomerPageShell';
+import { useCart } from '@/contexts/CartContext';
 
 export default function OrderConfirmationPage() {
     const router = useRouter();
     const { user, profile } = useAuth();
+    const { clearCart } = useCart();
     const [orderStatus, setOrderStatus] = useState<OrderStatus>('pending');
     const [orderData, setOrderData] = useState<OrderConfirmationData | null>(null);
 
@@ -147,8 +149,8 @@ export default function OrderConfirmationPage() {
             // Odstranění dat objednávky z localStorage
             localStorage.removeItem('pendingOrderData');
 
-            // Vyčištění košíku - uložíme prázdný objekt
-            localStorage.setItem('cart', JSON.stringify({}));
+            // Vyčištění lokálního i serverového košíku po úspěšném uložení objednávky.
+            clearCart();
 
             // Nastavení parametru pro zobrazení úspěšné hlášky
             localStorage.setItem('orderSuccess', 'true');

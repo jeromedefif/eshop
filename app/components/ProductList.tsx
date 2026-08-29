@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import Script from 'next/script';
 import Link from 'next/link';
-import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, Layout, LayoutList, Sparkles, Amphora, Info } from 'lucide-react';
+import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, Layout, LayoutList, Sparkles, Amphora, Info, Heart } from 'lucide-react';
 import { Product } from '@/types/database';
 import { CATEGORY_ORDER, getAllowedVolumes, normalizeProductCategory, sortCatalogProducts } from '@/lib/product-config';
 import { getProductPath } from '@/lib/product-slug';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePurchasing } from '@/contexts/PurchasingContext';
+import { toast } from 'react-toastify';
 
 type ProductListProps = {
     onAddToCart: (productId: string | number, volume: string | number) => void;
@@ -39,7 +41,8 @@ const categoryButtons = [
 ];
 
 const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initialProductId }: ProductListProps) => {
-    const { profile } = useAuth();
+    const { profile, user } = useAuth();
+    const { favoriteProductIds, toggleFavorite } = usePurchasing();
     const [selectedCategory, setSelectedCategory] = useState("Všechny");
     const [searchQuery, setSearchQuery] = useState('');
     const [isGrouped, setIsGrouped] = useState(false);
@@ -174,7 +177,11 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
         if (product.is_archived) return false;
         if (directProductId) return String(product.id) === directProductId;
         const category = normalizeProductCategory(product.category);
-        const categoryMatch = selectedCategory === "Všechny" ? true : category === selectedCategory;
+        const categoryMatch = selectedCategory === "Všechny"
+            ? true
+            : selectedCategory === 'Oblíbené'
+                ? favoriteProductIds.has(String(product.id))
+                : category === selectedCategory;
         const searchMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           category.toLowerCase().includes(searchQuery.toLowerCase());
         return categoryMatch && searchMatch;
@@ -197,6 +204,30 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
             return (indexA === -1 ? Number.MAX_SAFE_INTEGER : indexA) - (indexB === -1 ? Number.MAX_SAFE_INTEGER : indexB);
         })
         : [];
+
+    const handleFavorite = async (productId: string | number) => {
+        try {
+            await toggleFavorite(productId);
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : 'Oblíbenou položku se nepodařilo změnit.');
+        }
+    };
+
+    const favoriteButton = (product: Product) => {
+        if (!user) return null;
+        const isFavorite = favoriteProductIds.has(String(product.id));
+        return (
+            <button
+                type="button"
+                onClick={() => void handleFavorite(product.id)}
+                className={`shrink-0 rounded-lg p-1.5 transition ${isFavorite ? 'bg-rose-50 text-rose-600' : 'text-slate-400 hover:bg-rose-50 hover:text-rose-600'}`}
+                aria-label={isFavorite ? 'Odebrat z oblíbených' : 'Přidat do oblíbených'}
+                title={isFavorite ? 'Odebrat z oblíbených' : 'Přidat do oblíbených'}
+            >
+                <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+            </button>
+        );
+    };
 
     // Renderovací funkce zachovávají stabilní typ DOM prvků při změně košíku.
     // Vnořené React komponenty se při každém renderu vytvářely znovu a celý
@@ -269,6 +300,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                             }`}>
                                 {product.in_stock ? "Skladem" : "Není skladem"}
                             </span>
+                            {favoriteButton(product)}
                         </div>
                         <div className="flex flex-wrap gap-1.5 mt-1">
                             <span className="text-xs text-gray-500">{normalizeProductCategory(product.category)}</span>
@@ -321,6 +353,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                                 {normalizeProductCategory(product.category)}
                             </span>
                         )}
+                        {favoriteButton(product)}
                     </div>
                 </div>
 
@@ -390,6 +423,20 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                 {/* Category buttons and view toggle - optimalizované pro mobilní zařízení */}
                 <div className="flex justify-between items-center">
                     <div className="flex space-x-1 overflow-x-auto">
+                        {user && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (directProductId) clearDirectProduct();
+                                    setSelectedCategory('Oblíbené');
+                                }}
+                                className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${selectedCategory === 'Oblíbené' ? 'bg-rose-100 text-rose-700' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                                title="Oblíbené"
+                            >
+                                <Heart className={`h-5 w-5 ${selectedCategory === 'Oblíbené' ? 'fill-current' : ''}`} />
+                                <span className="hidden text-xs font-medium sm:inline">Oblíbené</span>
+                            </button>
+                        )}
                         {categoryButtons.map((cat) => {
                             const colorClass = categoryColors[cat.id as keyof typeof categoryColors] || "text-gray-700";
                             return (

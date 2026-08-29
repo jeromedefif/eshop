@@ -28,7 +28,7 @@ const Header = () => {
   const [isQuickReordering, setIsQuickReordering] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
-  const { cartItems, products, totalVolume, removeFromCart, clearCart } = useCart();
+  const { cartItems, products, totalVolume, addToCart, removeFromCart, removeLineFromCart, clearCart } = useCart();
   const quickReorder = useQuickReorder();
 
   const cartItemsCount = Object.values(cartItems).reduce((sum, count) => sum + count, 0);
@@ -292,7 +292,9 @@ const Header = () => {
         onClose={() => setIsCartOpen(false)}
         cartItems={cartItems}
         products={products}
+        onAddToCart={addToCart}
         onRemoveFromCart={removeFromCart}
+        onRemoveLineFromCart={removeLineFromCart}
         onClearCart={clearCart}
         onGoToOrder={() => {
           setIsCartOpen(false);

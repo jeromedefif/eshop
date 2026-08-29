@@ -1,16 +1,21 @@
 'use client';
 
-import React from 'react';
-import { X, ShoppingBag, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, ShoppingBag, Trash2, Minus, Plus, BookmarkPlus } from 'lucide-react';
 import { Product } from '@/types/database';  // Přidáme import typu Product
 import { normalizeProductCategory } from '@/lib/product-config';
+import { useAuth } from '@/contexts/AuthContext';
+import { usePurchasing } from '@/contexts/PurchasingContext';
+import { toast } from 'react-toastify';
 
 type CartProps = {
     isOpen: boolean;
     onClose: () => void;
     cartItems: {[key: string]: number};
     products: Array<Product>;  // Použijeme importovaný typ Product
+    onAddToCart: (productId: string | number, volume: string | number) => void;
     onRemoveFromCart: (productId: string | number, volume: string | number) => void;
+    onRemoveLineFromCart: (productId: string | number, volume: string | number) => void;
     onClearCart: () => void;
     onGoToOrder: () => void;
     totalVolume: number;
@@ -21,11 +26,18 @@ const Cart = ({
     onClose,
     cartItems,
     products,
+    onAddToCart,
     onRemoveFromCart,
+    onRemoveLineFromCart,
     onClearCart,
     onGoToOrder,
     totalVolume
 }: CartProps) => {
+    const { user } = useAuth();
+    const { createTemplate } = usePurchasing();
+    const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+    const [templateName, setTemplateName] = useState('');
+    const [isSavingTemplate, setIsSavingTemplate] = useState(false);
     React.useEffect(() => {
         if (!isOpen) return;
 
@@ -64,6 +76,21 @@ const Cart = ({
     };
 
     const itemsCount = Object.values(cartItems).reduce((sum, count) => sum + count, 0);
+
+    const saveTemplate = async () => {
+        if (!templateName.trim() || isSavingTemplate) return;
+        setIsSavingTemplate(true);
+        try {
+            await createTemplate(templateName, cartItems);
+            toast.success('Šablona objednávky byla uložena.');
+            setTemplateName('');
+            setIsTemplateDialogOpen(false);
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : 'Šablonu se nepodařilo uložit.');
+        } finally {
+            setIsSavingTemplate(false);
+        }
+    };
 
     // Pomocná funkce pro české skloňování
     const getItemsText = (count: number) => {
@@ -113,14 +140,16 @@ const Cart = ({
                     ) : (
                         <div className="space-y-4">
                             {Object.entries(cartItems).map(([key, count]) => {
-                                const [productId, volume] = key.split('-');
+                                const separatorIndex = key.lastIndexOf('-');
+                                const productId = key.slice(0, separatorIndex);
+                                const volume = key.slice(separatorIndex + 1);
                                 const product = getProductDetails(productId);
                                 if (!product) return null;
 
                                 const display = getItemDisplay(product, volume, count);
 
                                 return (
-                                    <div key={key} className="flex items-center p-4 bg-white border rounded-lg">
+                                    <div key={key} className="flex items-center gap-3 p-4 bg-white border rounded-lg">
                                         <div className="flex-1">
                                             <h3 className="font-medium text-gray-900">
                                                 {product.name}
@@ -132,14 +161,16 @@ const Cart = ({
                                                 Celkem: {display.totalText}
                                             </p>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => onRemoveFromCart(productId, volume)}
-                                            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                                            title="Odebrat položku"
-                                        >
-                                            <Trash2 className="w-5 h-5 text-red-500" />
-                                        </button>
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            <div className="flex items-center overflow-hidden rounded-lg border border-slate-200">
+                                                <button type="button" onClick={() => onRemoveFromCart(productId, volume)} className="p-2 text-slate-600 hover:bg-slate-100" aria-label="Snížit množství"><Minus className="h-4 w-4" /></button>
+                                                <span className="min-w-9 border-x border-slate-200 px-2 py-2 text-center text-sm font-semibold">{count}</span>
+                                                <button type="button" onClick={() => onAddToCart(productId, volume)} className="p-2 text-slate-600 hover:bg-slate-100" aria-label="Zvýšit množství"><Plus className="h-4 w-4" /></button>
+                                            </div>
+                                            <button type="button" onClick={() => onRemoveLineFromCart(productId, volume)} className="p-2 hover:bg-red-50 rounded-full transition-colors" title="Odstranit celý řádek">
+                                                <Trash2 className="w-5 h-5 text-red-500" />
+                                            </button>
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -160,6 +191,12 @@ const Cart = ({
                     )}
 
                     <div className="grid gap-2">
+                        {user && Object.keys(cartItems).length > 0 && (
+                            <button type="button" onClick={() => setIsTemplateDialogOpen(true)} className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-200 px-4 py-2 font-medium text-blue-700 hover:bg-blue-50">
+                                <BookmarkPlus className="h-4 w-4" />
+                                Uložit jako šablonu
+                            </button>
+                        )}
                         <button
                             type="button"
                             onClick={onGoToOrder}
@@ -181,6 +218,19 @@ const Cart = ({
                     </div>
                 </div>
             </div>
+            {isTemplateDialogOpen && (
+                <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/40 p-4" role="dialog" aria-modal="true">
+                    <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+                        <h3 className="text-lg font-bold text-slate-950">Uložit košík jako šablonu</h3>
+                        <label className="mt-4 block text-sm font-semibold text-slate-700" htmlFor="template-name">Název šablony</label>
+                        <input id="template-name" autoFocus maxLength={80} value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Např. Pravidelný pondělní závoz" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+                        <div className="mt-5 flex gap-2">
+                            <button type="button" onClick={() => void saveTemplate()} disabled={!templateName.trim() || isSavingTemplate} className="min-h-11 flex-1 rounded-xl bg-blue-700 px-4 font-semibold text-white disabled:bg-slate-300">{isSavingTemplate ? 'Ukládám...' : 'Uložit'}</button>
+                            <button type="button" onClick={() => setIsTemplateDialogOpen(false)} className="min-h-11 rounded-xl border border-slate-300 px-4 font-semibold text-slate-700">Zrušit</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };

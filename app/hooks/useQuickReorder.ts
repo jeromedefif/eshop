@@ -6,11 +6,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/lib/supabase/client';
 import { getAllowedVolumes } from '@/lib/product-config';
+import type { Product } from '@/types/database';
+
+type ReorderItem = {
+  product_id: string | number;
+  volume: string;
+  quantity: number;
+  product: Product | null;
+};
 
 export function useQuickReorder() {
   const router = useRouter();
   const { user } = useAuth();
-  const { setCartItems } = useCart();
+  const { requestCartImport } = useCart();
 
   return useCallback(async () => {
     if (!user) {
@@ -59,7 +67,7 @@ export function useQuickReorder() {
       const nextCartItems: Record<string, number> = {};
       let unavailableItems = 0;
 
-      latestOrder.order_items.forEach((item: any) => {
+      (latestOrder.order_items as unknown as ReorderItem[]).forEach((item) => {
         if (
           !item.product?.in_stock ||
           item.product?.is_archived ||
@@ -78,7 +86,8 @@ export function useQuickReorder() {
         return;
       }
 
-      setCartItems(nextCartItems);
+      const result = await requestCartImport(nextCartItems, 'poslední objednávka');
+      if (result === 'cancelled') return;
 
       if (unavailableItems > 0) {
         alert('Některé položky nebyly skladem a nebyly přidány.');
@@ -89,5 +98,5 @@ export function useQuickReorder() {
       console.error('Error creating reorder from latest order:', error);
       alert('Objednávku se nepodařilo načíst. Zkuste to prosím znovu.');
     }
-  }, [router, setCartItems, user]);
+  }, [requestCartImport, router, user]);
 }
