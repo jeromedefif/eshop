@@ -46,6 +46,20 @@ export interface SignUpData {
        address: string;
        city: string;
        postal_code?: string;
+       company_id?: string;
+       vat_id?: string;
+       billing_address?: string;
+       billing_city?: string;
+       billing_postal_code?: string;
+       billing_country?: string;
+       shipping_same_as_billing?: boolean;
+       shipping_company?: string;
+       shipping_contact_name?: string;
+       shipping_address?: string;
+       shipping_city?: string;
+       shipping_postal_code?: string;
+       shipping_country?: string;
+       delivery_instructions?: string;
    };
 }
 
@@ -113,7 +127,18 @@ export interface RegistrationFormData {
    full_name: string;
    company: string;
    phone: string;
-   address: string;
-   city: string;
-   postal_code: string;
+   company_id: string;
+   vat_id: string;
+   billing_address: string;
+   billing_city: string;
+   billing_postal_code: string;
+   billing_country: string;
+   shipping_same_as_billing: boolean;
+   shipping_company: string;
+   shipping_contact_name: string;
+   shipping_address: string;
+   shipping_city: string;
+   shipping_postal_code: string;
+   shipping_country: string;
+   delivery_instructions: string;
 }

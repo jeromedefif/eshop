@@ -4,14 +4,15 @@ import SiteFooter from '@/components/SiteFooter';
 
 type AuthPageShellProps = {
     children: ReactNode;
-    width?: 'md' | 'xl' | '2xl';
+    width?: 'md' | 'xl' | '2xl' | '4xl';
     active?: 'login' | 'register';
 };
 
 const widthClasses = {
     md: 'max-w-md',
     xl: 'max-w-xl',
-    '2xl': 'max-w-2xl'
+    '2xl': 'max-w-2xl',
+    '4xl': 'max-w-4xl'
 };
 
 export default function AuthPageShell({
