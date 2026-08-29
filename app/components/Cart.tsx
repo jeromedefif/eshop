@@ -164,7 +164,7 @@ const Cart = ({
                                         <div className="flex shrink-0 items-center gap-2">
                                             <div className="flex items-center overflow-hidden rounded-lg border border-slate-200">
                                                 <button type="button" onClick={() => onRemoveFromCart(productId, volume)} className="p-2 text-slate-600 hover:bg-slate-100" aria-label="Snížit množství"><Minus className="h-4 w-4" /></button>
-                                                <span className="min-w-9 border-x border-slate-200 px-2 py-2 text-center text-sm font-semibold">{count}</span>
+                                                <span className="min-w-9 border-x border-slate-200 bg-white px-2 py-2 text-center text-sm font-semibold text-slate-900">{count}</span>
                                                 <button type="button" onClick={() => onAddToCart(productId, volume)} className="p-2 text-slate-600 hover:bg-slate-100" aria-label="Zvýšit množství"><Plus className="h-4 w-4" /></button>
                                             </div>
                                             <button type="button" onClick={() => onRemoveLineFromCart(productId, volume)} className="p-2 hover:bg-red-50 rounded-full transition-colors" title="Odstranit celý řádek">
@@ -223,7 +223,7 @@ const Cart = ({
                     <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
                         <h3 className="text-lg font-bold text-slate-950">Uložit košík jako šablonu</h3>
                         <label className="mt-4 block text-sm font-semibold text-slate-700" htmlFor="template-name">Název šablony</label>
-                        <input id="template-name" autoFocus maxLength={80} value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Např. Pravidelný pondělní závoz" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+                        <input id="template-name" autoFocus maxLength={80} value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Např. Pravidelný pondělní závoz" className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
                         <div className="mt-5 flex gap-2">
                             <button type="button" onClick={() => void saveTemplate()} disabled={!templateName.trim() || isSavingTemplate} className="min-h-11 flex-1 rounded-xl bg-blue-700 px-4 font-semibold text-white disabled:bg-slate-300">{isSavingTemplate ? 'Ukládám...' : 'Uložit'}</button>
                             <button type="button" onClick={() => setIsTemplateDialogOpen(false)} className="min-h-11 rounded-xl border border-slate-300 px-4 font-semibold text-slate-700">Zrušit</button>
