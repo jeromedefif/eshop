@@ -8,6 +8,7 @@ import type {
   OrderConfirmationData
 } from '@/types/orders';
 import { normalizeProductCategory } from '@/lib/product-config';
+import UsuallyOrderedRecommendations from './UsuallyOrderedRecommendations';
 
 const OrderForm = ({
   cartItems,
@@ -101,6 +102,15 @@ const OrderForm = ({
               onAddToCart={onAddToCart}
               totalVolume={totalVolume}
           />
+
+          {user && (
+              <UsuallyOrderedRecommendations
+                  userId={user.id}
+                  cartItems={cartItems}
+                  products={products}
+                  onAddToCart={onAddToCart}
+              />
+          )}
 
           <div className="mt-6 bg-white rounded-lg shadow">
               <div className="p-6">
