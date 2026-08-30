@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
-import { Package, ShoppingCart, Loader2, ChevronDown, Bookmark, Heart, Pencil, Trash2, History, Search } from 'lucide-react';
+import { Package, ShoppingCart, Loader2, ChevronDown, Bookmark, Heart, Pencil, Trash2, History, Search, ArrowRight, CalendarDays, Layers3 } from 'lucide-react';
 import Link from 'next/link';
 import { useCart, type CartItems } from '@/contexts/CartContext';
 import { usePurchasing } from '@/contexts/PurchasingContext';
@@ -17,6 +17,12 @@ import type { SavedOrderTemplate } from '@/types/purchasing';
 
 // Konstanty - velmi minimální změna
 const PAGE_SIZE = 5;
+
+const formatCzechCount = (count: number, singular: string, paucal: string, plural: string) => {
+    if (count === 1) return `${count} ${singular}`;
+    if (count >= 2 && count <= 4) return `${count} ${paucal}`;
+    return `${count} ${plural}`;
+};
 
 type OrderItem = {
     id: string;
@@ -388,6 +394,9 @@ const MyOrdersPage = () => {
     };
 
     const favoriteProducts = products.filter((product) => favoriteProductIds.has(String(product.id)));
+    const latestOrder = orders[0] || null;
+    const cartLineCount = Object.keys(cartItems).length;
+    const cartQuantity = Object.values(cartItems).reduce((total, quantity) => total + quantity, 0);
 
     const previouslyOrderedProducts = useMemo(() => {
         const productMap = new Map(products.map((product) => [String(product.id), product]));
@@ -491,6 +500,84 @@ const MyOrdersPage = () => {
                     <h1 className="text-3xl font-bold tracking-tight text-slate-950">Moje objednávky</h1>
                     <p className="mt-2 text-sm text-slate-600">Historie, dříve objednané produkty, uložené šablony a oblíbené na jednom místě.</p>
                 </div>
+
+                <section className="mb-6 grid gap-4 lg:grid-cols-2" aria-label="Rychlý přehled nákupů">
+                    <article className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 to-slate-800 p-5 text-white shadow-sm sm:p-6">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-200">Poslední objednávka</p>
+                                {latestOrder ? (
+                                    <>
+                                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                                            <p className="text-xl font-bold">#{latestOrder.id.substring(0, 8)}</p>
+                                            {getStatusLabel(latestOrder.status)}
+                                        </div>
+                                        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-300">
+                                            <span className="inline-flex items-center gap-2"><CalendarDays className="h-4 w-4" />{formatDate(latestOrder.created_at)}</span>
+                                            <span className="font-semibold text-white">{latestOrder.total_volume || 0} L</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <p className="mt-3 text-sm leading-6 text-slate-300">Po první objednávce zde najdete nejrychlejší cestu k jejímu zopakování.</p>
+                                )}
+                            </div>
+                            <Package className="h-8 w-8 shrink-0 text-blue-300" />
+                        </div>
+                        <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+                            {latestOrder ? (
+                                <button type="button" onClick={() => void handleReorder(latestOrder)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 font-semibold text-white hover:bg-blue-500">
+                                    <ShoppingCart className="h-4 w-4" />Objednat znovu
+                                </button>
+                            ) : (
+                                <Link href="/" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 font-semibold text-white hover:bg-blue-500">
+                                    Přejít do katalogu<ArrowRight className="h-4 w-4" />
+                                </Link>
+                            )}
+                            {latestOrder && (
+                                <button type="button" onClick={() => setActiveTab('history')} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/20 px-4 font-semibold text-white hover:bg-white/10">
+                                    Zobrazit v historii
+                                </button>
+                            )}
+                        </div>
+                    </article>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <Link href={cartQuantity > 0 ? '/order-summary' : '/'} className="group rounded-2xl border border-blue-200 bg-blue-50 p-4 transition hover:border-blue-300 hover:bg-blue-100">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <p className="font-bold text-slate-950">Rozpracovaný košík</p>
+                                    <p className="mt-1 text-sm text-slate-600">{cartQuantity > 0 ? `${cartQuantity} ks · ${formatCzechCount(cartLineCount, 'položka', 'položky', 'položek')}` : 'Košík je zatím prázdný'}</p>
+                                </div>
+                                <ShoppingCart className="h-5 w-5 text-blue-700" />
+                            </div>
+                            <p className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-blue-700">{cartQuantity > 0 ? 'Pokračovat v objednávce' : 'Otevřít katalog'}<ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" /></p>
+                        </Link>
+
+                        <button type="button" onClick={() => setActiveTab('favorites')} className="group rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-rose-200 hover:bg-rose-50">
+                            <div className="flex items-start justify-between gap-3">
+                                <div><p className="font-bold text-slate-950">Oblíbené položky</p><p className="mt-1 text-sm text-slate-600">{formatCzechCount(favoriteProductIds.size, 'uložený produkt', 'uložené produkty', 'uložených produktů')}</p></div>
+                                <Heart className="h-5 w-5 text-rose-600" />
+                            </div>
+                            <p className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-slate-700">Zobrazit oblíbené<ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" /></p>
+                        </button>
+
+                        <button type="button" onClick={() => setActiveTab('templates')} className="group rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-amber-200 hover:bg-amber-50">
+                            <div className="flex items-start justify-between gap-3">
+                                <div><p className="font-bold text-slate-950">Uložené šablony</p><p className="mt-1 text-sm text-slate-600">{formatCzechCount(templates.length, 'uložená sestava', 'uložené sestavy', 'uložených sestav')}</p></div>
+                                <Bookmark className="h-5 w-5 text-amber-600" />
+                            </div>
+                            <p className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-slate-700">Zobrazit šablony<ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" /></p>
+                        </button>
+
+                        <button type="button" onClick={() => setActiveTab('previouslyOrdered')} className="group rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-emerald-200 hover:bg-emerald-50">
+                            <div className="flex items-start justify-between gap-3">
+                                <div><p className="font-bold text-slate-950">Dříve objednané</p><p className="mt-1 text-sm text-slate-600">Výběr produktů z celé historie</p></div>
+                                <Layers3 className="h-5 w-5 text-emerald-700" />
+                            </div>
+                            <p className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-slate-700">Vybrat produkty<ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" /></p>
+                        </button>
+                    </div>
+                </section>
 
                 <div className="mb-6 flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm" role="tablist" aria-label="Nákupní přehled">
                     {[
