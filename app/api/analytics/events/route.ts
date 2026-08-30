@@ -11,10 +11,12 @@ const EVENT_NAMES = new Set([
   'order_submitted',
   'template_used',
   'history_order_used',
+  'recommendations_shown',
+  'recommendation_added',
 ]);
 
 const DEVICE_TYPES = new Set(['mobile', 'tablet', 'desktop', 'unknown']);
-const SOURCES = new Set(['catalog', 'template', 'history', 'latest_order']);
+const SOURCES = new Set(['catalog', 'template', 'history', 'latest_order', 'recommendation']);
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const getAuthenticatedUser = async () => {

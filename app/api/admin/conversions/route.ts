@@ -25,6 +25,9 @@ type FunnelRow = {
   history_uses: number;
   template_orders: number;
   history_orders: number;
+  recommendation_views: number;
+  recommendation_adds: number;
+  recommendation_orders: number;
 };
 
 type DeviceRow = { device_type: string; journeys: number; submitted: number };
@@ -58,6 +61,7 @@ export async function GET(request: Request) {
           bool_or(event_name = 'order_submitted') as order_submitted,
           bool_or(event_name = 'template_used') as template_used,
           bool_or(event_name = 'history_order_used') as history_order_used,
+          bool_or(event_name = 'recommendation_added') as recommendation_added,
           min(created_at) filter (where event_name = 'first_item_added') as first_item_at,
           min(created_at) filter (where event_name = 'order_submitted') as submitted_at
         from scoped
@@ -74,7 +78,10 @@ export async function GET(request: Request) {
         (select count(*)::int from scoped where event_name = 'template_used') as template_uses,
         (select count(*)::int from scoped where event_name = 'history_order_used') as history_uses,
         count(*) filter (where order_submitted and template_used)::int as template_orders,
-        count(*) filter (where order_submitted and history_order_used)::int as history_orders
+        count(*) filter (where order_submitted and history_order_used)::int as history_orders,
+        (select count(*)::int from scoped where event_name = 'recommendations_shown') as recommendation_views,
+        (select count(*)::int from scoped where event_name = 'recommendation_added') as recommendation_adds,
+        count(*) filter (where order_submitted and recommendation_added)::int as recommendation_orders
       from journeys
     `);
 
@@ -109,6 +116,9 @@ export async function GET(request: Request) {
       history_uses: 0,
       template_orders: 0,
       history_orders: 0,
+      recommendation_views: 0,
+      recommendation_adds: 0,
+      recommendation_orders: 0,
     };
 
     return NextResponse.json({ period, funnel: safeFunnel, devices }, {

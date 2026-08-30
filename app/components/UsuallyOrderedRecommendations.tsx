@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from '@/lib/analytics/client';
 import { getAllowedVolumes, normalizeProductCategory } from '@/lib/product-config';
 import type { Product } from '@/types/database';
 import type { CartItems } from '@/contexts/CartContext';
@@ -28,6 +29,7 @@ type Recommendation = {
     recentOrderCount: number;
     lastOrderedAt: string;
     totalQuantity: number;
+    typicalQuantity: number;
 };
 
 type UsuallyOrderedRecommendationsProps = {
@@ -44,6 +46,16 @@ const getVolumeLabel = (product: Product, volume: string) => {
     return `${volume}L`;
 };
 
+const getMedianQuantity = (quantities: number[]) => {
+    const sorted = quantities.filter((quantity) => quantity > 0).sort((a, b) => a - b);
+    if (sorted.length === 0) return 1;
+    const middle = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 === 1
+        ? sorted[middle]
+        : (sorted[middle - 1] + sorted[middle]) / 2;
+    return Math.max(1, Math.round(median));
+};
+
 const createRecommendations = (orders: HistoricalOrder[], products: Product[]): Recommendation[] => {
     if (orders.length < 2) return [];
 
@@ -52,7 +64,10 @@ const createRecommendations = (orders: HistoricalOrder[], products: Product[]): 
         orderIds: Set<string>;
         lastOrderedAt: string;
         totalQuantity: number;
-        volumes: Map<string, number>;
+        volumes: Map<string, {
+            totalQuantity: number;
+            orderQuantities: Map<string, number>;
+        }>;
     }>();
 
     orders.forEach((order) => {
@@ -64,12 +79,24 @@ const createRecommendations = (orders: HistoricalOrder[], products: Product[]): 
                 orderIds: new Set<string>(),
                 lastOrderedAt: order.created_at,
                 totalQuantity: 0,
-                volumes: new Map<string, number>()
+                volumes: new Map<string, {
+                    totalQuantity: number;
+                    orderQuantities: Map<string, number>;
+                }>()
             };
 
             current.orderIds.add(order.id);
             current.totalQuantity += quantity;
-            current.volumes.set(volume, (current.volumes.get(volume) || 0) + quantity);
+            const volumeStats = current.volumes.get(volume) || {
+                totalQuantity: 0,
+                orderQuantities: new Map<string, number>()
+            };
+            volumeStats.totalQuantity += quantity;
+            volumeStats.orderQuantities.set(
+                order.id,
+                (volumeStats.orderQuantities.get(order.id) || 0) + quantity
+            );
+            current.volumes.set(volume, volumeStats);
             if (new Date(order.created_at).getTime() > new Date(current.lastOrderedAt).getTime()) {
                 current.lastOrderedAt = order.created_at;
             }
@@ -84,9 +111,15 @@ const createRecommendations = (orders: HistoricalOrder[], products: Product[]): 
         const allowedVolumes = new Set(getAllowedVolumes(product));
         const preferredVolume = Array.from(aggregate.volumes.entries())
             .filter(([volume]) => allowedVolumes.has(volume))
-            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'cs', { numeric: true }))[0]?.[0];
+            .sort((a, b) =>
+                b[1].orderQuantities.size - a[1].orderQuantities.size
+                || b[1].totalQuantity - a[1].totalQuantity
+                || a[0].localeCompare(b[0], 'cs', { numeric: true })
+            )[0]?.[0];
 
         if (!preferredVolume) return [];
+        const preferredVolumeStats = aggregate.volumes.get(preferredVolume);
+        if (!preferredVolumeStats) return [];
 
         return [{
             product,
@@ -94,7 +127,8 @@ const createRecommendations = (orders: HistoricalOrder[], products: Product[]): 
             orderCount: aggregate.orderIds.size,
             recentOrderCount: orders.length,
             lastOrderedAt: aggregate.lastOrderedAt,
-            totalQuantity: aggregate.totalQuantity
+            totalQuantity: aggregate.totalQuantity,
+            typicalQuantity: getMedianQuantity(Array.from(preferredVolumeStats.orderQuantities.values()))
         }];
     }).sort((a, b) =>
         b.orderCount - a.orderCount
@@ -164,6 +198,22 @@ export default function UsuallyOrderedRecommendations({
         .filter((recommendation) => !productsInCart.has(String(recommendation.product.id)))
         .slice(0, RECOMMENDATION_LIMIT), [productsInCart, recommendations]);
 
+    useEffect(() => {
+        if (isLoading || visibleRecommendations.length === 0) return;
+        trackAnalyticsEvent(ANALYTICS_EVENTS.recommendationsShown, {
+            source: 'recommendation',
+            itemCount: visibleRecommendations.length,
+            oncePerJourney: true
+        });
+    }, [isLoading, visibleRecommendations.length]);
+
+    const handleAddRecommendation = (recommendation: Recommendation) => {
+        trackAnalyticsEvent(ANALYTICS_EVENTS.recommendationAdded, {
+            source: 'recommendation'
+        });
+        onAddToCart(recommendation.product.id, recommendation.volume);
+    };
+
     if (isLoading) {
         return (
             <section className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/60 p-5" aria-label="Načítání doporučených položek">
@@ -203,10 +253,13 @@ export default function UsuallyOrderedRecommendations({
                             <p className="mt-1 text-xs leading-5 text-slate-500">
                                 V {recommendation.orderCount} z {recommendation.recentOrderCount} posledních objednávek
                             </p>
+                            <p className="mt-1 text-sm font-semibold text-slate-700">
+                                Obvykle {recommendation.typicalQuantity}× {getVolumeLabel(recommendation.product, recommendation.volume)}
+                            </p>
                         </div>
                         <button
                             type="button"
-                            onClick={() => onAddToCart(recommendation.product.id, recommendation.volume)}
+                            onClick={() => handleAddRecommendation(recommendation)}
                             className="mt-3 inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 transition-colors hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                         >
                             <Plus className="h-4 w-4" aria-hidden="true" />

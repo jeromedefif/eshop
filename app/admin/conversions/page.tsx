@@ -19,6 +19,9 @@ type ConversionData = {
     history_uses: number;
     template_orders: number;
     history_orders: number;
+    recommendation_views: number;
+    recommendation_adds: number;
+    recommendation_orders: number;
   };
   devices: Array<{ device_type: string; journeys: number; submitted: number }>;
 };
@@ -153,6 +156,12 @@ function AdminConversionsPage() {
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <ActionCard label="Použití šablony" uses={data.funnel.template_uses} orders={data.funnel.template_orders} />
                 <ActionCard label="Objednání z historie" uses={data.funnel.history_uses} orders={data.funnel.history_orders} icon={History} />
+                <ActionCard
+                  label="Přidání z doporučení"
+                  uses={data.funnel.recommendation_adds}
+                  orders={data.funnel.recommendation_orders}
+                  detail={`${data.funnel.recommendation_views} zobrazení doporučení`}
+                />
               </div>
             </section>
 
@@ -178,8 +187,8 @@ function MetricCard({ icon: Icon, label, value }: { icon: typeof Activity; label
   return <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><Icon className="h-5 w-5 text-blue-600" /><div className="mt-4 text-sm font-semibold text-slate-600">{label}</div><div className="mt-1 text-2xl font-bold text-slate-950">{value}</div></div>;
 }
 
-function ActionCard({ label, uses, orders, icon: Icon = Sparkles }: { label: string; uses: number; orders: number; icon?: typeof Sparkles }) {
-  return <div className="rounded-xl bg-slate-50 p-4"><Icon className="h-5 w-5 text-slate-500" /><div className="mt-3 font-semibold text-slate-900">{label}</div><div className="mt-2 text-2xl font-bold text-slate-950">{uses}</div><div className="text-xs text-slate-500">použití · {orders} dokončených objednávek</div></div>;
+function ActionCard({ label, uses, orders, icon: Icon = Sparkles, detail }: { label: string; uses: number; orders: number; icon?: typeof Sparkles; detail?: string }) {
+  return <div className="rounded-xl bg-slate-50 p-4"><Icon className="h-5 w-5 text-slate-500" /><div className="mt-3 font-semibold text-slate-900">{label}</div><div className="mt-2 text-2xl font-bold text-slate-950">{uses}</div><div className="text-xs text-slate-500">{detail ? `${detail} · ` : ''}{orders} dokončených objednávek</div></div>;
 }
 
 export default withAdminAuth(AdminConversionsPage);

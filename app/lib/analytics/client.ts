@@ -7,13 +7,15 @@ export const ANALYTICS_EVENTS = {
   orderSubmitted: 'order_submitted',
   templateUsed: 'template_used',
   historyOrderUsed: 'history_order_used',
+  recommendationsShown: 'recommendations_shown',
+  recommendationAdded: 'recommendation_added',
 } as const;
 
 export type AnalyticsEventName = typeof ANALYTICS_EVENTS[keyof typeof ANALYTICS_EVENTS];
 
 type TrackOptions = {
   itemCount?: number;
-  source?: 'catalog' | 'template' | 'history' | 'latest_order';
+  source?: 'catalog' | 'template' | 'history' | 'latest_order' | 'recommendation';
   oncePerJourney?: boolean;
 };
 
