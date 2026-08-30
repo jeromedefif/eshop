@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Package, FileText, Users, BarChart3, LineChart, LogOut, Home, Menu, X } from 'lucide-react';
+import { Package, FileText, Users, BarChart3, LineChart, LogOut, Home, Menu, X, Activity } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -15,7 +15,8 @@ const menuItems = [
     { icon: Package, label: 'Produkty', href: '/admin/products' },
     { icon: Users, label: 'Uživatelé', href: '/admin/users' },
     { icon: LineChart, label: 'Souhrny', href: '/admin/summary' },
-    { icon: BarChart3, label: 'Statistiky', href: '/admin/stats' }
+    { icon: BarChart3, label: 'Statistiky', href: '/admin/stats' },
+    { icon: Activity, label: 'Konverze', href: '/admin/conversions' }
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {

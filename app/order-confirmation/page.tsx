@@ -11,6 +11,7 @@ import type { OrderStatus, OrderConfirmationData } from '@/types/orders';
 import { isVolumeAllowed } from '@/lib/product-config';
 import CustomerPageShell from '@/components/CustomerPageShell';
 import { useCart } from '@/contexts/CartContext';
+import { ANALYTICS_EVENTS, completeAnalyticsJourney, trackAnalyticsEvent } from '@/lib/analytics/client';
 
 export default function OrderConfirmationPage() {
     const router = useRouter();
@@ -145,6 +146,12 @@ export default function OrderConfirmationPage() {
 
             // Nastavení statusu na dokončeno
             setOrderStatus('completed');
+
+            trackAnalyticsEvent(ANALYTICS_EVENTS.orderSubmitted, {
+                itemCount: orderData.items.reduce((sum, item) => sum + item.quantity, 0),
+                oncePerJourney: true,
+            });
+            completeAnalyticsJourney();
 
             // Odstranění dat objednávky z localStorage
             localStorage.removeItem('pendingOrderData');

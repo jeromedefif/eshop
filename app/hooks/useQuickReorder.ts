@@ -7,6 +7,7 @@ import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/lib/supabase/client';
 import { getAllowedVolumes } from '@/lib/product-config';
 import type { Product } from '@/types/database';
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from '@/lib/analytics/client';
 
 type ReorderItem = {
   product_id: string | number;
@@ -88,6 +89,11 @@ export function useQuickReorder() {
 
       const result = await requestCartImport(nextCartItems, 'poslední objednávka');
       if (result === 'cancelled') return;
+
+      trackAnalyticsEvent(ANALYTICS_EVENTS.historyOrderUsed, {
+        source: 'latest_order',
+        itemCount: Object.values(nextCartItems).reduce((sum, quantity) => sum + quantity, 0),
+      });
 
       if (unavailableItems > 0) {
         alert('Některé položky nebyly skladem a nebyly přidány.');

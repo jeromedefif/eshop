@@ -1,16 +1,25 @@
 'use client';
 
-import { useContext } from 'react';
+import { useContext, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { CartContext } from '@/contexts/CartContext';
 import OrderForm from '@/components/OrderForm';
 import Link from 'next/link';
 import { ShoppingBag, ArrowLeft } from 'lucide-react';
 import CustomerPageShell from '@/components/CustomerPageShell';
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from '@/lib/analytics/client';
 
 const OrderSummaryPage = () => {
     const { user, profile } = useAuth();
     const cartContext = useContext(CartContext);
+
+    useEffect(() => {
+        if (!cartContext?.isCartHydrated || Object.keys(cartContext.cartItems).length === 0) return;
+        trackAnalyticsEvent(ANALYTICS_EVENTS.orderSummaryOpened, {
+            itemCount: Object.values(cartContext.cartItems).reduce((sum, quantity) => sum + quantity, 0),
+            oncePerJourney: true,
+        });
+    }, [cartContext]);
 
     if (!cartContext) {
         return null;

@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import { sortCatalogProducts } from '@/lib/product-config';
 import type { Product } from '@/types/database';
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from '@/lib/analytics/client';
 
 export type CartItems = Record<string, number>;
 export type CartImportResult = 'merged' | 'replaced' | 'cancelled';
@@ -161,7 +162,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const product = products.find((item) => String(item.id) === String(productId));
       const minimumQuantity = product?.min_order_qty || 1;
       const currentQuantity = currentItems[key] || 0;
-      return { ...currentItems, [key]: currentQuantity === 0 ? minimumQuantity : currentQuantity + 1 };
+      const nextQuantity = currentQuantity === 0 ? minimumQuantity : currentQuantity + 1;
+      const nextItems = { ...currentItems, [key]: nextQuantity };
+      if (Object.keys(currentItems).length === 0) {
+        trackAnalyticsEvent(ANALYTICS_EVENTS.firstItemAdded, {
+          source: 'catalog',
+          itemCount: Object.values(nextItems).reduce((sum, quantity) => sum + quantity, 0),
+          oncePerJourney: true,
+        });
+      }
+      return nextItems;
     });
   }, [products]);
 

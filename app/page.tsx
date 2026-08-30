@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
 import Header from '@/components/Header';
@@ -9,24 +9,20 @@ import OrderForm from '@/components/OrderForm';
 import AdminProducts from '@/components/AdminProducts';
 import AuthDialog from '@/components/AuthDialog';
 import SuccessNotification from '@/components/SuccessNotification';
-import type { Product } from '@/types/database';
 import { sortCatalogProducts } from '@/lib/product-config';
 import { archiveProduct, createProduct, deleteProduct, restoreProduct, updateProduct } from '@/lib/products';
-import { CartContext } from '@/contexts/CartContext';
+import { useCart } from '@/contexts/CartContext';
 import SiteFooter from '@/components/SiteFooter';
 import CustomerPageState from '@/components/CustomerPageState';
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from '@/lib/analytics/client';
 
 export default function Home() {
-   const cartContext = useContext(CartContext);
+   const cartContext = useCart();
    const { user, profile } = useAuth();
-   const [currentView, setCurrentView] = useState<'catalog' | 'order' | 'admin'>('catalog');
+   const [currentView] = useState<'catalog' | 'order' | 'admin'>('catalog');
    const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
    const [isLoading, setIsLoading] = useState(true);
    const [linkedProductId, setLinkedProductId] = useState<string | null>(null);
-
-   if (!cartContext) {
-       return null;
-   }
 
    const {
        cartItems,
@@ -69,6 +65,14 @@ export default function Home() {
    useEffect(() => {
        setLinkedProductId(new URLSearchParams(window.location.search).get('produkt'));
    }, []);
+
+   useEffect(() => {
+       if (!user) return;
+       trackAnalyticsEvent(ANALYTICS_EVENTS.catalogOpened, {
+           source: 'catalog',
+           oncePerJourney: true,
+       });
+   }, [user]);
 
    if (isLoading) {
        return (

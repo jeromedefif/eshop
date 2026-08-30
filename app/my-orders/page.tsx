@@ -14,6 +14,7 @@ import CustomerPageState from '@/components/CustomerPageState';
 import CustomerPageShell from '@/components/CustomerPageShell';
 import type { Product } from '@/types/database';
 import type { SavedOrderTemplate } from '@/types/purchasing';
+import { ANALYTICS_EVENTS, trackAnalyticsEvent } from '@/lib/analytics/client';
 
 // Konstanty - velmi minimální změna
 const PAGE_SIZE = 5;
@@ -325,6 +326,11 @@ const MyOrdersPage = () => {
             if (result === 'cancelled') return;
         }
 
+        trackAnalyticsEvent(ANALYTICS_EVENTS.historyOrderUsed, {
+            source: 'history',
+            itemCount: order.order_items.reduce((sum, item) => sum + item.quantity, 0),
+        });
+
         // Přesměrování na souhrn objednávky
         router.push('/order-summary');
     };
@@ -368,6 +374,10 @@ const MyOrdersPage = () => {
         }
         const result = await requestCartImport(nextItems, `šablona „${template.name}“`);
         if (result === 'cancelled') return;
+        trackAnalyticsEvent(ANALYTICS_EVENTS.templateUsed, {
+            source: 'template',
+            itemCount: Object.values(nextItems).reduce((sum, quantity) => sum + quantity, 0),
+        });
         if (unavailable.length > 0) toast.warning(`Nedostupné položky nebyly přidány: ${unavailable.join(', ')}`);
         router.push('/order-summary');
     };
