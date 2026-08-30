@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
-import { ArrowLeft, CheckCircle, AlertCircle, Loader2, Trash2, Grape, Martini, Wine, FlaskConical, Package, Sparkles, Amphora, Copy, MessageSquare, LockKeyhole, Mail, Phone, Building2, CalendarDays, MapPin, ReceiptText, Truck } from 'lucide-react';
+import { ArrowLeft, Loader2, Trash2, Grape, Martini, Wine, FlaskConical, Package, Sparkles, Amphora, Copy, MessageSquare, LockKeyhole, Mail, Phone, Building2, CalendarDays, MapPin, ReceiptText, Truck } from 'lucide-react';
 import Link from 'next/link';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
 import { toast } from 'react-toastify';
@@ -20,7 +20,6 @@ const OrderDetailPage = () => {
     const [isUpdating, setIsUpdating] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [status, setStatus] = useState<string>('');
-    const [updateMessage, setUpdateMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [internalNote, setInternalNote] = useState('');
     const [savedInternalNote, setSavedInternalNote] = useState('');
@@ -122,8 +121,6 @@ const OrderDetailPage = () => {
         if (newStatus === status) return;
 
         setIsUpdating(true);
-        setUpdateMessage(null);
-
         try {
             // 1. Aktualizace statusu objednávky v databázi
             const response = await fetch(`/api/orders/${orderId}`, {
@@ -166,19 +163,10 @@ const OrderDetailPage = () => {
 
             // 3. Nastavit nový status v UI
             setStatus(newStatus);
-            setUpdateMessage({
-                type: 'success',
-                text: `Status objednávky byl úspěšně změněn na "${getStatusText(newStatus)}"`
-            });
-
-            toast.success(`Status objednávky byl úspěšně změněn`);
+            toast.success(`Stav objednávky změněn na „${getStatusText(newStatus)}“`);
         } catch (error) {
             console.error('Error updating order status:', error);
-            setUpdateMessage({
-                type: 'error',
-                text: error instanceof Error ? error.message : 'Nepodařilo se aktualizovat status objednávky'
-            });
-            toast.error('Nepodařilo se aktualizovat status objednávky');
+            toast.error(error instanceof Error ? error.message : 'Nepodařilo se aktualizovat stav objednávky');
         } finally {
             setIsUpdating(false);
         }
@@ -187,7 +175,6 @@ const OrderDetailPage = () => {
     // Nová funkce pro mazání objednávky
     const handleDeleteOrder = async () => {
         setIsDeleting(true);
-        setUpdateMessage(null);
 
         try {
             const response = await fetch(`/api/orders/${orderId}`, {
@@ -208,11 +195,7 @@ const OrderDetailPage = () => {
             router.push('/admin/orders');
         } catch (error) {
             console.error('Error deleting order:', error);
-            setUpdateMessage({
-                type: 'error',
-                text: error instanceof Error ? error.message : 'Nepodařilo se smazat objednávku'
-            });
-            toast.error('Nepodařilo se smazat objednávku');
+            toast.error(error instanceof Error ? error.message : 'Nepodařilo se smazat objednávku');
             setIsDeleting(false);
             setShowDeleteConfirm(false);
         }
@@ -412,21 +395,6 @@ const OrderDetailPage = () => {
 
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                 <div className="p-4 sm:p-5">
-                    {/* Zobrazení zprávy o aktualizaci */}
-                    {updateMessage && (
-                        <div className={`mb-4 flex items-center rounded-lg p-3 ${
-                            updateMessage.type === 'success'
-                                ? 'bg-green-50 text-green-800'
-                                : 'bg-red-50 text-red-800'
-                        }`}>
-                            {updateMessage.type === 'success'
-                                ? <CheckCircle className="w-5 h-5 mr-2" />
-                                : <AlertCircle className="w-5 h-5 mr-2" />
-                            }
-                            {updateMessage.text}
-                        </div>
-                    )}
-
                     {/* Kompaktní souhrn a kontakt zákazníka */}
                     <div className="mb-4 grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 lg:grid-cols-[minmax(260px,1.25fr)_minmax(220px,1fr)_minmax(260px,1fr)]">
                         <div className="min-w-0">

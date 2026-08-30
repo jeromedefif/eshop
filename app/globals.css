@@ -20,41 +20,52 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
-/* Styly pro react-toastify */
+/* Kompaktní systémová oznámení bez překrývání obsahu stránky. */
+.Toastify__toast-container {
+  width: min(360px, calc(100vw - 2rem));
+}
+
 .Toastify__toast {
-  border-radius: 6px;
+  min-height: 56px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 14px 35px -18px rgba(15, 23, 42, 0.45);
   font-family: var(--font-geist-sans), Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
 }
 
-.Toastify__toast--success {
-  background-color: #def7ec;
-  color: #03543e;
-  border-left: 4px solid #0d9488;
-}
+.Toastify__toast--success { border-color: #bbf7d0; }
+.Toastify__toast--error { border-color: #fecaca; }
+.Toastify__toast--info { border-color: #bfdbfe; }
+.Toastify__toast--warning { border-color: #fde68a; }
 
-.Toastify__toast--error {
-  background-color: #fde8e8;
-  color: #9b1c1c;
-  border-left: 4px solid #f05252;
-}
-
-.Toastify__toast--info {
-  background-color: #e1effe;
-  color: #1e429f;
-  border-left: 4px solid #3f83f8;
-}
-
-.Toastify__toast--warning {
-  background-color: #fdf6b2;
-  color: #8e4b10;
-  border-left: 4px solid #ff8a4c;
-}
-
-.Toastify__progress-bar {
-  height: 3px;
+.Toastify__toast-icon {
+  width: 20px;
 }
 
 .Toastify__close-button {
-  color: currentColor;
-  opacity: 0.7;
+  align-self: center;
+  color: #64748b;
+  opacity: 0.75;
+}
+
+.Toastify__close-button:hover {
+  opacity: 1;
+}
+
+@media (max-width: 640px) {
+  .Toastify__toast-container--top-right {
+    top: 12px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
+
+  .Toastify__toast {
+    margin-bottom: 8px;
+  }
 }

@@ -45,15 +45,16 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           {children}
           <ToastContainer
             position="top-right"
-            autoClose={5000}
-            hideProgressBar={false}
+            autoClose={4000}
+            hideProgressBar
             newestOnTop
-            closeOnClick
+            closeOnClick={false}
             rtl={false}
             pauseOnFocusLoss
-            draggable
+            draggable={false}
             pauseOnHover
             theme="light"
+            limit={3}
           />
         </PurchasingProvider>
       </CartProvider>

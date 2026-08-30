@@ -159,8 +159,9 @@ export default function OrderConfirmationPage() {
             // Vyčištění lokálního i serverového košíku po úspěšném uložení objednávky.
             clearCart();
 
-            // Nastavení parametru pro zobrazení úspěšné hlášky
-            localStorage.setItem('orderSuccess', 'true');
+            // Krátké oznámení žije jen v aktuální relaci aplikace. Neukládáme ho
+            // do localStorage, aby se nepřenášelo mezi odhlášenými uživateli.
+            toast.success('Objednávka byla úspěšně odeslána. Děkujeme.');
 
             // Přesměrování na hlavní stránku po úspěšném dokončení
             setTimeout(() => {

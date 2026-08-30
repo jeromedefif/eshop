@@ -8,7 +8,6 @@ import ProductList from '@/components/ProductList';
 import OrderForm from '@/components/OrderForm';
 import AdminProducts from '@/components/AdminProducts';
 import AuthDialog from '@/components/AuthDialog';
-import SuccessNotification from '@/components/SuccessNotification';
 import { sortCatalogProducts } from '@/lib/product-config';
 import { archiveProduct, createProduct, deleteProduct, restoreProduct, updateProduct } from '@/lib/products';
 import { useCart } from '@/contexts/CartContext';
@@ -59,7 +58,6 @@ export default function Home() {
 
    useEffect(() => {
        loadProducts();
-       // Odstranili jsme kód pro toast, protože používáme vlastní SuccessNotification komponentu
    }, []);
 
    useEffect(() => {
@@ -86,7 +84,6 @@ export default function Home() {
 
    return (
        <div className="min-h-screen bg-gray-50 flex flex-col">
-           <SuccessNotification />
            <Header />
 
            <main className="container mx-auto flex-1 px-4 py-6">
