@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
-import { Package, ShoppingCart, Loader2, ChevronDown, Bookmark, Heart, Pencil, Trash2 } from 'lucide-react';
+import { Package, ShoppingCart, Loader2, ChevronDown, Bookmark, Heart, Pencil, Trash2, History, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useCart, type CartItems } from '@/contexts/CartContext';
 import { usePurchasing } from '@/contexts/PurchasingContext';
@@ -34,6 +34,25 @@ type CustomerOrder = {
     order_items: OrderItem[];
 };
 
+type PreviouslyOrderedStat = {
+    productId: string;
+    lastOrderedAt: string;
+    orderCount: number;
+    totalQuantity: number;
+    preferredVolume: string;
+    preferredVolumeQuantity: number;
+};
+
+type HistoricalOrder = {
+    id: string;
+    created_at: string;
+    order_items: Array<{
+        product_id: string | number;
+        volume: string;
+        quantity: number;
+    }>;
+};
+
 const MyOrdersPage = () => {
     const { user } = useAuth();
     const router = useRouter();
@@ -41,8 +60,13 @@ const MyOrdersPage = () => {
     const [loading, setLoading] = useState(true);
     const { requestCartImport, addToCart, removeFromCart, cartItems, products } = useCart();
     const { templates, favoriteProductIds, isLoading: isPurchasingLoading, createTemplate, renameTemplate, deleteTemplate } = usePurchasing();
-    const [activeTab, setActiveTab] = useState<'history' | 'templates' | 'favorites'>('history');
+    const [activeTab, setActiveTab] = useState<'history' | 'previouslyOrdered' | 'templates' | 'favorites'>('history');
     const [savingOrderId, setSavingOrderId] = useState<string | null>(null);
+    const [previouslyOrderedStats, setPreviouslyOrderedStats] = useState<PreviouslyOrderedStat[]>([]);
+    const [isPreviouslyOrderedLoading, setIsPreviouslyOrderedLoading] = useState(false);
+    const [previouslyOrderedLoaded, setPreviouslyOrderedLoaded] = useState(false);
+    const [previouslyOrderedSearch, setPreviouslyOrderedSearch] = useState('');
+    const [previouslyOrderedError, setPreviouslyOrderedError] = useState(false);
 
     // Minimální nové proměnné pro paginaci
     const [currentPage, setCurrentPage] = useState(0);
@@ -101,6 +125,115 @@ const MyOrdersPage = () => {
 
         fetchOrders();
     }, [user, router]);
+
+    useEffect(() => {
+        setPreviouslyOrderedStats([]);
+        setPreviouslyOrderedLoaded(false);
+        setPreviouslyOrderedSearch('');
+        setPreviouslyOrderedError(false);
+    }, [user?.id]);
+
+    useEffect(() => {
+        if (!user || activeTab !== 'previouslyOrdered' || previouslyOrderedLoaded || isPreviouslyOrderedLoading) return;
+
+        const fetchPreviouslyOrdered = async () => {
+            setIsPreviouslyOrderedLoading(true);
+            setPreviouslyOrderedError(false);
+
+            try {
+                const pageSize = 200;
+                let from = 0;
+                const historicalOrders: HistoricalOrder[] = [];
+
+                // Načítáme celou historii po dávkách, aby přehled nebyl omezený stránkováním historie objednávek.
+                while (true) {
+                    const { data, error } = await supabase
+                        .from('orders')
+                        .select(`
+                            id,
+                            created_at,
+                            order_items (
+                                product_id,
+                                volume,
+                                quantity
+                            )
+                        `)
+                        .eq('user_id', user.id)
+                        .in('status', ['pending', 'confirmed', 'completed'])
+                        .order('created_at', { ascending: false })
+                        .range(from, from + pageSize - 1);
+
+                    if (error) throw error;
+
+                    const page = (data || []) as unknown as HistoricalOrder[];
+                    historicalOrders.push(...page);
+                    if (page.length < pageSize) break;
+                    from += pageSize;
+                }
+
+                const aggregates = new Map<string, {
+                    lastOrderedAt: string;
+                    orderCount: number;
+                    totalQuantity: number;
+                    volumes: Map<string, number>;
+                }>();
+
+                historicalOrders.forEach((order) => {
+                    const productsInOrder = new Set<string>();
+
+                    (order.order_items || []).forEach((item) => {
+                        const productId = String(item.product_id);
+                        const quantity = Number(item.quantity) || 0;
+                        const volume = String(item.volume);
+                        const current = aggregates.get(productId) || {
+                            lastOrderedAt: order.created_at,
+                            orderCount: 0,
+                            totalQuantity: 0,
+                            volumes: new Map<string, number>()
+                        };
+
+                        if (new Date(order.created_at).getTime() > new Date(current.lastOrderedAt).getTime()) {
+                            current.lastOrderedAt = order.created_at;
+                        }
+                        current.totalQuantity += quantity;
+                        current.volumes.set(volume, (current.volumes.get(volume) || 0) + quantity);
+                        aggregates.set(productId, current);
+                        productsInOrder.add(productId);
+                    });
+
+                    productsInOrder.forEach((productId) => {
+                        const current = aggregates.get(productId);
+                        if (current) current.orderCount += 1;
+                    });
+                });
+
+                const stats = Array.from(aggregates.entries()).map(([productId, aggregate]) => {
+                    const [preferredVolume, preferredVolumeQuantity] = Array.from(aggregate.volumes.entries())
+                        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'cs', { numeric: true }))[0] || ['', 0];
+
+                    return {
+                        productId,
+                        lastOrderedAt: aggregate.lastOrderedAt,
+                        orderCount: aggregate.orderCount,
+                        totalQuantity: aggregate.totalQuantity,
+                        preferredVolume,
+                        preferredVolumeQuantity
+                    };
+                }).sort((a, b) => new Date(b.lastOrderedAt).getTime() - new Date(a.lastOrderedAt).getTime());
+
+                setPreviouslyOrderedStats(stats);
+            } catch (error) {
+                console.error('Error fetching previously ordered products:', error);
+                setPreviouslyOrderedError(true);
+                toast.error('Dříve objednané produkty se nepodařilo načíst.');
+            } finally {
+                setPreviouslyOrderedLoaded(true);
+                setIsPreviouslyOrderedLoading(false);
+            }
+        };
+
+        void fetchPreviouslyOrdered();
+    }, [activeTab, isPreviouslyOrderedLoading, previouslyOrderedLoaded, user]);
 
     // Nová funkce pro načítání dalších objednávek
     const loadMoreOrders = async () => {
@@ -256,6 +389,64 @@ const MyOrdersPage = () => {
 
     const favoriteProducts = products.filter((product) => favoriteProductIds.has(String(product.id)));
 
+    const previouslyOrderedProducts = useMemo(() => {
+        const productMap = new Map(products.map((product) => [String(product.id), product]));
+        const query = previouslyOrderedSearch.trim().toLocaleLowerCase('cs-CZ');
+
+        return previouslyOrderedStats.flatMap((stat) => {
+            const product = productMap.get(stat.productId);
+            if (!product || product.is_archived) return [];
+            if (query && !`${product.name} ${product.category}`.toLocaleLowerCase('cs-CZ').includes(query)) return [];
+            return [{ product, stat }];
+        });
+    }, [previouslyOrderedSearch, previouslyOrderedStats, products]);
+
+    const formatVolumeLabel = (volume: string) => volume === 'maly'
+        ? 'malý'
+        : volume === 'velky'
+            ? 'velký'
+            : volume === 'baleni'
+                ? 'balení'
+                : `${volume}L`;
+
+    const renderCartVolumeControls = (product: Product) => (
+        <div className="flex flex-wrap gap-2">
+            {getAllowedVolumes(product).map((volume) => {
+                const count = cartItems[`${product.id}-${volume}`] || 0;
+                const isInCart = count > 0;
+                const label = formatVolumeLabel(volume);
+
+                return (
+                    <div key={`${product.id}-${volume}`} className="relative">
+                        <button
+                            type="button"
+                            disabled={!product.in_stock || product.is_archived}
+                            onClick={() => addToCart(product.id, volume)}
+                            className={`min-h-10 min-w-[48px] rounded-lg border px-3 text-sm font-semibold transition-colors duration-150 ${
+                                isInCart
+                                    ? 'border-blue-500 bg-blue-600/15 text-blue-700 hover:bg-blue-600/25'
+                                    : 'border-gray-300 bg-white text-gray-900 hover:border-blue-400 hover:bg-blue-50 active:bg-blue-100'
+                            } disabled:cursor-not-allowed disabled:opacity-40`}
+                        >
+                            {label}
+                        </button>
+                        {isInCart && (
+                            <button
+                                type="button"
+                                onClick={() => removeFromCart(product.id, volume)}
+                                className="absolute -right-1.5 -top-1.5 flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white shadow-sm transition-colors duration-150 hover:bg-red-600"
+                                aria-label={`Snížit množství ${product.name}, ${label} o 1`}
+                                title="Kliknutím snížíte počet o 1"
+                            >
+                                {count}
+                            </button>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+
     // Zachování původní funkce formátování data
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -298,12 +489,13 @@ const MyOrdersPage = () => {
         <CustomerPageShell width="5xl">
                 <div className="mb-6">
                     <h1 className="text-3xl font-bold tracking-tight text-slate-950">Moje objednávky</h1>
-                    <p className="mt-2 text-sm text-slate-600">Historie, uložené šablony a oblíbené produkty na jednom místě.</p>
+                    <p className="mt-2 text-sm text-slate-600">Historie, dříve objednané produkty, uložené šablony a oblíbené na jednom místě.</p>
                 </div>
 
                 <div className="mb-6 flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm" role="tablist" aria-label="Nákupní přehled">
                     {[
                         { id: 'history', label: 'Historie', icon: Package },
+                        { id: 'previouslyOrdered', label: 'Dříve objednané', icon: History },
                         { id: 'templates', label: 'Šablony', icon: Bookmark },
                         { id: 'favorites', label: 'Oblíbené', icon: Heart }
                     ].map((tab) => {
@@ -409,6 +601,72 @@ const MyOrdersPage = () => {
                     </div>
                 ))}
 
+                {activeTab === 'previouslyOrdered' && (
+                    <div className="space-y-4">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                            <div className="relative">
+                                <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    type="search"
+                                    value={previouslyOrderedSearch}
+                                    onChange={(event) => setPreviouslyOrderedSearch(event.target.value)}
+                                    placeholder="Vyhledat v dříve objednaných produktech..."
+                                    className="min-h-11 w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                />
+                            </div>
+                        </div>
+
+                        {isPreviouslyOrderedLoading || (previouslyOrderedStats.length > 0 && products.length === 0) ? (
+                            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-500 shadow-sm">
+                                <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin" />Načítám dříve objednané produkty...
+                            </div>
+                        ) : previouslyOrderedError ? (
+                            <div className="rounded-2xl border border-red-200 bg-white p-10 text-center shadow-sm">
+                                <h2 className="text-lg font-bold text-slate-900">Produkty se nepodařilo načíst</h2>
+                                <p className="mt-2 text-sm text-slate-600">Zkuste načtení zopakovat.</p>
+                                <button
+                                    type="button"
+                                    onClick={() => setPreviouslyOrderedLoaded(false)}
+                                    className="mt-4 min-h-11 rounded-xl bg-blue-700 px-5 font-semibold text-white hover:bg-blue-800"
+                                >
+                                    Načíst znovu
+                                </button>
+                            </div>
+                        ) : previouslyOrderedProducts.length === 0 ? (
+                            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+                                <History className="mx-auto mb-3 h-10 w-10 text-slate-300" />
+                                <h2 className="text-lg font-bold text-slate-900">
+                                    {previouslyOrderedSearch ? 'Žádný produkt neodpovídá hledání' : 'Zatím nemáte dříve objednané produkty'}
+                                </h2>
+                                <p className="mt-2 text-sm text-slate-600">
+                                    {previouslyOrderedSearch ? 'Zkuste upravit hledaný výraz.' : 'Po první objednávce zde najdete rychlý výběr produktů napříč celou historií.'}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                                {previouslyOrderedProducts.map(({ product, stat }) => (
+                                    <article key={product.id} className="flex flex-col gap-4 p-4 transition hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                                        <div className="min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <h2 className="font-bold text-slate-900">{product.name}</h2>
+                                                {!product.in_stock && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">Není skladem</span>}
+                                            </div>
+                                            <p className="mt-1 text-sm text-slate-500">{product.category}</p>
+                                            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+                                                <span>Naposledy {new Date(stat.lastOrderedAt).toLocaleDateString('cs-CZ')}</span>
+                                                <span>Počet objednávek: {stat.orderCount}</span>
+                                                <span>Celkem objednáno: {stat.totalQuantity} ks</span>
+                                                {stat.preferredVolume && <span>Nejčastěji {formatVolumeLabel(stat.preferredVolume)} ({stat.preferredVolumeQuantity} ks)</span>}
+                                            </div>
+                                        </div>
+                                        <div className="shrink-0">{renderCartVolumeControls(product)}</div>
+                                    </article>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {activeTab === 'templates' && (
                     <div className="space-y-4">
                         {isPurchasingLoading ? (
@@ -452,41 +710,7 @@ const MyOrdersPage = () => {
                                 {favoriteProducts.map((product) => (
                                     <div key={product.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                                         <div><h2 className="font-bold text-slate-900">{product.name}</h2><p className="text-sm text-slate-500">{product.category}</p></div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {getAllowedVolumes(product).map((volume) => {
-                                                const count = cartItems[`${product.id}-${volume}`] || 0;
-                                                const isInCart = count > 0;
-                                                const label = volume === 'maly' ? 'malý' : volume === 'velky' ? 'velký' : volume === 'baleni' ? 'balení' : `${volume}L`;
-
-                                                return (
-                                                    <div key={`${product.id}-${volume}`} className="relative">
-                                                        <button
-                                                            type="button"
-                                                            disabled={!product.in_stock || product.is_archived}
-                                                            onClick={() => addToCart(product.id, volume)}
-                                                            className={`min-h-10 min-w-[48px] rounded-lg border px-3 text-sm font-semibold transition-colors duration-150 ${
-                                                                isInCart
-                                                                    ? 'border-blue-500 bg-blue-600/15 text-blue-700 hover:bg-blue-600/25'
-                                                                    : 'border-gray-300 bg-white text-gray-900 hover:border-blue-400 hover:bg-blue-50 active:bg-blue-100'
-                                                            } disabled:cursor-not-allowed disabled:opacity-40`}
-                                                        >
-                                                            {label}
-                                                        </button>
-                                                        {isInCart && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => removeFromCart(product.id, volume)}
-                                                                className="absolute -right-1.5 -top-1.5 flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white shadow-sm transition-colors duration-150 hover:bg-red-600"
-                                                                aria-label={`Snížit množství ${product.name}, ${label} o 1`}
-                                                                title="Kliknutím snížíte počet o 1"
-                                                            >
-                                                                {count}
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                                        {renderCartVolumeControls(product)}
                                     </div>
                                 ))}
                             </div>
