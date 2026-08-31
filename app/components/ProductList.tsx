@@ -8,6 +8,8 @@ import { getProductPath } from '@/lib/product-slug';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePurchasing } from '@/contexts/PurchasingContext';
 import { toast } from 'react-toastify';
+import CustomerAnnouncements from '@/components/CustomerAnnouncements';
+import type { CustomerAnnouncement } from '@/types/announcements';
 
 type ProductListProps = {
     onAddToCart: (productId: string | number, volume: string | number) => void;
@@ -69,6 +71,39 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
         const url = new URL(window.location.href);
         url.searchParams.delete('produkt');
         window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    };
+
+    const handleAnnouncementTarget = (announcement: CustomerAnnouncement) => {
+        if (!announcement.targetType || !announcement.targetValue) return;
+
+        if (announcement.targetType === 'category') {
+            if (directProductId) clearDirectProduct(false);
+            setSearchQuery('');
+            setSelectedCategory(announcement.targetValue);
+            setIsGrouped(false);
+        } else {
+            const product = products.find((item) => String(item.id) === announcement.targetValue);
+            if (!product) return;
+            setSelectedCategory('Všechny');
+            setIsGrouped(false);
+            setDirectProductId(announcement.targetValue);
+            setSearchQuery(product.name);
+            const url = new URL(window.location.href);
+            url.searchParams.set('produkt', announcement.targetValue);
+            window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+        }
+
+        window.setTimeout(() => {
+            const target = announcement.targetType === 'product'
+                ? products.find((item) => String(item.id) === announcement.targetValue)
+                : null;
+            if (target) {
+                const layout = window.matchMedia('(min-width: 768px)').matches ? 'desktop' : 'mobile';
+                document.getElementById(`product-${layout}-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                document.getElementById('catalog-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 100);
     };
 
     useEffect(() => {
@@ -366,6 +401,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
 
     return (
         <div className="max-w-6xl mx-auto px-4">
+            <CustomerAnnouncements onSelectTarget={handleAnnouncementTarget} />
             {/* Sticky header section */}
             <div className="sticky top-16 bg-white z-40 pb-3 pt-3 shadow-sm">
                 <div className="flex items-center justify-between gap-3 mb-3">
@@ -490,6 +526,8 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                     </button>
                 </div>
             </div>
+
+            <div id="catalog-products" />
 
             {profile?.show_ordering_help !== false && !isOrderingHelpDismissed && (
                 <section className="relative my-3 overflow-hidden rounded-xl border border-blue-200 bg-blue-50/70 px-4 py-3 text-gray-800">
