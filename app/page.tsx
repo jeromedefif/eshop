@@ -14,6 +14,7 @@ import { useCart } from '@/contexts/CartContext';
 import SiteFooter from '@/components/SiteFooter';
 import CustomerPageState from '@/components/CustomerPageState';
 import { ANALYTICS_EVENTS, trackAnalyticsEvent } from '@/lib/analytics/client';
+import { SITE_CONTAINER_CLASS } from '@/lib/layout';
 
 export default function Home() {
    const cartContext = useCart();
@@ -86,7 +87,7 @@ export default function Home() {
        <div className="min-h-screen bg-gray-50 flex flex-col">
            <Header />
 
-           <main className="container mx-auto flex-1 px-4 py-6">
+           <main className={`${SITE_CONTAINER_CLASS} flex-1 py-6`}>
                {currentView === 'catalog' && (
                    <ProductList
                        onAddToCart={addToCart}

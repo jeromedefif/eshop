@@ -400,7 +400,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
     };
 
     return (
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="w-full">
             <CustomerAnnouncements onSelectTarget={handleAnnouncementTarget} />
             {/* Sticky header section */}
             <div className="sticky top-16 bg-white z-40 pb-3 pt-3 shadow-sm">

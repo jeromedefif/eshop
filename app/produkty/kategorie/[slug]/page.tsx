@@ -5,6 +5,7 @@ import { PublicCategoryIcon, PublicProductCard } from '@/components/PublicCatalo
 import { CATEGORY_DETAILS, PRODUCT_CATEGORIES, getCategoryBySlug, normalizeProductCategory } from '@/lib/product-config';
 import { getPublicProducts } from '@/lib/public-products';
 import SiteFooter from '@/components/SiteFooter';
+import { SITE_CONTAINER_CLASS } from '@/lib/layout';
 import PublicHeader from '@/components/PublicHeader';
 
 export const revalidate = 3600;
@@ -58,7 +59,7 @@ export default async function PublicCategoryPage({ params }: CategoryPageProps) 
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData).replace(/</g, '\\u003c') }} />
             <PublicHeader />
 
-            <div className="mx-auto max-w-7xl px-5 py-10 sm:py-14">
+            <div className={`${SITE_CONTAINER_CLASS} py-10 sm:py-14`}>
                 <nav aria-label="Drobečková navigace" className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-500">
                     <Link href="/produkty" className="hover:text-blue-700">Produkty</Link>
                     <span aria-hidden="true">/</span>

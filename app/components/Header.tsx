@@ -18,6 +18,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useQuickReorder } from '@/hooks/useQuickReorder';
+import { SITE_CONTAINER_CLASS } from '@/lib/layout';
 import Cart from './Cart';
 
 const Header = () => {
@@ -84,7 +85,7 @@ const Header = () => {
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className={SITE_CONTAINER_CLASS}>
           <div className="flex min-h-[72px] items-center gap-3">
             <Link href="/" className="group shrink-0" aria-label="VINARIA s.r.o. – objednávkový katalog">
               <span className="block text-lg font-bold leading-tight tracking-tight text-slate-950 transition group-hover:text-blue-800 sm:text-xl">
@@ -220,7 +221,7 @@ const Header = () => {
 
         {mobileMenuOpen && (
           <div id="mobile-customer-navigation" className="border-t border-slate-200 bg-white lg:hidden">
-            <nav aria-label="Mobilní navigace" className="mx-auto max-w-7xl space-y-1 px-4 py-4 sm:px-6">
+            <nav aria-label="Mobilní navigace" className={`${SITE_CONTAINER_CLASS} space-y-1 py-4`}>
               {user && (
                 <div className="mb-3 rounded-xl bg-slate-50 px-4 py-3">
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Přihlášený uživatel</p>

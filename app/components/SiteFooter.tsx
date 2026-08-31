@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { ExternalLink, Mail, Phone } from 'lucide-react';
+import { SITE_CONTAINER_CLASS } from '@/lib/layout';
 
 export default function SiteFooter() {
     return (
         <footer className="border-t border-slate-200 bg-slate-950 text-slate-300">
-            <div className="mx-auto grid max-w-7xl gap-8 px-5 py-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr]">
+            <div className={`${SITE_CONTAINER_CLASS} grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr]`}>
                 <div>
                     <p className="text-lg font-bold tracking-tight text-white">VINARIA s.r.o.</p>
                     <p className="mt-1 text-sm font-semibold text-blue-300">Beginy.cz</p>
@@ -42,7 +43,7 @@ export default function SiteFooter() {
             </div>
 
             <div className="border-t border-slate-800">
-                <div className="mx-auto max-w-7xl px-5 py-4 text-xs text-slate-500">
+                <div className={`${SITE_CONTAINER_CLASS} py-4 text-xs text-slate-500`}>
                     © {new Date().getFullYear()} VINARIA s.r.o. Všechna práva vyhrazena.
                 </div>
             </div>

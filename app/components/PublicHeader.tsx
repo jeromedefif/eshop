@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ExternalLink, LogIn } from 'lucide-react';
+import { SITE_CONTAINER_CLASS } from '@/lib/layout';
 
 type PublicHeaderProps = {
     active?: 'catalog' | 'login' | 'register';
@@ -15,7 +16,7 @@ const navigationClass = (isActive: boolean) =>
 export default function PublicHeader({ active = 'catalog' }: PublicHeaderProps) {
     return (
         <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
-            <div className="mx-auto flex min-h-20 max-w-7xl items-center justify-between gap-4 px-5">
+            <div className={`${SITE_CONTAINER_CLASS} flex min-h-20 items-center justify-between gap-4`}>
                 <Link href="/produkty" className="group shrink-0" aria-label="Beginy.cz – veřejný katalog">
                     <span className="block text-lg font-bold leading-tight tracking-tight text-slate-950 group-hover:text-blue-800 sm:text-xl">
                         VINARIA s.r.o.
