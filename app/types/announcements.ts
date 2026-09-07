@@ -12,7 +12,9 @@ export interface CustomerAnnouncement {
   updatedAt: string;
   targetType: AnnouncementTargetType;
   targetValue: string | null;
+  targetValues: string[];
   targetLabel: string | null;
+  targetLabels: string[];
 }
 
 export interface AdminAnnouncement extends CustomerAnnouncement {

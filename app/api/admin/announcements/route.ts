@@ -11,7 +11,10 @@ export async function GET() {
   try {
     const [announcements, products] = await Promise.all([
       prisma.announcement.findMany({
-        include: { target_product: { select: { name: true } } },
+        include: {
+          target_product: { select: { id: true, name: true, is_archived: true } },
+          target_products: { include: { product: { select: { id: true, name: true, is_archived: true } } } },
+        },
         orderBy: [{ is_active: 'desc' }, { starts_at: 'desc' }],
       }),
       prisma.product.findMany({
@@ -42,10 +45,18 @@ export async function POST(request: Request) {
 
   try {
     const payload = await request.json() as Record<string, unknown>;
-    const data = await parseAnnouncementPayload(payload);
+    const { data, targetProductIds } = await parseAnnouncementPayload(payload);
     const announcement = await prisma.announcement.create({
-      data,
-      include: { target_product: { select: { name: true } } },
+      data: {
+        ...data,
+        target_products: {
+          create: targetProductIds.map((productId) => ({ product_id: productId })),
+        },
+      },
+      include: {
+        target_product: { select: { id: true, name: true, is_archived: true } },
+        target_products: { include: { product: { select: { id: true, name: true, is_archived: true } } } },
+      },
     });
     return NextResponse.json({ announcement: serializeAnnouncement(announcement) }, { status: 201 });
   } catch (error) {

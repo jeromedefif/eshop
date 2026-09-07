@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
 import { toast } from 'react-toastify';
 import { normalizeOrderCategory, sortOrderItems, STANDARD_ORDER_CATEGORIES } from '@/lib/order-item-sorting';
+import OrderEmailComposer from '@/components/OrderEmailComposer';
 
 const OrderDetailPage = () => {
     const router = useRouter();
@@ -25,6 +26,7 @@ const OrderDetailPage = () => {
     const [savedInternalNote, setSavedInternalNote] = useState('');
     const [isLoadingInternalNote, setIsLoadingInternalNote] = useState(true);
     const [isSavingInternalNote, setIsSavingInternalNote] = useState(false);
+    const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
 
     // Fetch order data
     useEffect(() => {
@@ -420,6 +422,9 @@ const OrderDetailPage = () => {
                                     </a>
                                 )}
                             </div>
+                            <button type="button" onClick={() => setIsEmailComposerOpen(true)} className="mt-3 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+                                <Mail className="h-4 w-4" /> Napsat zákazníkovi
+                            </button>
                         </div>
 
                         <div className="border-t border-slate-200 pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
@@ -615,6 +620,7 @@ const OrderDetailPage = () => {
 
             {/* Potvrzovací dialog pro smazání */}
             <DeleteConfirmationDialog />
+            <OrderEmailComposer open={isEmailComposerOpen} order={order} onClose={() => setIsEmailComposerOpen(false)} />
         </div>
     );
 };

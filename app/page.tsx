@@ -15,6 +15,7 @@ import SiteFooter from '@/components/SiteFooter';
 import CustomerPageState from '@/components/CustomerPageState';
 import { ANALYTICS_EVENTS, trackAnalyticsEvent } from '@/lib/analytics/client';
 import { SITE_CONTAINER_CLASS } from '@/lib/layout';
+import { readCatalogProductIds } from '@/lib/catalog-product-links';
 
 export default function Home() {
    const cartContext = useCart();
@@ -22,7 +23,7 @@ export default function Home() {
    const [currentView] = useState<'catalog' | 'order' | 'admin'>('catalog');
    const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
    const [isLoading, setIsLoading] = useState(true);
-   const [linkedProductId, setLinkedProductId] = useState<string | null>(null);
+   const [linkedProductIds, setLinkedProductIds] = useState<string[]>([]);
 
    const {
        cartItems,
@@ -62,7 +63,7 @@ export default function Home() {
    }, []);
 
    useEffect(() => {
-       setLinkedProductId(new URLSearchParams(window.location.search).get('produkt'));
+       setLinkedProductIds(readCatalogProductIds(new URLSearchParams(window.location.search)));
    }, []);
 
    useEffect(() => {
@@ -94,7 +95,7 @@ export default function Home() {
                        onRemoveFromCart={removeFromCart}
                        cartItems={cartItems}
                        products={products}
-                       initialProductId={linkedProductId}
+                       initialProductIds={linkedProductIds}
                    />
                )}
 

@@ -77,7 +77,11 @@ export default function CustomerAnnouncements({ onSelectTarget }: Props) {
                 <p className="mt-1 whitespace-pre-line text-sm leading-6 opacity-90">{announcement.body}</p>
                 {announcement.targetType && announcement.targetValue && announcement.targetLabel && (
                   <button type="button" onClick={() => onSelectTarget(announcement)} className={`mt-2 inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm font-bold transition-colors ${appearance.action}`}>
-                    {announcement.targetType === 'category' ? `Zobrazit kategorii ${announcement.targetLabel}` : 'Zobrazit produkt'}
+                    {announcement.targetType === 'category'
+                      ? `Zobrazit kategorii ${announcement.targetLabel}`
+                      : (announcement.targetValues?.length || 0) > 1
+                        ? `Zobrazit vybrané produkty (${announcement.targetValues?.length || 0})`
+                        : 'Zobrazit produkt'}
                     <ArrowRight className="h-4 w-4" />
                   </button>
                 )}

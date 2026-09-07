@@ -9,11 +9,21 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
   try {
     const payload = await request.json() as Record<string, unknown>;
-    const data = await parseAnnouncementPayload(payload);
+    const { data, targetProductIds } = await parseAnnouncementPayload(payload);
     const announcement = await prisma.announcement.update({
       where: { id: params.id },
-      data: { ...data, updated_at: new Date() },
-      include: { target_product: { select: { name: true } } },
+      data: {
+        ...data,
+        updated_at: new Date(),
+        target_products: {
+          deleteMany: {},
+          create: targetProductIds.map((productId) => ({ product_id: productId })),
+        },
+      },
+      include: {
+        target_product: { select: { id: true, name: true, is_archived: true } },
+        target_products: { include: { product: { select: { id: true, name: true, is_archived: true } } } },
+      },
     });
     return NextResponse.json({ announcement: serializeAnnouncement(announcement) });
   } catch (error) {

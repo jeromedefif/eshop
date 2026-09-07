@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { serializeAnnouncement } from '@/lib/admin-announcements';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,35 +15,14 @@ export async function GET() {
       },
       include: {
         target_product: { select: { id: true, name: true, is_archived: true } },
+        target_products: { include: { product: { select: { id: true, name: true, is_archived: true } } } },
       },
       orderBy: [{ starts_at: 'desc' }, { created_at: 'desc' }],
       take: 5,
     });
 
     return NextResponse.json({
-      announcements: announcements.map((announcement) => ({
-        id: announcement.id,
-        title: announcement.title,
-        body: announcement.body,
-        variant: announcement.variant,
-        startsAt: announcement.starts_at.toISOString(),
-        endsAt: announcement.ends_at?.toISOString() ?? null,
-        dismissible: announcement.dismissible,
-        updatedAt: announcement.updated_at.toISOString(),
-        targetType: announcement.target_product_id
-          ? 'product'
-          : announcement.target_category
-            ? 'category'
-            : null,
-        targetValue: announcement.target_product_id
-          ? String(announcement.target_product_id)
-          : announcement.target_category,
-        targetLabel: announcement.target_product_id
-          ? announcement.target_product && !announcement.target_product.is_archived
-            ? announcement.target_product.name
-            : null
-          : announcement.target_category,
-      })),
+      announcements: announcements.map(serializeAnnouncement),
     }, {
       // Časové okno a změny provedené administrátorem se musí projevit ihned.
       headers: { 'Cache-Control': 'no-store' },

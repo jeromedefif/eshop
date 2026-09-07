@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CalendarClock, Info, Loader2, Megaphone, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
+import ProductMultiSelect from '@/components/ProductMultiSelect';
 import type { AdminAnnouncement, AnnouncementTargetType, AnnouncementVariant } from '@/types/announcements';
 
 type ProductOption = { id: string; name: string; category: string };
@@ -15,6 +16,7 @@ type FormState = {
   endsAt: string;
   targetType: AnnouncementTargetType;
   targetValue: string;
+  targetValues: string[];
   dismissible: boolean;
   isActive: boolean;
 };
@@ -33,6 +35,7 @@ const emptyForm = (): FormState => ({
   endsAt: '',
   targetType: null,
   targetValue: '',
+  targetValues: [],
   dismissible: true,
   isActive: true,
 });
@@ -76,10 +79,10 @@ function AdminAnnouncementsPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const groupedProducts = useMemo(() => categories.map((category) => ({
-    category,
-    products: products.filter((product) => product.category === category),
-  })).filter((group) => group.products.length > 0), [categories, products]);
+  const sortedProducts = useMemo(() => products.slice().sort((a, b) => {
+    const categoryDifference = categories.indexOf(a.category) - categories.indexOf(b.category);
+    return categoryDifference || a.name.localeCompare(b.name, 'cs');
+  }), [categories, products]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -96,6 +99,7 @@ function AdminAnnouncementsPage() {
       endsAt: announcement.endsAt ? toLocalInput(announcement.endsAt) : '',
       targetType: announcement.targetType,
       targetValue: announcement.targetValue || '',
+      targetValues: announcement.targetValues?.length ? announcement.targetValues : announcement.targetValue ? [announcement.targetValue] : [],
       dismissible: announcement.dismissible,
       isActive: announcement.isActive,
     });
@@ -104,6 +108,10 @@ function AdminAnnouncementsPage() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (form.targetType === 'product' && form.targetValues.length === 0) {
+      toast.error('Vyberte alespoň jeden cílový produkt.');
+      return;
+    }
     setSaving(true);
     try {
       const response = await fetch(editingId ? `/api/admin/announcements/${editingId}` : '/api/admin/announcements', {
@@ -136,6 +144,7 @@ function AdminAnnouncementsPage() {
       endsAt: announcement.endsAt,
       targetType: announcement.targetType,
       targetValue: announcement.targetValue,
+      targetValues: announcement.targetValues,
       dismissible: announcement.dismissible,
       isActive: !announcement.isActive,
     };
@@ -192,12 +201,12 @@ function AdminAnnouncementsPage() {
           <label className="lg:col-span-2"><span className="mb-1.5 block text-sm font-semibold text-slate-800">Nadpis</span><input required maxLength={160} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-950 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" placeholder="Např. Zářijový rozvoz burčáku" /></label>
           <label className="lg:col-span-2"><span className="mb-1.5 block text-sm font-semibold text-slate-800">Text</span><textarea required maxLength={3000} rows={4} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-950 focus:border-blue-500 focus:ring-2 focus:ring-blue-200" placeholder="Objednávku vytvořte nejpozději v pondělí do 14:00…" /></label>
           <label><span className="mb-1.5 block text-sm font-semibold text-slate-800">Barevný typ</span><select value={form.variant} onChange={(e) => setForm({ ...form, variant: e.target.value as AnnouncementVariant })} className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-950">{Object.entries(variantLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-          <label><span className="mb-1.5 block text-sm font-semibold text-slate-800">Odkaz</span><select value={form.targetType || ''} onChange={(e) => setForm({ ...form, targetType: (e.target.value || null) as AnnouncementTargetType, targetValue: '' })} className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-950"><option value="">Bez odkazu</option><option value="category">Kategorie</option><option value="product">Konkrétní produkt</option></select></label>
+          <label><span className="mb-1.5 block text-sm font-semibold text-slate-800">Odkaz</span><select value={form.targetType || ''} onChange={(e) => setForm({ ...form, targetType: (e.target.value || null) as AnnouncementTargetType, targetValue: '', targetValues: [] })} className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-950"><option value="">Bez odkazu</option><option value="category">Kategorie</option><option value="product">Jeden nebo více produktů</option></select></label>
           <label><span className="mb-1.5 block text-sm font-semibold text-slate-800">Začátek zobrazení</span><input required type="datetime-local" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-950" /></label>
           <label><span className="mb-1.5 block text-sm font-semibold text-slate-800">Konec zobrazení</span><input type="datetime-local" value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-950" /><span className="mt-1 block text-xs text-slate-500">Prázdné pole znamená bez koncového data.</span></label>
 
           {form.targetType === 'category' && <label className="lg:col-span-2"><span className="mb-1.5 block text-sm font-semibold text-slate-800">Cílová kategorie</span><select required value={form.targetValue} onChange={(e) => setForm({ ...form, targetValue: e.target.value })} className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-950"><option value="">Vyberte kategorii</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>}
-          {form.targetType === 'product' && <label className="lg:col-span-2"><span className="mb-1.5 block text-sm font-semibold text-slate-800">Cílový produkt</span><select required value={form.targetValue} onChange={(e) => setForm({ ...form, targetValue: e.target.value })} className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-950"><option value="">Vyberte produkt</option>{groupedProducts.map((group) => <optgroup key={group.category} label={group.category}>{group.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</optgroup>)}</select></label>}
+          {form.targetType === 'product' && <div className="lg:col-span-2"><span className="mb-1.5 block text-sm font-semibold text-slate-800">Cílové produkty</span><ProductMultiSelect products={sortedProducts} selectedIds={form.targetValues} onChange={(targetValues) => setForm({ ...form, targetValues, targetValue: targetValues[0] || '' })} placeholder="Vyberte alespoň jeden produkt" /></div>}
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
