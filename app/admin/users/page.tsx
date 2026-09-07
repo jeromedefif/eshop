@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
-import { Search, X, Mail, Building, Phone, Calendar, RefreshCw, User, CircleCheck, Clock3 } from 'lucide-react';
+import { Search, X, Mail, Building, Phone, Calendar, RefreshCw, User, CircleCheck, Clock3, Send, Copy, CheckSquare } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { UserProfile } from '@/types/auth';
 
@@ -30,6 +30,9 @@ const AdminUsersPage = () => {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isEmailSelectionMode, setIsEmailSelectionMode] = useState(false);
+    const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+    const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
     const router = useRouter();
 
     const fetchUsers = async () => {
@@ -77,6 +80,57 @@ const AdminUsersPage = () => {
         );
     });
 
+    const isEligibleEmailRecipient = (user: UserProfile) => (
+        !user.is_admin &&
+        Boolean(user.email_confirmed_at) &&
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email?.trim() || '')
+    );
+
+    const eligibleUsers = users.filter(isEligibleEmailRecipient);
+    const selectedUsers = eligibleUsers.filter(user => selectedUserIds.includes(user.id));
+    const selectedEmails = selectedUsers.map(user => user.email.trim());
+    const emailBatches = Array.from(
+        { length: Math.ceil(selectedEmails.length / 40) },
+        (_, index) => selectedEmails.slice(index * 40, (index + 1) * 40)
+    );
+
+    const toggleEmailSelectionMode = () => {
+        setIsEmailSelectionMode(current => !current);
+        setSelectedUserIds([]);
+        setCopyStatus('idle');
+    };
+
+    const toggleRecipient = (userId: string) => {
+        setSelectedUserIds(current => current.includes(userId)
+            ? current.filter(id => id !== userId)
+            : [...current, userId]);
+        setCopyStatus('idle');
+    };
+
+    const selectAllRecipients = () => {
+        setSelectedUserIds(eligibleUsers.map(user => user.id));
+        setCopyStatus('idle');
+    };
+
+    const openEmailClient = (emails: string[]) => {
+        const params = new URLSearchParams({
+            bcc: emails.join(','),
+            subject: 'Zpráva pro zákazníky VINARIA',
+        });
+        window.location.href = `mailto:fiala@vinaria.cz?${params.toString()}`;
+    };
+
+    const copyBccAddresses = async () => {
+        if (selectedEmails.length === 0) return;
+        try {
+            await navigator.clipboard.writeText(selectedEmails.join('; '));
+            setCopyStatus('copied');
+        } catch (error) {
+            console.error('BCC copy error:', error);
+            setCopyStatus('error');
+        }
+    };
+
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'N/A';
         return new Date(dateString).toLocaleDateString('cs-CZ');
@@ -101,12 +155,25 @@ const AdminUsersPage = () => {
 
     // Komponenta karty uživatele pro mobilní zobrazení
     const UserCard = ({ user }: { user: UserProfile }) => {
+        const isEligible = isEligibleEmailRecipient(user);
+        const isSelected = selectedUserIds.includes(user.id);
         return (
             <div
                 className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-3 cursor-pointer hover:bg-gray-50"
-                onClick={() => handleViewUserDetail(user.id)}
+                onClick={() => isEmailSelectionMode && isEligible ? toggleRecipient(user.id) : handleViewUserDetail(user.id)}
             >
                 <div className="flex items-start gap-3">
+                    {isEmailSelectionMode && (
+                        <input
+                            type="checkbox"
+                            checked={isSelected}
+                            disabled={!isEligible}
+                            onChange={() => isEligible && toggleRecipient(user.id)}
+                            onClick={(event) => event.stopPropagation()}
+                            className="mt-2 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-30"
+                            aria-label={`Vybrat zákazníka ${user.full_name || user.email}`}
+                        />
+                    )}
                     <div className="h-10 w-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                         <User className="h-5 w-5" />
                     </div>
@@ -174,17 +241,61 @@ const AdminUsersPage = () => {
 
     return (
         <div className="p-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Správa uživatelů</h2>
-                <button
-                    onClick={fetchUsers}
-                    className="flex items-center justify-center sm:justify-start px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
-                    disabled={loading || isRefreshing}
-                >
-                    <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    <span className="ml-2 hidden sm:inline">Obnovit</span>
-                </button>
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        onClick={toggleEmailSelectionMode}
+                        className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2 font-medium transition-colors ${isEmailSelectionMode ? 'bg-slate-200 text-slate-900 hover:bg-slate-300' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                    >
+                        {isEmailSelectionMode ? <X className="h-5 w-5" /> : <Send className="h-5 w-5" />}
+                        {isEmailSelectionMode ? 'Ukončit výběr' : 'Napsat zákazníkům'}
+                    </button>
+                    <button
+                        onClick={fetchUsers}
+                        className="flex items-center justify-center sm:justify-start px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+                        disabled={loading || isRefreshing}
+                    >
+                        <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        <span className="ml-2 hidden sm:inline">Obnovit</span>
+                    </button>
+                </div>
             </div>
+
+            {isEmailSelectionMode && (
+                <section className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4" aria-label="Výběr příjemců e-mailu">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <h3 className="font-semibold text-blue-950">Hromadný e-mail přes výchozího klienta</h3>
+                            <p className="mt-1 text-sm text-blue-800">
+                                Vybráno {selectedEmails.length} z {eligibleUsers.length} aktivních zákazníků. Administrátoři a neaktivované účty jsou vynechány.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <button type="button" onClick={selectAllRecipients} className="inline-flex items-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-100">
+                                <CheckSquare className="h-4 w-4" /> Vybrat všechny
+                            </button>
+                            <button type="button" onClick={() => setSelectedUserIds([])} disabled={selectedEmails.length === 0} className="rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50">
+                                Zrušit výběr
+                            </button>
+                            <button type="button" onClick={() => void copyBccAddresses()} disabled={selectedEmails.length === 0} className="inline-flex items-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50">
+                                <Copy className="h-4 w-4" /> {copyStatus === 'copied' ? 'Adresy zkopírovány' : copyStatus === 'error' ? 'Kopírování selhalo' : 'Kopírovat BCC'}
+                            </button>
+                        </div>
+                    </div>
+                    {emailBatches.length > 0 && (
+                        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-blue-200 pt-4">
+                            <span className="text-sm text-blue-900">Komu: <strong>fiala@vinaria.cz</strong></span>
+                            {emailBatches.map((batch, index) => (
+                                <button key={index} type="button" onClick={() => openEmailClient(batch)} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                                    <Mail className="h-4 w-4" />
+                                    {emailBatches.length === 1 ? `Otevřít e-mail (${batch.length})` : `Otevřít e-mail ${index + 1}/${emailBatches.length} (${batch.length})`}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </section>
+            )}
 
             {/* Vyhledávací pole */}
             <div className="mb-6">
@@ -261,6 +372,7 @@ const AdminUsersPage = () => {
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
+                                    {isEmailSelectionMode && <th className="w-12 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vybrat</th>}
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jméno / Společnost</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Telefon</th>
@@ -270,7 +382,7 @@ const AdminUsersPage = () => {
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {filteredUsers.length === 0 ? (
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                                        <td colSpan={isEmailSelectionMode ? 5 : 4} className="px-6 py-4 text-center text-gray-500">
                                             {searchQuery
                                                 ? 'Nenalezeni žádní uživatelé odpovídající vašemu hledání'
                                                 : 'Zatím nejsou žádní uživatelé'}
@@ -279,6 +391,19 @@ const AdminUsersPage = () => {
                                 ) : (
                                     filteredUsers.map((user) => (
                                         <tr key={user.id} className="hover:bg-gray-50">
+                                            {isEmailSelectionMode && (
+                                                <td className="px-4 py-4">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedUserIds.includes(user.id)}
+                                                        disabled={!isEligibleEmailRecipient(user)}
+                                                        onChange={() => toggleRecipient(user.id)}
+                                                        className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-30"
+                                                        aria-label={`Vybrat zákazníka ${user.full_name || user.email}`}
+                                                        title={isEligibleEmailRecipient(user) ? 'Přidat do skryté kopie' : 'Administrátor nebo neaktivovaný účet nelze vybrat'}
+                                                    />
+                                                </td>
+                                            )}
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <button
                                                     onClick={() => handleViewUserDetail(user.id)}
