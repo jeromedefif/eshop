@@ -8,7 +8,13 @@ import { buildOrderCatalogUrl } from '@/lib/catalog-product-links';
 import { normalizeProductCategory } from '@/lib/product-config';
 import { sortOrderItems } from '@/lib/order-item-sorting';
 
-type MessageType = 'general' | 'clarification' | 'delivery' | 'new-product';
+type MessageType = 'general' | 'clarification' | 'delivery' | 'customer-info' | 'new-product';
+
+export type EmailRecipient = {
+  name?: string | null;
+  email: string;
+  company?: string | null;
+};
 
 type OrderItem = {
   id: string;
@@ -28,18 +34,36 @@ type OrderForEmail = {
   order_items?: OrderItem[];
 };
 
-type Props = {
+type SharedProps = {
   open: boolean;
-  order: OrderForEmail;
   onClose: () => void;
 };
+
+type Props = SharedProps & (
+  | { order: OrderForEmail; recipients?: never }
+  | { order?: never; recipients: EmailRecipient[] }
+);
 
 const messageTypeLabels: Record<MessageType, string> = {
   general: 'Obecná odpověď',
   clarification: 'Upřesnění objednávky',
   delivery: 'Informace o termínu dodání',
+  'customer-info': 'Informace pro zákazníky',
   'new-product': 'Upozornění na nový produkt',
 };
+
+const SIGNATURE = `S pozdravem
+
+Roman Fiala
+VINARIA s.r.o. – Beginy.cz
+telefon: +420 734 720 994
+e-mail: fiala@vinaria.cz
+www.beginy.cz | www.vinaria.cz`;
+
+function createGreeting(recipients: EmailRecipient[]) {
+  const name = recipients.length === 1 ? recipients[0].name?.trim() : '';
+  return name ? `Dobrý den, ${name},` : 'Dobrý den,';
+}
 
 function formatVolume(volume: string | number, category: string) {
   const normalizedCategory = normalizeProductCategory(category);
@@ -48,17 +72,22 @@ function formatVolume(volume: string | number, category: string) {
   return /l\s*$/i.test(String(volume)) ? String(volume) : `${volume}L`;
 }
 
-function createMessage(order: OrderForEmail, type: MessageType, products: ProductSelectOption[]) {
-  const shortOrderId = order.id.slice(0, 8).toUpperCase();
-  const customer = [order.customer_name, order.customer_company].filter(Boolean).join(', ');
-  const selectedProducts = products.length > 0
+function createProductSection(products: ProductSelectOption[]) {
+  return products.length > 0
     ? `\n\nDoporučené produkty:\n${products.map((product) => `• ${product.name} (${product.category})`).join('\n')}\n\nVybrané produkty zobrazíte v objednávkovém katalogu zde:\n${buildOrderCatalogUrl(products.map((product) => product.id))}`
     : '';
+}
+
+function createOrderMessage(order: OrderForEmail, type: MessageType, products: ProductSelectOption[]) {
+  const shortOrderId = order.id.slice(0, 8).toUpperCase();
+  const customer = [order.customer_name, order.customer_company].filter(Boolean).join(', ');
+  const selectedProducts = createProductSection(products);
 
   const introduction: Record<MessageType, string> = {
     general: `reaguji na Vaši objednávku č. ${shortOrderId} ze dne ${new Date(order.created_at).toLocaleDateString('cs-CZ')}.\n\n[doplňte zprávu]`,
     clarification: `pro dokončení zpracování Vaší objednávky č. ${shortOrderId} bych potřeboval upřesnit:\n\n[doplňte dotaz]`,
     delivery: `rád bych Vás informoval o termínu dodání Vaší objednávky č. ${shortOrderId}:\n\n[doplňte termín nebo informace k dodání]`,
+    'customer-info': '[doplňte zprávu]',
     'new-product': `rádi bychom Vás upozornili na nové produkty v našem objednávkovém katalogu.`,
   };
 
@@ -66,12 +95,25 @@ function createMessage(order: OrderForEmail, type: MessageType, products: Produc
     general: 'Objednávka Beginy.cz',
     clarification: 'Upřesnění objednávky Beginy.cz',
     delivery: 'Termín dodání objednávky Beginy.cz',
+    'customer-info': 'Informace pro zákazníky VINARIA',
     'new-product': 'Novinky v katalogu Beginy.cz',
   };
 
   return {
     subject: `${subjectPrefix[type]} – ${customer} – ${shortOrderId}`,
-    body: `Dobrý den,\n\n${introduction[type]}${selectedProducts}\n\nS pozdravem\n\nRoman Fiala\nVINARIA s.r.o. – Beginy.cz`,
+    body: `${createGreeting([{ name: order.customer_name, email: order.customer_email, company: order.customer_company }])}\n\n${introduction[type]}${selectedProducts}\n\n${SIGNATURE}`,
+  };
+}
+
+function createBulkMessage(recipients: EmailRecipient[], type: MessageType, products: ProductSelectOption[]) {
+  const selectedProducts = createProductSection(products);
+  const content = type === 'new-product'
+    ? 'rádi bychom Vás upozornili na nové produkty v našem objednávkovém katalogu.'
+    : '[doplňte zprávu]';
+
+  return {
+    subject: type === 'new-product' ? 'Novinky v katalogu Beginy.cz' : 'Informace pro zákazníky VINARIA',
+    body: `${createGreeting(recipients)}\n\n${content}${selectedProducts}\n\n${SIGNATURE}`,
   };
 }
 
@@ -94,7 +136,11 @@ function createOrderSummary(order: OrderForEmail) {
   ].filter((line, index, all) => line || all[index - 1] !== '').join('\n').trim();
 }
 
-export default function OrderEmailComposer({ open, order, onClose }: Props) {
+export default function OrderEmailComposer(props: Props) {
+  const { open, onClose } = props;
+  const order = props.order;
+  const recipients = useMemo(() => props.recipients || (order ? [{ name: order.customer_name, email: order.customer_email, company: order.customer_company }] : []), [props.recipients, order]);
+  const isBulkMode = !order;
   const [messageType, setMessageType] = useState<MessageType>('general');
   const [products, setProducts] = useState<ProductSelectOption[]>([]);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
@@ -107,11 +153,19 @@ export default function OrderEmailComposer({ open, order, onClose }: Props) {
     return products.filter((product) => selected.has(product.id));
   }, [products, selectedProductIds]);
 
+  const recipientBatches = useMemo(() => Array.from(
+    { length: Math.ceil(recipients.length / 40) },
+    (_, index) => recipients.slice(index * 40, (index + 1) * 40)
+  ), [recipients]);
+
   useEffect(() => {
     if (!open) return;
-    setMessageType('general');
+    const initialType: MessageType = isBulkMode ? 'customer-info' : 'general';
+    setMessageType(initialType);
     setSelectedProductIds([]);
-    const initial = createMessage(order, 'general', []);
+    const initial = order
+      ? createOrderMessage(order, initialType, [])
+      : createBulkMessage(recipients, initialType, []);
     setSubject(initial.subject);
     setBody(initial.body);
 
@@ -130,14 +184,16 @@ export default function OrderEmailComposer({ open, order, onClose }: Props) {
         .catch((error) => toast.error(error instanceof Error ? error.message : 'Produkty se nepodařilo načíst.'))
         .finally(() => setLoadingProducts(false));
     }
-  }, [open, order, products.length]);
+  }, [open, order, products.length, isBulkMode, recipients]);
 
   useEffect(() => {
     if (!open) return;
-    const next = createMessage(order, messageType, selectedProducts);
+    const next = order
+      ? createOrderMessage(order, messageType, selectedProducts)
+      : createBulkMessage(recipients, messageType, selectedProducts);
     setSubject(next.subject);
     setBody(next.body);
-  }, [messageType, open, order, selectedProducts]);
+  }, [messageType, open, order, recipients, selectedProducts]);
 
   useEffect(() => {
     if (!open) return;
@@ -150,17 +206,24 @@ export default function OrderEmailComposer({ open, order, onClose }: Props) {
 
   if (!open) return null;
 
-  const openEmailClient = () => {
+  const openEmailClient = (batch?: EmailRecipient[]) => {
     if (messageType === 'new-product' && selectedProductIds.length === 0) {
       toast.error('Pro upozornění na novinku vyberte alespoň jeden produkt.');
       return;
     }
-    const href = `mailto:${encodeURIComponent(order.customer_email)}?subject=${encodeURIComponent(subject.trim())}&body=${encodeURIComponent(body.trim())}`;
+    const target = order ? order.customer_email : 'fiala@vinaria.cz';
+    const params = [
+      `subject=${encodeURIComponent(subject.trim())}`,
+      `body=${encodeURIComponent(body.trim())}`,
+    ];
+    if (!order && batch) params.unshift(`bcc=${encodeURIComponent(batch.map((recipient) => recipient.email).join(','))}`);
+    const href = `mailto:${encodeURIComponent(target)}?${params.join('&')}`;
     window.location.href = href;
   };
 
   const copySummary = async () => {
     try {
+      if (!order) return;
       await navigator.clipboard.writeText(createOrderSummary(order));
       toast.success('Souhrn objednávky byl zkopírován.');
     } catch (error) {
@@ -174,8 +237,10 @@ export default function OrderEmailComposer({ open, order, onClose }: Props) {
       <div className="flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6">
           <div>
-            <h2 id="email-composer-title" className="flex items-center gap-2 text-xl font-bold text-slate-950"><Mail className="h-5 w-5 text-blue-600" /> Napsat zákazníkovi</h2>
-            <p className="mt-1 text-sm text-slate-600">Komu: <strong>{order.customer_email}</strong></p>
+            <h2 id="email-composer-title" className="flex items-center gap-2 text-xl font-bold text-slate-950"><Mail className="h-5 w-5 text-blue-600" /> {isBulkMode ? 'Napsat zákazníkům' : 'Napsat zákazníkovi'}</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              {isBulkMode ? <>Vybraných příjemců: <strong>{recipients.length}</strong> · zákazníci budou ve skryté kopii</> : <>Komu: <strong>{order.customer_email}</strong></>}
+            </p>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900" aria-label="Zavřít"><X className="h-5 w-5" /></button>
         </div>
@@ -185,7 +250,9 @@ export default function OrderEmailComposer({ open, order, onClose }: Props) {
             <label>
               <span className="mb-1.5 block text-sm font-semibold text-slate-800">Typ zprávy</span>
               <select value={messageType} onChange={(event) => setMessageType(event.target.value as MessageType)} className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-950 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
-                {Object.entries(messageTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                {Object.entries(messageTypeLabels)
+                  .filter(([value]) => isBulkMode ? ['customer-info', 'new-product'].includes(value) : value !== 'customer-info')
+                  .map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </label>
             <div>
@@ -212,10 +279,16 @@ export default function OrderEmailComposer({ open, order, onClose }: Props) {
         </div>
 
         <div className="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <button type="button" onClick={() => void copySummary()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100"><Copy className="h-4 w-4" /> Kopírovat souhrn objednávky</button>
+          {order ? <button type="button" onClick={() => void copySummary()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100"><Copy className="h-4 w-4" /> Kopírovat souhrn objednávky</button> : <span className="text-xs text-slate-500">Komu: fiala@vinaria.cz · zákazníci: BCC</span>}
           <div className="flex flex-col-reverse gap-2 sm:flex-row">
             <button type="button" onClick={onClose} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-slate-700 hover:bg-slate-200">Zrušit</button>
-            <button type="button" onClick={openEmailClient} disabled={!subject.trim() || !body.trim()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"><ExternalLink className="h-4 w-4" /> Otevřít v e-mailovém klientovi</button>
+            {isBulkMode ? recipientBatches.map((batch, index) => (
+              <button key={index} type="button" onClick={() => openEmailClient(batch)} disabled={!subject.trim() || !body.trim() || batch.length === 0} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300">
+                <ExternalLink className="h-4 w-4" /> {recipientBatches.length === 1 ? `Otevřít e-mail (${batch.length})` : `E-mail ${index + 1}/${recipientBatches.length} (${batch.length})`}
+              </button>
+            )) : (
+              <button type="button" onClick={() => openEmailClient()} disabled={!subject.trim() || !body.trim()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"><ExternalLink className="h-4 w-4" /> Otevřít v e-mailovém klientovi</button>
+            )}
           </div>
         </div>
       </div>

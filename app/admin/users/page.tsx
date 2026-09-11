@@ -8,6 +8,7 @@ import { withAdminAuth } from '@/components/auth/withAdminAuth';
 import { Search, X, Mail, Building, Phone, Calendar, RefreshCw, User, CircleCheck, Clock3, Send, Copy, CheckSquare } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { UserProfile } from '@/types/auth';
+import OrderEmailComposer from '@/components/OrderEmailComposer';
 
 const ActivationBadge = ({ user }: { user: UserProfile }) => {
     const isActive = Boolean(user.email_confirmed_at);
@@ -33,6 +34,7 @@ const AdminUsersPage = () => {
     const [isEmailSelectionMode, setIsEmailSelectionMode] = useState(false);
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
     const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+    const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
     const router = useRouter();
 
     const fetchUsers = async () => {
@@ -89,10 +91,6 @@ const AdminUsersPage = () => {
     const eligibleUsers = users.filter(isEligibleEmailRecipient);
     const selectedUsers = eligibleUsers.filter(user => selectedUserIds.includes(user.id));
     const selectedEmails = selectedUsers.map(user => user.email.trim());
-    const emailBatches = Array.from(
-        { length: Math.ceil(selectedEmails.length / 40) },
-        (_, index) => selectedEmails.slice(index * 40, (index + 1) * 40)
-    );
 
     const toggleEmailSelectionMode = () => {
         setIsEmailSelectionMode(current => !current);
@@ -110,14 +108,6 @@ const AdminUsersPage = () => {
     const selectAllRecipients = () => {
         setSelectedUserIds(eligibleUsers.map(user => user.id));
         setCopyStatus('idle');
-    };
-
-    const openEmailClient = (emails: string[]) => {
-        const params = new URLSearchParams({
-            bcc: emails.join(','),
-            subject: 'Zpráva pro zákazníky VINARIA',
-        });
-        window.location.href = `mailto:fiala@vinaria.cz?${params.toString()}`;
     };
 
     const copyBccAddresses = async () => {
@@ -283,15 +273,12 @@ const AdminUsersPage = () => {
                             </button>
                         </div>
                     </div>
-                    {emailBatches.length > 0 && (
+                    {selectedEmails.length > 0 && (
                         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-blue-200 pt-4">
                             <span className="text-sm text-blue-900">Komu: <strong>fiala@vinaria.cz</strong></span>
-                            {emailBatches.map((batch, index) => (
-                                <button key={index} type="button" onClick={() => openEmailClient(batch)} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-                                    <Mail className="h-4 w-4" />
-                                    {emailBatches.length === 1 ? `Otevřít e-mail (${batch.length})` : `Otevřít e-mail ${index + 1}/${emailBatches.length} (${batch.length})`}
-                                </button>
-                            ))}
+                            <button type="button" onClick={() => setIsEmailComposerOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                                <Mail className="h-4 w-4" /> Připravit e-mail ({selectedEmails.length})
+                            </button>
                         </div>
                     )}
                 </section>
@@ -455,6 +442,11 @@ const AdminUsersPage = () => {
                     )}
                 </div>
             </div>
+            <OrderEmailComposer
+                open={isEmailComposerOpen}
+                recipients={selectedUsers.map(user => ({ name: user.full_name, email: user.email.trim(), company: user.company }))}
+                onClose={() => setIsEmailComposerOpen(false)}
+            />
         </div>
     );
 };
