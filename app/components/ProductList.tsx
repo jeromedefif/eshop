@@ -482,9 +482,10 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                 {/* Search bar */}
                 <div className="mb-3">
                     <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Search className="h-4 w-4 text-gray-400" />
-                        </div>
+                        <Search
+                            aria-hidden="true"
+                            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                        />
                         <input
                             type="text"
                             value={searchQuery}
@@ -493,10 +494,10 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                                 setSearchQuery(e.target.value);
                             }}
                             placeholder="Vyhledat produkt..."
-                            className="block w-full pl-9 pr-4 py-1.5 text-sm border border-gray-300 rounded-lg
-                                         focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                            className="block h-10 w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-4 text-sm text-gray-900
+                                         focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                         />
-                        {(searchQuery || directProductIds.length) && (
+                        {(searchQuery || directProductIds.length > 0) && (
                             <button
                                 onClick={() => directProductIds.length ? clearDirectProducts() : setSearchQuery('')}
                                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
@@ -818,7 +819,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                                 ? "Nenalezeny žádné produkty odpovídající vašemu hledání"
                                 : "V této kategorii nejsou žádné produkty"}
                         </p>
-                        {(searchQuery || directProductIds.length) && (
+                        {(searchQuery || directProductIds.length > 0) && (
                             <button
                                 onClick={() => directProductIds.length ? clearDirectProducts() : setSearchQuery('')}
                                 className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
@@ -867,7 +868,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                                 ? "Nenalezeny žádné produkty odpovídající vašemu hledání"
                                 : "V této kategorii nejsou žádné produkty"}
                         </p>
-                        {(searchQuery || directProductIds.length) && (
+                        {(searchQuery || directProductIds.length > 0) && (
                             <button
                                 onClick={() => directProductIds.length ? clearDirectProducts() : setSearchQuery('')}
                                 className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
