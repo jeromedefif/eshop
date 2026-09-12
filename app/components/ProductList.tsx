@@ -55,7 +55,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [isOrderingHelpDismissed, setIsOrderingHelpDismissed] = useState(false);
     const [directProductIds, setDirectProductIds] = useState<string[]>([]);
-    const [promotionFilters, setPromotionFilters] = useState<Array<'new' | 'featured'>>([]);
+    const [specialView, setSpecialView] = useState<'favorites' | 'new' | 'featured' | null>(null);
     const [colorFilters, setColorFilters] = useState<ProductColor[]>([]);
     const [sweetnessFilters, setSweetnessFilters] = useState<ProductSweetness[]>([]);
     const [onlyInStock, setOnlyInStock] = useState(false);
@@ -69,11 +69,22 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
         const params = new URLSearchParams(window.location.search);
         const category = getCategoryBySlug(params.get('kategorie') || '');
         const statuses = (params.get('stav') || '').split(',');
+        const requestedView = params.get('pohled');
         const colors = (params.get('barva') || '').split(',');
         const sweetness = (params.get('sladkost') || '').split(',');
-        if (category) setSelectedCategory(category);
+        if (requestedView === 'oblibene') {
+            setSpecialView('favorites');
+            setSelectedCategory('Všechny');
+        } else if (statuses.includes('new')) {
+            setSpecialView('new');
+            setSelectedCategory('Všechny');
+        } else if (statuses.includes('featured')) {
+            setSpecialView('featured');
+            setSelectedCategory('Všechny');
+        } else if (category) {
+            setSelectedCategory(category);
+        }
         setSearchQuery(params.get('hledat') || '');
-        setPromotionFilters(['new', 'featured'].filter((value) => statuses.includes(value)) as Array<'new' | 'featured'>);
         setColorFilters(PRODUCT_COLOR_OPTIONS.map((option) => option.value).filter((value) => colors.includes(value)));
         setSweetnessFilters(PRODUCT_SWEETNESS_OPTIONS.map((option) => option.value).filter((value) => sweetness.includes(value)));
         setOnlyInStock(params.get('skladem') === '1');
@@ -83,16 +94,17 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
     useEffect(() => {
         if (!filtersReady) return;
         const url = new URL(window.location.href);
-        const category = selectedCategory !== 'Všechny' && selectedCategory !== 'Oblíbené' ? getCategoryDetails(selectedCategory) : null;
+        const category = specialView === null && selectedCategory !== 'Všechny' ? getCategoryDetails(selectedCategory) : null;
 
         if (category) url.searchParams.set('kategorie', category.slug); else url.searchParams.delete('kategorie');
         if (searchQuery.trim()) url.searchParams.set('hledat', searchQuery.trim()); else url.searchParams.delete('hledat');
-        if (promotionFilters.length) url.searchParams.set('stav', promotionFilters.join(',')); else url.searchParams.delete('stav');
+        if (specialView === 'new' || specialView === 'featured') url.searchParams.set('stav', specialView); else url.searchParams.delete('stav');
+        if (specialView === 'favorites') url.searchParams.set('pohled', 'oblibene'); else url.searchParams.delete('pohled');
         if (colorFilters.length) url.searchParams.set('barva', colorFilters.join(',')); else url.searchParams.delete('barva');
         if (sweetnessFilters.length) url.searchParams.set('sladkost', sweetnessFilters.join(',')); else url.searchParams.delete('sladkost');
         if (onlyInStock) url.searchParams.set('skladem', '1'); else url.searchParams.delete('skladem');
         window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
-    }, [colorFilters, filtersReady, onlyInStock, promotionFilters, searchQuery, selectedCategory, sweetnessFilters]);
+    }, [colorFilters, filtersReady, onlyInStock, searchQuery, selectedCategory, specialView, sweetnessFilters]);
 
     const dismissOrderingHelp = () => {
         sessionStorage.setItem('ordering-help-dismissed', 'true');
@@ -115,12 +127,14 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
         if (announcement.targetType === 'category') {
             if (directProductIds.length) clearDirectProducts(false);
             setSearchQuery('');
+            setSpecialView(null);
             setSelectedCategory(announcement.targetValue);
             setIsGrouped(false);
         } else {
             const productIds = normalizeCatalogProductIds(announcement.targetValues?.length ? announcement.targetValues : [announcement.targetValue]);
             const availableIds = productIds.filter((id) => products.some((item) => String(item.id) === id));
             if (!availableIds.length) return;
+            setSpecialView(null);
             setSelectedCategory('Všechny');
             setIsGrouped(false);
             setDirectProductIds(availableIds);
@@ -148,6 +162,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
             .filter((id) => products.some((item) => String(item.id) === id));
         if (!availableIds.length) return;
 
+        setSpecialView(null);
         setSelectedCategory('Všechny');
         setIsGrouped(false);
         setDirectProductIds(availableIds);
@@ -251,27 +266,25 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
         if (product.is_archived) return false;
         if (directProductIds.length) return directProductIdSet.has(String(product.id));
         const category = normalizeProductCategory(product.category);
-        const categoryMatch = selectedCategory === "Všechny"
-            ? true
-            : selectedCategory === 'Oblíbené'
-                ? favoriteProductIds.has(String(product.id))
-                : category === selectedCategory;
+        const categoryMatch = selectedCategory === "Všechny" || category === selectedCategory;
         const searchMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           category.toLowerCase().includes(searchQuery.toLowerCase());
-        const promotionMatch = promotionFilters.length === 0
-            || (promotionFilters.includes('new') && product.is_new)
-            || (promotionFilters.includes('featured') && product.is_featured);
+        const specialViewMatch = specialView === null
+            || (specialView === 'favorites' && favoriteProductIds.has(String(product.id)))
+            || (specialView === 'new' && product.is_new)
+            || (specialView === 'featured' && product.is_featured);
         const colorMatch = colorFilters.length === 0 || (product.product_color && colorFilters.includes(product.product_color));
         const sweetnessMatch = sweetnessFilters.length === 0 || (product.sweetness && sweetnessFilters.includes(product.sweetness));
-        return categoryMatch && searchMatch && promotionMatch && colorMatch && sweetnessMatch && (!onlyInStock || product.in_stock);
+        return categoryMatch && searchMatch && specialViewMatch && colorMatch && sweetnessMatch && (!onlyInStock || product.in_stock);
     });
 
     const activeAdvancedFilterCount = colorFilters.length + sweetnessFilters.length + Number(onlyInStock);
-    const hasCatalogFilters = promotionFilters.length > 0 || activeAdvancedFilterCount > 0;
+    const hasCatalogFilters = specialView !== null || activeAdvancedFilterCount > 0;
 
-    const togglePromotionFilter = (value: 'new' | 'featured') => {
+    const toggleSpecialView = (value: 'favorites' | 'new' | 'featured') => {
         if (directProductIds.length) clearDirectProducts(false);
-        setPromotionFilters((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
+        setSelectedCategory('Všechny');
+        setSpecialView((current) => current === value ? null : value);
     };
 
     const toggleFilterValue = <T extends string>(value: T, setValues: React.Dispatch<React.SetStateAction<T[]>>) => {
@@ -280,7 +293,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
     };
 
     const resetCatalogFilters = () => {
-        setPromotionFilters([]);
+        setSpecialView(null);
         setColorFilters([]);
         setSweetnessFilters([]);
         setOnlyInStock(false);
@@ -529,29 +542,30 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                                 type="button"
                                 onClick={() => {
                                     if (directProductIds.length) clearDirectProducts();
-                                    setSelectedCategory('Oblíbené');
+                                    toggleSpecialView('favorites');
                                 }}
-                                className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${selectedCategory === 'Oblíbené' ? 'bg-rose-100 text-rose-700' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                                aria-pressed={specialView === 'favorites'}
+                                className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${specialView === 'favorites' ? 'bg-rose-100 text-rose-700' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
                                 title="Oblíbené"
                             >
-                                <Heart className={`h-5 w-5 ${selectedCategory === 'Oblíbené' ? 'fill-current' : ''}`} />
+                                <Heart className={`h-5 w-5 ${specialView === 'favorites' ? 'fill-current' : ''}`} />
                                 <span className="hidden text-xs font-medium sm:inline">Oblíbené</span>
                             </button>
                         )}
                         <button
                             type="button"
-                            onClick={() => togglePromotionFilter('new')}
-                            aria-pressed={promotionFilters.includes('new')}
-                            className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${promotionFilters.includes('new') ? 'bg-violet-100 text-violet-800' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                            onClick={() => toggleSpecialView('new')}
+                            aria-pressed={specialView === 'new'}
+                            className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${specialView === 'new' ? 'bg-violet-100 text-violet-800' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
                         >
                             <Star className="h-5 w-5" />
                             <span className="text-xs font-medium">Novinky</span>
                         </button>
                         <button
                             type="button"
-                            onClick={() => togglePromotionFilter('featured')}
-                            aria-pressed={promotionFilters.includes('featured')}
-                            className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${promotionFilters.includes('featured') ? 'bg-orange-100 text-orange-800' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                            onClick={() => toggleSpecialView('featured')}
+                            aria-pressed={specialView === 'featured'}
+                            className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${specialView === 'featured' ? 'bg-orange-100 text-orange-800' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
                         >
                             <Tag className="h-5 w-5" />
                             <span className="text-xs font-medium">Akce</span>
@@ -563,10 +577,11 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                                     key={cat.id}
                                     onClick={() => {
                                         if (directProductIds.length) clearDirectProducts();
+                                        setSpecialView(null);
                                         setSelectedCategory(cat.id);
                                     }}
                                     className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors ${
-                                        selectedCategory === cat.id
+                                        specialView === null && selectedCategory === cat.id
                                             ? 'bg-blue-100 text-blue-700'
                                             : 'bg-white text-gray-700 hover:bg-gray-100'
                                     } whitespace-nowrap`}
