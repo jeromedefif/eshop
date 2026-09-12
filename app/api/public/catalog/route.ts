@@ -1,13 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { CATEGORY_DETAILS, PRODUCT_CATEGORIES, getAllowedVolumes, normalizeProductCategory } from '@/lib/product-config';
 import { getProductPath } from '@/lib/product-slug';
-import { getPublicProducts } from '@/lib/public-products';
+import { fetchFreshPublicProducts, getPublicProducts } from '@/lib/public-products';
 
 const SITE_URL = 'https://www.beginy.cz';
+export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
-        const products = await getPublicProducts();
+        const fresh = request.nextUrl.searchParams.get('fresh') === '1';
+        const products = fresh
+            ? await fetchFreshPublicProducts()
+            : await getPublicProducts();
 
         const categories = PRODUCT_CATEGORIES.map((category) => {
             const details = CATEGORY_DETAILS[category];
@@ -40,7 +44,9 @@ export async function GET() {
             },
             {
                 headers: {
-                    'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600'
+                    'Cache-Control': fresh
+                        ? 'private, no-store'
+                        : 'public, s-maxage=300, stale-while-revalidate=3600'
                 }
             }
         );
