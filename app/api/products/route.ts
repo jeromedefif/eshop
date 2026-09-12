@@ -1,6 +1,22 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import type { Product } from '@prisma/client';
+import type { ProductColor, ProductSweetness } from '@/types/database';
+import { PRODUCT_COLOR_OPTIONS, PRODUCT_SWEETNESS_OPTIONS, supportsProductAttributes } from '@/lib/product-config';
+
+const validColors = new Set(PRODUCT_COLOR_OPTIONS.map((option) => option.value));
+const validSweetness = new Set(PRODUCT_SWEETNESS_OPTIONS.map((option) => option.value));
+
+function productAttributes(data: Record<string, unknown>) {
+    if (!supportsProductAttributes(String(data.category || ''))) {
+        return { product_color: null, sweetness: null };
+    }
+
+    return {
+        product_color: typeof data.product_color === 'string' && validColors.has(data.product_color as ProductColor) ? data.product_color : null,
+        sweetness: typeof data.sweetness === 'string' && validSweetness.has(data.sweetness as ProductSweetness) ? data.sweetness : null
+    };
+}
 
 export async function GET() {
     try {
@@ -42,7 +58,8 @@ export async function POST(request: Request) {
                 is_featured: data.is_featured ?? false,
                 sort_priority: data.sort_priority ?? 0,
                 min_order_qty: data.min_order_qty ?? 1,
-                allowed_volumes: data.allowed_volumes ?? []
+                allowed_volumes: Array.isArray(data.allowed_volumes) ? data.allowed_volumes as string[] : [],
+                ...productAttributes(data)
             }
         });
 
@@ -74,7 +91,8 @@ export async function PUT(request: Request) {
                 is_featured: data.is_featured,
                 sort_priority: data.sort_priority,
                 min_order_qty: data.min_order_qty,
-                allowed_volumes: data.allowed_volumes
+                allowed_volumes: data.allowed_volumes as string[],
+                ...productAttributes(data)
             }
         });
 

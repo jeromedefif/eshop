@@ -22,6 +22,8 @@ model Product {
   sort_priority   Int         @default(0)
   min_order_qty   Int         @default(1)
   allowed_volumes String[]    @default([])
+  product_color   String?     @db.Text
+  sweetness       String?     @db.Text
   order_items     OrderItem[]
   favorite_products FavoriteProduct[]
   saved_template_items SavedOrderTemplateItem[]

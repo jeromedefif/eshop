@@ -1,4 +1,4 @@
-import type { Product } from '@/types/database';
+import type { Product, ProductColor, ProductSweetness } from '@/types/database';
 
 export const PRODUCT_CATEGORIES = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák', 'Plyny', 'PET'] as const;
 
@@ -36,6 +36,33 @@ export const CATEGORY_DETAILS: Record<ProductCategory, { slug: string; descripti
 };
 
 export const CATEGORY_ORDER = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák', 'Plyny', 'PET'];
+
+export const PRODUCT_ATTRIBUTE_CATEGORIES = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák'] as const;
+
+export const PRODUCT_COLOR_OPTIONS: ReadonlyArray<{ value: ProductColor; label: string }> = [
+    { value: 'white', label: 'Bílé' },
+    { value: 'red', label: 'Červené' },
+    { value: 'rose', label: 'Růžové' }
+];
+
+export const PRODUCT_SWEETNESS_OPTIONS: ReadonlyArray<{ value: ProductSweetness; label: string }> = [
+    { value: 'dry', label: 'Suché' },
+    { value: 'semi_dry', label: 'Polosuché' },
+    { value: 'semi_sweet', label: 'Polosladké' },
+    { value: 'sweet', label: 'Sladké' }
+];
+
+export function supportsProductAttributes(category: string): boolean {
+    return PRODUCT_ATTRIBUTE_CATEGORIES.includes(normalizeProductCategory(category) as typeof PRODUCT_ATTRIBUTE_CATEGORIES[number]);
+}
+
+export function getProductColorLabel(value: ProductColor | null | undefined): string | null {
+    return PRODUCT_COLOR_OPTIONS.find((option) => option.value === value)?.label || null;
+}
+
+export function getProductSweetnessLabel(value: ProductSweetness | null | undefined): string | null {
+    return PRODUCT_SWEETNESS_OPTIONS.find((option) => option.value === value)?.label || null;
+}
 
 export const LITER_VOLUMES = ['3', '5', '10', '20', '30', '50'];
 export const BURCAK_VOLUMES = ['3', '5', '10', '20', '25', '50'];

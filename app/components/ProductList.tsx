@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Script from 'next/script';
 import Link from 'next/link';
-import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, Layout, LayoutList, Sparkles, Amphora, Info, Heart } from 'lucide-react';
-import { Product } from '@/types/database';
-import { CATEGORY_ORDER, getAllowedVolumes, normalizeProductCategory, sortCatalogProducts } from '@/lib/product-config';
+import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, Layout, LayoutList, Sparkles, Amphora, Info, Heart, SlidersHorizontal, Tag, RotateCcw, Star } from 'lucide-react';
+import { Product, ProductColor, ProductSweetness } from '@/types/database';
+import { CATEGORY_ORDER, PRODUCT_COLOR_OPTIONS, PRODUCT_SWEETNESS_OPTIONS, getAllowedVolumes, getCategoryBySlug, getCategoryDetails, normalizeProductCategory, sortCatalogProducts } from '@/lib/product-config';
 import { getProductPath } from '@/lib/product-slug';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePurchasing } from '@/contexts/PurchasingContext';
@@ -55,11 +55,44 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [isOrderingHelpDismissed, setIsOrderingHelpDismissed] = useState(false);
     const [directProductIds, setDirectProductIds] = useState<string[]>([]);
+    const [promotionFilters, setPromotionFilters] = useState<Array<'new' | 'featured'>>([]);
+    const [colorFilters, setColorFilters] = useState<ProductColor[]>([]);
+    const [sweetnessFilters, setSweetnessFilters] = useState<ProductSweetness[]>([]);
+    const [onlyInStock, setOnlyInStock] = useState(false);
+    const [areFiltersOpen, setAreFiltersOpen] = useState(false);
+    const [filtersReady, setFiltersReady] = useState(false);
     const directProductIdSet = useMemo(() => new Set(directProductIds), [directProductIds]);
 
     useEffect(() => {
         setIsOrderingHelpDismissed(sessionStorage.getItem('ordering-help-dismissed') === 'true');
+
+        const params = new URLSearchParams(window.location.search);
+        const category = getCategoryBySlug(params.get('kategorie') || '');
+        const statuses = (params.get('stav') || '').split(',');
+        const colors = (params.get('barva') || '').split(',');
+        const sweetness = (params.get('sladkost') || '').split(',');
+        if (category) setSelectedCategory(category);
+        setSearchQuery(params.get('hledat') || '');
+        setPromotionFilters(['new', 'featured'].filter((value) => statuses.includes(value)) as Array<'new' | 'featured'>);
+        setColorFilters(PRODUCT_COLOR_OPTIONS.map((option) => option.value).filter((value) => colors.includes(value)));
+        setSweetnessFilters(PRODUCT_SWEETNESS_OPTIONS.map((option) => option.value).filter((value) => sweetness.includes(value)));
+        setOnlyInStock(params.get('skladem') === '1');
+        setFiltersReady(true);
     }, []);
+
+    useEffect(() => {
+        if (!filtersReady) return;
+        const url = new URL(window.location.href);
+        const category = selectedCategory !== 'Všechny' && selectedCategory !== 'Oblíbené' ? getCategoryDetails(selectedCategory) : null;
+
+        if (category) url.searchParams.set('kategorie', category.slug); else url.searchParams.delete('kategorie');
+        if (searchQuery.trim()) url.searchParams.set('hledat', searchQuery.trim()); else url.searchParams.delete('hledat');
+        if (promotionFilters.length) url.searchParams.set('stav', promotionFilters.join(',')); else url.searchParams.delete('stav');
+        if (colorFilters.length) url.searchParams.set('barva', colorFilters.join(',')); else url.searchParams.delete('barva');
+        if (sweetnessFilters.length) url.searchParams.set('sladkost', sweetnessFilters.join(',')); else url.searchParams.delete('sladkost');
+        if (onlyInStock) url.searchParams.set('skladem', '1'); else url.searchParams.delete('skladem');
+        window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    }, [colorFilters, filtersReady, onlyInStock, promotionFilters, searchQuery, selectedCategory, sweetnessFilters]);
 
     const dismissOrderingHelp = () => {
         sessionStorage.setItem('ordering-help-dismissed', 'true');
@@ -225,8 +258,33 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                 : category === selectedCategory;
         const searchMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           category.toLowerCase().includes(searchQuery.toLowerCase());
-        return categoryMatch && searchMatch;
+        const promotionMatch = promotionFilters.length === 0
+            || (promotionFilters.includes('new') && product.is_new)
+            || (promotionFilters.includes('featured') && product.is_featured);
+        const colorMatch = colorFilters.length === 0 || (product.product_color && colorFilters.includes(product.product_color));
+        const sweetnessMatch = sweetnessFilters.length === 0 || (product.sweetness && sweetnessFilters.includes(product.sweetness));
+        return categoryMatch && searchMatch && promotionMatch && colorMatch && sweetnessMatch && (!onlyInStock || product.in_stock);
     });
+
+    const activeAdvancedFilterCount = colorFilters.length + sweetnessFilters.length + Number(onlyInStock);
+    const hasCatalogFilters = promotionFilters.length > 0 || activeAdvancedFilterCount > 0;
+
+    const togglePromotionFilter = (value: 'new' | 'featured') => {
+        if (directProductIds.length) clearDirectProducts(false);
+        setPromotionFilters((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
+    };
+
+    const toggleFilterValue = <T extends string>(value: T, setValues: React.Dispatch<React.SetStateAction<T[]>>) => {
+        if (directProductIds.length) clearDirectProducts(false);
+        setValues((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
+    };
+
+    const resetCatalogFilters = () => {
+        setPromotionFilters([]);
+        setColorFilters([]);
+        setSweetnessFilters([]);
+        setOnlyInStock(false);
+    };
 
     const groupedProducts = isGrouped ?
         filteredProducts.reduce((acc, product) => {
@@ -447,7 +505,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                             </button>
                         )}
                     </div>
-                    {searchQuery && (
+                    {(searchQuery || hasCatalogFilters) && (
                         <div className="mt-1 text-xs text-gray-600">
                             Nalezeno {filteredProducts.length} produktů
                         </div>
@@ -479,6 +537,24 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                                 <span className="hidden text-xs font-medium sm:inline">Oblíbené</span>
                             </button>
                         )}
+                        <button
+                            type="button"
+                            onClick={() => togglePromotionFilter('new')}
+                            aria-pressed={promotionFilters.includes('new')}
+                            className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${promotionFilters.includes('new') ? 'bg-violet-100 text-violet-800' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                        >
+                            <Star className="h-5 w-5" />
+                            <span className="text-xs font-medium">Novinky</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => togglePromotionFilter('featured')}
+                            aria-pressed={promotionFilters.includes('featured')}
+                            className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${promotionFilters.includes('featured') ? 'bg-orange-100 text-orange-800' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                        >
+                            <Tag className="h-5 w-5" />
+                            <span className="text-xs font-medium">Akce</span>
+                        </button>
                         {categoryButtons.map((cat) => {
                             const colorClass = categoryColors[cat.id as keyof typeof categoryColors] || "text-gray-700";
                             return (
@@ -505,11 +581,22 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                         })}
                     </div>
 
-                    {/* View toggle button */}
-                    <button
+                    <div className="ml-2 flex shrink-0 items-center gap-1">
+                        <button
+                        type="button"
+                        onClick={() => setAreFiltersOpen((value) => !value)}
+                        aria-expanded={areFiltersOpen}
+                        className={`relative flex min-w-[40px] items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${areFiltersOpen || activeAdvancedFilterCount ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                        title="Filtrovat podle barvy a sladkosti"
+                    >
+                        <SlidersHorizontal className="h-4 w-4" />
+                        <span className="hidden sm:inline">Filtry</span>
+                        {activeAdvancedFilterCount > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] text-white">{activeAdvancedFilterCount}</span>}
+                        </button>
+                        <button
                         onClick={() => setIsGrouped(!isGrouped)}
                         className={`
-                                flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ml-2
+                                flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg
                                 font-medium transition-all duration-200 text-xs
                                 ${isGrouped
                                     ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
@@ -529,8 +616,35 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                                 <span className="hidden sm:inline">Skupiny</span>
                             </>
                         )}
-                    </button>
+                        </button>
+                    </div>
                 </div>
+                {areFiltersOpen && (
+                    <div className="mt-3 rounded-xl border border-gray-200 bg-slate-50 p-3 shadow-sm">
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1.35fr_auto] lg:items-end">
+                            <fieldset>
+                                <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Barva</legend>
+                                <div className="flex flex-wrap gap-2">
+                                    {PRODUCT_COLOR_OPTIONS.map((option) => <FilterChip key={option.value} active={colorFilters.includes(option.value)} onClick={() => toggleFilterValue(option.value, setColorFilters)}>{option.label}</FilterChip>)}
+                                </div>
+                            </fieldset>
+                            <fieldset>
+                                <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Sladkost</legend>
+                                <div className="flex flex-wrap gap-2">
+                                    {PRODUCT_SWEETNESS_OPTIONS.map((option) => <FilterChip key={option.value} active={sweetnessFilters.includes(option.value)} onClick={() => toggleFilterValue(option.value, setSweetnessFilters)}>{option.label}</FilterChip>)}
+                                </div>
+                            </fieldset>
+                            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                                <FilterChip active={onlyInStock} onClick={() => {
+                                    if (directProductIds.length) clearDirectProducts(false);
+                                    setOnlyInStock((value) => !value);
+                                }}>Pouze skladem</FilterChip>
+                                {hasCatalogFilters && <button type="button" onClick={resetCatalogFilters} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-200 hover:text-gray-900"><RotateCcw className="h-3.5 w-3.5" />Zrušit filtry</button>}
+                            </div>
+                        </div>
+                        <p className="mt-3 text-[11px] text-gray-500">Barvu a sladkost lze filtrovat u vín, perlivých, nápojů, ovocných vín a burčáku.</p>
+                    </div>
+                )}
             </div>
 
             <div id="catalog-products" />
@@ -794,5 +908,18 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
         </div>
     );
 };
+
+function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+    return (
+        <button
+            type="button"
+            aria-pressed={active}
+            onClick={onClick}
+            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${active ? 'border-blue-400 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-300 hover:bg-blue-50'}`}
+        >
+            {children}
+        </button>
+    );
+}
 
 export default ProductList;

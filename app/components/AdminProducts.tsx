@@ -2,9 +2,9 @@
 
 import React, { useMemo, useState } from 'react';
 import { Amphora, Archive, Box, Edit2, Grape, ListFilter, Martini, Package, PlusCircle, RotateCcw, Search, Sparkles, Star, Tag, TestTube, Trash2, Wine, X } from 'lucide-react';
-import type { Product, CreateProductInput } from '@/types/database';
+import type { Product, CreateProductInput, ProductColor, ProductSweetness } from '@/types/database';
 import type { DeleteProductResult } from '@/lib/products';
-import { PRODUCT_CATEGORIES, getAllowedVolumes, getDefaultAllowedVolumes, normalizeProductCategory } from '@/lib/product-config';
+import { PRODUCT_CATEGORIES, PRODUCT_COLOR_OPTIONS, PRODUCT_SWEETNESS_OPTIONS, getAllowedVolumes, getDefaultAllowedVolumes, getProductColorLabel, getProductSweetnessLabel, normalizeProductCategory, supportsProductAttributes } from '@/lib/product-config';
 
 type ProductFormData = Omit<CreateProductInput, 'is_archived' | 'archived_at'>;
 
@@ -26,7 +26,9 @@ const formFromProduct = (product: Product): ProductFormData => ({
     is_featured: product.is_featured,
     sort_priority: product.sort_priority,
     min_order_qty: product.min_order_qty,
-    allowed_volumes: getAllowedVolumes(product)
+    allowed_volumes: getAllowedVolumes(product),
+    product_color: product.product_color || null,
+    sweetness: product.sweetness || null
 });
 
 const emptyForm = (): ProductFormData => ({
@@ -37,7 +39,9 @@ const emptyForm = (): ProductFormData => ({
     is_featured: false,
     sort_priority: 0,
     min_order_qty: 1,
-    allowed_volumes: getDefaultAllowedVolumes('Nápoje')
+    allowed_volumes: getDefaultAllowedVolumes('Nápoje'),
+    product_color: null,
+    sweetness: null
 });
 
 function VolumeSelector({ formData, setFormData, idPrefix, disabled }: {
@@ -104,7 +108,13 @@ function ProductFields({ formData, setFormData, idPrefix, disabled }: {
                     <label htmlFor={`${idPrefix}-category`} className="block text-sm font-medium text-gray-900 mb-1">Kategorie</label>
                     <select id={`${idPrefix}-category`} value={formData.category} disabled={disabled} onChange={(event) => {
                         const category = event.target.value;
-                        setFormData({ ...formData, category, allowed_volumes: getDefaultAllowedVolumes(category) });
+                        setFormData({
+                            ...formData,
+                            category,
+                            allowed_volumes: getDefaultAllowedVolumes(category),
+                            product_color: supportsProductAttributes(category) ? formData.product_color : null,
+                            sweetness: supportsProductAttributes(category) ? formData.sweetness : null
+                        });
                     }} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white text-gray-900">
                         {PRODUCT_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
                     </select>
@@ -114,6 +124,24 @@ function ProductFields({ formData, setFormData, idPrefix, disabled }: {
                     <input id={`${idPrefix}-minimum`} type="number" min="1" step="1" value={formData.min_order_qty} disabled={disabled} onChange={(event) => setFormData({ ...formData, min_order_qty: Math.max(1, Number(event.target.value) || 1) })} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white text-gray-900" />
                 </div>
             </div>
+            {supportsProductAttributes(formData.category) && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label htmlFor={`${idPrefix}-color`} className="block text-sm font-medium text-gray-900 mb-1">Barva</label>
+                        <select id={`${idPrefix}-color`} value={formData.product_color || ''} disabled={disabled} onChange={(event) => setFormData({ ...formData, product_color: (event.target.value || null) as ProductColor | null })} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white text-gray-900">
+                            <option value="">Neuvedeno</option>
+                            {PRODUCT_COLOR_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor={`${idPrefix}-sweetness`} className="block text-sm font-medium text-gray-900 mb-1">Sladkost</label>
+                        <select id={`${idPrefix}-sweetness`} value={formData.sweetness || ''} disabled={disabled} onChange={(event) => setFormData({ ...formData, sweetness: (event.target.value || null) as ProductSweetness | null })} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white text-gray-900">
+                            <option value="">Neuvedeno</option>
+                            {PRODUCT_SWEETNESS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        </select>
+                    </div>
+                </div>
+            )}
             <VolumeSelector formData={formData} setFormData={setFormData} idPrefix={idPrefix} disabled={disabled} />
             <div className="grid gap-3 sm:grid-cols-2">
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-900"><input type="checkbox" checked={formData.in_stock} disabled={disabled} onChange={(event) => setFormData({ ...formData, in_stock: event.target.checked })} className="h-4 w-4 text-blue-600 rounded" />Skladem</label>
@@ -337,10 +365,11 @@ const AdminProducts = ({ products, onProductsChange, onAddProduct, onUpdateProdu
                             </div>
                             <div className="flex flex-wrap gap-2 lg:justify-end"><QuickToggle active={product.in_stock} disabled={isLoading || product.is_archived} onClick={() => toggleStock(product)}>Skladem</QuickToggle><QuickToggle active={product.is_new} disabled={isLoading || product.is_archived} onClick={() => updateQuickSetting(product, { is_new: !product.is_new })}>Novinka</QuickToggle><QuickToggle active={product.is_featured} disabled={isLoading || product.is_archived} onClick={() => updateQuickSetting(product, { is_featured: !product.is_featured })}>Akce</QuickToggle></div>
                         </div>
-                        <div className="mt-4 grid gap-3 border-t border-gray-100 pt-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="mt-4 grid gap-3 border-t border-gray-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
                             <ProductInfo label="Povolené objemy"><div className="flex flex-wrap gap-1.5">{formatAllowedVolumes(product).map((volume) => <span key={volume} className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-800">{volume}</span>)}</div></ProductInfo>
                             <ProductInfo label="Minimální odběr"><span className="font-medium text-gray-900">{product.min_order_qty} ks</span></ProductInfo>
                             <ProductInfo label="Priorita řazení"><span className="font-medium text-gray-900">{product.sort_priority}</span></ProductInfo>
+                            <ProductInfo label="Zařazení"><span className="font-medium text-gray-900">{[getProductColorLabel(product.product_color), getProductSweetnessLabel(product.sweetness)].filter(Boolean).join(' · ') || 'Neuvedeno'}</span></ProductInfo>
                         </div>
                         <div className="mt-4 flex flex-wrap items-center justify-end gap-x-4 gap-y-2 border-t border-gray-100 pt-3"><ProductActions product={product} onEdit={() => setEditingId(editingId === product.id ? null : product.id)} onDelete={() => handleDelete(product)} onArchive={() => handleArchive(product)} onRestore={() => handleRestore(product)} disabled={isLoading} /></div>
                     </div>
