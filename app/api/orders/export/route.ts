@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
@@ -25,6 +26,10 @@ function escapeCsvValue(value: any): string {
 }
 
 export async function GET(request: Request) {
+    if (!(await requireAdmin())) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     console.log('Export CSV API called at', new Date().toISOString());
 
     // Získání URL parametrů (pokud existují)

@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import type { Product } from '@prisma/client';
@@ -46,6 +47,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+    if (!(await requireAdmin())) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     try {
         const data = await request.json();
         const product = await prisma.product.create({
@@ -77,6 +82,10 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
+    if (!(await requireAdmin())) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     try {
         const data = await request.json();
         const product = await prisma.product.update({
@@ -110,6 +119,10 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+    if (!(await requireAdmin())) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');

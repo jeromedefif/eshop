@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
@@ -33,6 +34,10 @@ const parseVolume = (volume: string) => {
 };
 
 export async function GET(request: Request) {
+    if (!(await requireAdmin())) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
   try {
     const url = new URL(request.url);
     const period = (url.searchParams.get('period') || 'all') as Period;

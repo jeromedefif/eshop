@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/auth/require-admin';
 // app/api/orders/route.ts - kompletní verze s výběrem období
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -8,6 +9,10 @@ export const fetchCache = 'force-no-store';
 export const revalidate = 0;
 
 export async function GET(request: Request) {
+    if (!(await requireAdmin())) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
   console.log('Admin orders API called at', new Date().toISOString());
 
   // Získání URL parametrů (pokud existují)

@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import prisma from '@/lib/prisma';
@@ -56,6 +57,10 @@ function buildItemsTable(items: OrderItemWithProduct[]): string {
 }
 
 export async function POST(request: Request) {
+    if (!(await requireAdmin())) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
   try {
     // Kontrola konfigurace
     if (!process.env.RESEND_API_KEY || !process.env.FROM_EMAIL) {

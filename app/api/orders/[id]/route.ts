@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 
@@ -11,6 +12,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+    if (!(await requireAdmin())) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
   console.log('Fetch order detail API called', new Date().toISOString(), 'for orderId:', params.id);
 
   try {
@@ -75,6 +80,10 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+    if (!(await requireAdmin())) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
   console.log('Update order status API called', new Date().toISOString(), 'for orderId:', params.id);
 
   try {
@@ -140,6 +149,10 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+    if (!(await requireAdmin())) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
   console.log('Delete order API called', new Date().toISOString(), 'for orderId:', params.id);
 
   try {

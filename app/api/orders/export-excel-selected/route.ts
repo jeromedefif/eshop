@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import * as XLSX from 'xlsx';
@@ -38,6 +39,10 @@ function getVolumeSortValue(volume: string | number): number {
 }
 
 export async function POST(request: Request) {
+    if (!(await requireAdmin())) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
   try {
     const body = await request.json();
     const orderIds = Array.isArray(body?.orderIds)

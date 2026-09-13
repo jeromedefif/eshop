@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
@@ -37,6 +38,10 @@ interface RouteParams {
 }
 
 export async function GET(request: Request, { params }: RouteParams) {
+    if (!(await requireAdmin())) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
   try {
     const userId = params.id;
     if (!userId) {
