@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Chybí seznam objednávek.' }, { status: 400 });
     }
 
-    const orderIds = Array.from(new Set(
+    const orderIds = Array.from(new Set<string>(
       payload.orderIds.filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
     )).slice(0, 1000);
 

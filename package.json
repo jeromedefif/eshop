@@ -8,6 +8,8 @@
   "start": "next start",
   "smoke:routes": "node scripts/smoke-routes.mjs",
   "lint": "next lint",
+  "typecheck": "tsc --noEmit --incremental false",
+  "lint:ci": "eslint app --ext .ts,.tsx --no-cache",
   "clean": "rm -rf .next && rm -rf node_modules/.cache"
  },
  "dependencies": {

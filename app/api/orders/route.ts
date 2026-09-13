@@ -2,6 +2,7 @@ import { requireAdmin } from '@/lib/auth/require-admin';
 // app/api/orders/route.ts - kompletní verze s výběrem období
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 
 // Přidáváme definici, která zakazuje caching pro tento endpoint
 export const dynamic = 'force-dynamic';
@@ -66,7 +67,7 @@ export async function GET(request: Request) {
     }
 
     // Sestavení where podmínky pro Prisma
-    let whereCondition: any = {};
+    let whereCondition: Prisma.OrderWhereInput = {};
 
     // Přidání filtru na datum, pokud není vybráno "vše"
     if (dateFilter) {
@@ -76,6 +77,10 @@ export async function GET(request: Request) {
     }
 
     if (hasSearch) {
+      // UUID columns do not support Prisma contains; preserve partial ID search.
+      const matchingIds = await prisma.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM orders WHERE strpos(lower(id::text), lower(${searchQuery})) > 0
+      `;
       // Pokud máme datum filter, musíme použít AND
       if (dateFilter) {
         whereCondition = {
@@ -90,7 +95,7 @@ export async function GET(request: Request) {
                 { customer_name: { contains: searchQuery, mode: 'insensitive' } },
                 { customer_email: { contains: searchQuery, mode: 'insensitive' } },
                 { customer_company: { contains: searchQuery, mode: 'insensitive' } },
-                { id: { contains: searchQuery, mode: 'insensitive' } }
+                { id: { in: matchingIds.map((order) => order.id) } }
               ]
             }
           ]
@@ -102,7 +107,7 @@ export async function GET(request: Request) {
             { customer_name: { contains: searchQuery, mode: 'insensitive' } },
             { customer_email: { contains: searchQuery, mode: 'insensitive' } },
             { customer_company: { contains: searchQuery, mode: 'insensitive' } },
-            { id: { contains: searchQuery, mode: 'insensitive' } }
+            { id: { in: matchingIds.map((order) => order.id) } }
           ]
         };
       }
@@ -110,7 +115,7 @@ export async function GET(request: Request) {
 
     // Přidání podmínky pro filtrování podle userId
     if (hasUserFilter) {
-      if (whereCondition.AND) {
+      if (Array.isArray(whereCondition.AND)) {
         whereCondition.AND.push({ user_id: userId });
       } else if (whereCondition.OR) {
         // Pokud máme OR podmínku, musíme ji zabalit do AND

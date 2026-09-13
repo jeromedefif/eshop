@@ -1,3 +1,4 @@
+import type { Order } from '@/types/orders';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -15,7 +16,7 @@ function formatVolume(volume: string | number, category: string): string {
 }
 
 // Funkce pro escapování hodnoty v CSV
-function escapeCsvValue(value: any): string {
+function escapeCsvValue(value: unknown): string {
     if (value === null || value === undefined) return '';
     const stringValue = String(value);
     // Pokud hodnota obsahuje čárku, uvozovky nebo nový řádek, obalit uvozovkami a zdvojit uvozovky uvnitř
@@ -92,7 +93,7 @@ export async function GET(request: Request) {
         }
 
         // Serializace BigInt
-        const serializedOrders = JSON.parse(JSON.stringify(
+        const serializedOrders: Order[] = JSON.parse(JSON.stringify(
             pendingOrders,
             (key, value) => typeof value === 'bigint' ? value.toString() : value
         ));

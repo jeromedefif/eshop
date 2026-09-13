@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { Mail, Send, AlertCircle, Wine } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -14,7 +13,6 @@ export default function ForgotPasswordPage() {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
-    const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

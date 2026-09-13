@@ -10,13 +10,15 @@ import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 import { toast } from 'react-toastify';
 
+import type { Order } from '@/types/orders';
+
 const UserDetailPage = () => {
     const router = useRouter();
     const params = useParams();
     const userId = params.id as string;
 
     const [profile, setProfile] = useState<UserProfile | null>(null);
-    const [orders, setOrders] = useState<any[]>([]);
+    const [orders, setOrders] = useState<Order[]>([]);
     const [ordersLoaded, setOrdersLoaded] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isDeletingUser, setIsDeletingUser] = useState(false);

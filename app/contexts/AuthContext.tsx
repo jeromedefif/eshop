@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabase/client'
 import { getPasswordRecoveryRedirectUrl } from '@/lib/auth/redirect-url'
 import type { AuthContextType, UserProfile, SignUpData, UpdateProfileData } from '@/types/auth'
 import { toast } from 'react-toastify'
-import debounce from 'lodash/debounce';
 
 // Cache profilu - udržuje poslední známý stav profilu
 // Toto pomáhá zabránit zbytečným API dotazům
@@ -227,7 +226,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Inicializace autentizace - pouze jednou při načtení stránky
   useEffect(() => {
     let mounted = true;
-    let authSubscription: { data: { subscription: any } } | null = null;
+    let authSubscription: { data: { subscription: { unsubscribe: () => void } } } | null = null;
     console.log('[Auth] Initializing auth system');
 
     const setupAuth = async () => {

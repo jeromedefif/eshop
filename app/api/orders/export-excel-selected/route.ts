@@ -1,3 +1,4 @@
+import type { Order } from '@/types/orders';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -77,12 +78,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const serializedOrders = JSON.parse(JSON.stringify(
+    const serializedOrders: Order[] = JSON.parse(JSON.stringify(
       selectedOrders,
       (key, value) => (typeof value === 'bigint' ? value.toString() : value)
     ));
 
-    const ordersSorted = [...serializedOrders].sort((a: any, b: any) => {
+    const ordersSorted = [...serializedOrders].sort((a, b) => {
       // 1) Podle data vytvoření (nejnovější první)
       const byDate = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       if (byDate !== 0) return byDate;
@@ -95,8 +96,8 @@ export async function POST(request: Request) {
       return String(a.id).localeCompare(String(b.id), 'cs');
     });
 
-    const excelData = ordersSorted.flatMap((order: any) => {
-      const itemsSorted = [...(order.order_items || [])].sort((a: any, b: any) => {
+    const excelData = ordersSorted.flatMap((order) => {
+      const itemsSorted = [...(order.order_items || [])].sort((a, b) => {
         const categoryA = normalizeCategory(a?.product?.category || 'Ostatní');
         const categoryB = normalizeCategory(b?.product?.category || 'Ostatní');
 
@@ -113,7 +114,7 @@ export async function POST(request: Request) {
         return String(a?.product?.name || '').localeCompare(String(b?.product?.name || ''), 'cs');
       });
 
-      return itemsSorted.map((item: any) => ({
+      return itemsSorted.map((item) => ({
         'Datum': new Date(order.created_at).toLocaleDateString('cs-CZ'),
         'Zákazník': order.customer_name,
         'Produkt': item.product.name,
