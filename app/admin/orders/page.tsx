@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AdminOrders from '@/components/AdminOrders';
-import { Loader2 } from 'lucide-react';
 import type { Order } from '@/types/orders';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -11,16 +10,18 @@ export default function OrdersPage() {
     const [loading, setLoading] = useState(true);
     const [currentPeriod, setCurrentPeriod] = useState<'week' | 'month' | 'year' | 'all'>('month');
     const { isAdmin } = useAuth();
-    const isFetchingRef = useRef(false);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const activeRequest = useRef<{ controller: AbortController; period: string } | null>(null);
 
     // Funkce pro načtení všech objednávek s podporou období
-    const fetchOrders = useCallback(async (search: string = '', period: 'week' | 'month' | 'year' | 'all' = 'month') => {
-        if (isFetchingRef.current) return;
-
-        isFetchingRef.current = true;
+    const fetchOrders = useCallback(async (period: 'week' | 'month' | 'year' | 'all') => {
+        if (activeRequest.current?.period === period) return;
+        activeRequest.current?.controller.abort();
+        const controller = new AbortController();
+        activeRequest.current = { controller, period };
         try {
             setLoading(true);
-            console.log(`Načítání objednávek pro admina${search ? ' s vyhledáváním: ' + search : ''}, období: ${period}`);
+            setLoadError(null);
 
             // Přidáme timestamp pro zabránění cachování
             const timestamp = Date.now();
@@ -31,12 +32,8 @@ export default function OrdersPage() {
                 period: period // Přidáme parametr období
             });
 
-            // Přidáme parametr search, pokud existuje
-            if (search) {
-                params.append('search', search);
-            }
-
             const response = await fetch(`/api/orders?${params.toString()}`, {
+                signal: controller.signal,
                 // Explicitně nastavíme hlavičky pro zabránění cachování
                 cache: 'no-store',
                 headers: {
@@ -59,6 +56,7 @@ export default function OrdersPage() {
                 try {
                     const notesResponse = await fetch('/api/orders/internal-notes', {
                         method: 'POST',
+                        signal: controller.signal,
                         cache: 'no-store',
                         headers: {
                             'Content-Type': 'application/json',
@@ -84,22 +82,22 @@ export default function OrdersPage() {
                 }
             }
 
+            if (controller.signal.aborted) return;
             setOrders(data.map((order) => ({
                 ...order,
                 internal_note: notesByOrderId.get(order.id) || null
             })));
         } catch (error) {
+            if (controller.signal.aborted) return;
             console.error('Chyba při načítání objednávek:', error);
+            setLoadError('Objednávky se nepodařilo obnovit. Zobrazené údaje nemusí být aktuální. Zkuste Obnovit znovu.');
         } finally {
-            isFetchingRef.current = false;
-            setLoading(false);
+            if (activeRequest.current?.controller === controller) {
+                activeRequest.current = null;
+                setLoading(false);
+            }
         }
     }, []);
-
-    // Použití useCallback pro stabilizaci funkce handleSearch
-    const handleSearch = useCallback((query: string) => {
-        return fetchOrders(query, 'month'); // Při vyhledávání zachováme aktuální období
-    }, [fetchOrders]);
 
     // Export objednávek do CSV
     const handleExportOrders = useCallback(async () => {
@@ -128,7 +126,7 @@ export default function OrdersPage() {
     // Načtení objednávek při prvním renderu - s výchozím obdobím "month"
     useEffect(() => {
         if (isAdmin) {
-            fetchOrders('', currentPeriod);
+            fetchOrders(currentPeriod);
         }
     }, [isAdmin, fetchOrders, currentPeriod]);
 
@@ -138,7 +136,7 @@ export default function OrdersPage() {
 
         const refreshIfVisible = () => {
             if (document.visibilityState !== 'visible') return;
-            fetchOrders('', currentPeriod);
+            fetchOrders(currentPeriod);
         };
 
         const intervalId = window.setInterval(refreshIfVisible, 60000);
@@ -150,25 +148,23 @@ export default function OrdersPage() {
         };
     }, [isAdmin, fetchOrders, currentPeriod]);
 
-    if (loading && orders.length === 0) {
-        return (
-            <div className="flex justify-center items-center min-h-screen">
-                <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-        );
-    }
+    useEffect(() => () => activeRequest.current?.controller.abort(), []);
 
     return (
         <div className="w-full">
+            {loading && <p role="status" className="mb-3 text-sm text-slate-600">Načítání objednávek…</p>}
+            {loadError && <p role="alert" className="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{loadError}</p>}
             <AdminOrders
                 orders={orders}
                 onOrdersChange={(period?: 'week' | 'month' | 'year' | 'all') => {
-                    const nextPeriod = period || 'month';
-                    setCurrentPeriod(nextPeriod);
-                    return fetchOrders('', nextPeriod);
+                    const nextPeriod = period ?? currentPeriod;
+                    if (nextPeriod !== currentPeriod) {
+                        setCurrentPeriod(nextPeriod);
+                        return Promise.resolve();
+                    }
+                    return fetchOrders(currentPeriod);
                 }}
                 onExportOrders={handleExportOrders}
-                onSearch={handleSearch}
             />
         </div>
     );
