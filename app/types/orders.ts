@@ -34,7 +34,7 @@ export interface Order {
     shipping_country: string | null;
     delivery_instructions: string | null;
     total_volume: string;
-    status: 'pending' | 'confirmed' | 'completed';
+    status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
     note: string | null;
     internal_note?: {
         note: string;

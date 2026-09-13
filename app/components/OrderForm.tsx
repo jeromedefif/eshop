@@ -15,7 +15,6 @@ const OrderForm = ({
   products,
   onRemoveFromCart,
   onAddToCart,
-  onClearCart,
   totalVolume,
   user,
   profile

@@ -17,15 +17,7 @@ type UserStatsRow = {
   top_product: { name: string; liters: number } | null;
 };
 
-const periodLabel = (period: Period) => {
-  switch (period) {
-    case 'week': return 'Týden';
-    case 'month': return 'Měsíc';
-    case 'year': return 'Rok';
-    case 'all': return 'Vše';
-    default: return 'Vše';
-  }
-};
+
 
 const periodDescription = (period: Period) => {
   switch (period) {

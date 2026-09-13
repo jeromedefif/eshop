@@ -9,8 +9,7 @@ import type { Order, AdminOrdersProps } from '../types/orders';
 
 export default function AdminOrders({
   orders,
-  onOrdersChange,
-  onExportOrders
+  onOrdersChange
 }: AdminOrdersProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [filteredOrders, setFilteredOrders] = useState<Order[]>(orders);
@@ -61,22 +60,6 @@ export default function AdminOrders({
 
         setFilteredOrders(filtered);
     }, [searchQuery, orders]);
-
-    // Funkce pro získání textu období
-    const getPeriodText = (period: typeof selectedPeriod) => {
-        switch (period) {
-            case 'week':
-                return 'Týden';
-            case 'month':
-                return 'Měsíc';
-            case 'year':
-                return 'Rok';
-            case 'all':
-                return 'Vše';
-            default:
-                return 'Měsíc';
-        }
-    };
 
     // Funkce pro získání popisu období
     const getPeriodDescription = (period: typeof selectedPeriod) => {

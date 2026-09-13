@@ -233,11 +233,13 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
-  } catch (error: any) {
+  } catch (caught: unknown) {
+    const error = caught instanceof Error ? caught : new Error(String(caught));
+    const code = 'code' in error ? error.code : undefined;
     console.error('Error in send-email route:', {
       message: error.message,
       name: error.name,
-      code: error.code,
+      code,
       stack: error.stack
     });
 
@@ -245,7 +247,7 @@ export async function POST(request: Request) {
       {
         error: 'Server error',
         details: error.message,
-        code: error.code
+        code
       },
       { status: 500 }
     );

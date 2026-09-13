@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
 import { toast } from 'react-toastify';
 import { normalizeOrderCategory, sortOrderItems, STANDARD_ORDER_CATEGORIES } from '@/lib/order-item-sorting';
+import type { Order, OrderItem } from '@/types/orders';
 import OrderEmailComposer from '@/components/OrderEmailComposer';
 
 const OrderDetailPage = () => {
@@ -16,7 +17,7 @@ const OrderDetailPage = () => {
     const params = useParams();
     const orderId = params.id as string;
 
-    const [order, setOrder] = useState<any>(null);
+    const [order, setOrder] = useState<Order | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isUpdating, setIsUpdating] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -285,7 +286,7 @@ const OrderDetailPage = () => {
             key: string;
             category: string;
             volumeLabel: string | null;
-            items: any[];
+            items: OrderItem[];
         }> = [];
 
         for (const item of sortOrderItems(order?.order_items || [])) {
@@ -375,12 +376,12 @@ const OrderDetailPage = () => {
         order.billing_address,
         [order.billing_postal_code, order.billing_city].filter(Boolean).join(' '),
         order.billing_country,
-    ].filter(Boolean);
+    ].filter((line): line is string => Boolean(line));
     const shippingAddress = [
         order.shipping_address,
         [order.shipping_postal_code, order.shipping_city].filter(Boolean).join(' '),
         order.shipping_country,
-    ].filter(Boolean);
+    ].filter((line): line is string => Boolean(line));
     const hasAddressSnapshot = billingAddress.length > 0 || shippingAddress.length > 0;
 
     return (

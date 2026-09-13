@@ -94,12 +94,11 @@ export interface AuthContextType {
    isInitialized: boolean;
    isAdmin: boolean;
    signIn: (email: string, password: string) => Promise<void>;
-   signUp: (data: SignUpData) => Promise<void>;
+   signUp: (data: SignUpData) => Promise<{ success: boolean; message: string } | undefined>;
    signOut: () => Promise<void>;
    updateProfile: (data: UpdateProfileData) => Promise<void>;
-   refreshProfile: () => Promise<void>;
+   refreshProfile: () => Promise<UserProfile | null>;
    forgotPassword: (email: string) => Promise<void>;
-   resetPassword: (newPassword: string) => Promise<void>;
 }
 
 export interface ProfileDialogProps {

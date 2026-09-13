@@ -9,7 +9,7 @@ import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
 const OrderDetail = ({ order, onClose, onStatusChange }: OrderDetailProps) => {
     const [isUpdating, setIsUpdating] = useState(false);
-    const [status, setStatus] = useState(order.status);
+    const [status, setStatus] = useState<string>(order.status);
     const [updateMessage, setUpdateMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     const handleStatusChange = async (newStatus: string) => {
