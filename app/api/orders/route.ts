@@ -141,6 +141,12 @@ export async function GET(request: Request) {
           include: {
             product: true
           }
+        },
+        internal_note: {
+          select: {
+            note: true,
+            updated_at: true
+          }
         }
       },
       orderBy: {

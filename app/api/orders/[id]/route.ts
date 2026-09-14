@@ -28,6 +28,12 @@ export async function GET(
           include: {
             product: true
           }
+        },
+        internal_note: {
+          select: {
+            note: true,
+            updated_at: true
+          }
         }
       }
     });

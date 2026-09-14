@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import AdminOrders from '@/components/AdminOrders';
 import type { Order } from '@/types/orders';
 import { useAuth } from '@/contexts/AuthContext';
+import { fetchWithRetry } from '@/lib/fetch-with-retry';
 
 export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
@@ -32,7 +33,7 @@ export default function OrdersPage() {
                 period: period // Přidáme parametr období
             });
 
-            const response = await fetch(`/api/orders?${params.toString()}`, {
+            const response = await fetchWithRetry(`/api/orders?${params.toString()}`, {
                 signal: controller.signal,
                 // Explicitně nastavíme hlavičky pro zabránění cachování
                 cache: 'no-store',
@@ -49,44 +50,8 @@ export default function OrdersPage() {
             const data: Order[] = await response.json();
             console.log(`Načteno ${data.length} objednávek pro období: ${period}`);
 
-            // Interní poznámky se načítají jedním zabezpečeným admin požadavkem,
-            // nikoliv samostatně pro každou objednávku.
-            let notesByOrderId = new Map<string, NonNullable<Order['internal_note']>>();
-            if (data.length > 0) {
-                try {
-                    const notesResponse = await fetch('/api/orders/internal-notes', {
-                        method: 'POST',
-                        signal: controller.signal,
-                        cache: 'no-store',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Cache-Control': 'no-cache, no-store, must-revalidate'
-                        },
-                        body: JSON.stringify({ orderIds: data.map((order) => order.id) })
-                    });
-
-                    if (notesResponse.ok) {
-                        const notesData = await notesResponse.json();
-                        notesByOrderId = new Map(
-                            (notesData.notes || []).map((note: { order_id: string; note: string; updated_at: string | null }) => [
-                                note.order_id,
-                                { note: note.note, updated_at: note.updated_at }
-                            ])
-                        );
-                    } else {
-                        console.error('Nepodařilo se načíst interní poznámky:', notesResponse.status);
-                    }
-                } catch (notesError) {
-                    // Seznam objednávek zůstane použitelný i při dočasném problému poznámek.
-                    console.error('Chyba při načítání interních poznámek:', notesError);
-                }
-            }
-
             if (controller.signal.aborted) return;
-            setOrders(data.map((order) => ({
-                ...order,
-                internal_note: notesByOrderId.get(order.id) || null
-            })));
+            setOrders(data);
         } catch (error) {
             if (controller.signal.aborted) return;
             console.error('Chyba při načítání objednávek:', error);

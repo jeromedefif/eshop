@@ -11,6 +11,7 @@ import { toast } from 'react-toastify';
 import { normalizeOrderCategory, sortOrderItems, STANDARD_ORDER_CATEGORIES } from '@/lib/order-item-sorting';
 import type { Order, OrderItem } from '@/types/orders';
 import OrderEmailComposer from '@/components/OrderEmailComposer';
+import { fetchWithRetry } from '@/lib/fetch-with-retry';
 
 const OrderDetailPage = () => {
     const router = useRouter();
@@ -33,50 +34,30 @@ const OrderDetailPage = () => {
     useEffect(() => {
         const fetchOrderDetails = async () => {
             setIsLoading(true);
+            setIsLoadingInternalNote(true);
             try {
-                const response = await fetch(`/api/orders/${orderId}`);
+                const response = await fetchWithRetry(`/api/orders/${orderId}`, { cache: 'no-store' });
                 if (!response.ok) {
                     throw new Error('Nepodařilo se načíst detail objednávky');
                 }
-                const data = await response.json();
+                const data: Order = await response.json();
+                const note = data.internal_note?.note || '';
                 setOrder(data);
                 setStatus(data.status);
+                setInternalNote(note);
+                setSavedInternalNote(note);
             } catch (error) {
                 console.error('Error fetching order details:', error);
                 toast.error('Nepodařilo se načíst detail objednávky');
             } finally {
                 setIsLoading(false);
+                setIsLoadingInternalNote(false);
             }
         };
 
         if (orderId) {
             fetchOrderDetails();
         }
-    }, [orderId]);
-
-    // Interní poznámka je uložená odděleně od zákaznické objednávky a její endpoint
-    // navíc ověřuje administrátorské oprávnění na serveru.
-    useEffect(() => {
-        const fetchInternalNote = async () => {
-            if (!orderId) return;
-
-            setIsLoadingInternalNote(true);
-            try {
-                const response = await fetch(`/api/orders/${orderId}/internal-note`, { cache: 'no-store' });
-                if (!response.ok) throw new Error('Nepodařilo se načíst interní poznámku');
-                const data = await response.json();
-                const note = data.note || '';
-                setInternalNote(note);
-                setSavedInternalNote(note);
-            } catch (error) {
-                console.error('Error fetching internal order note:', error);
-                toast.error('Nepodařilo se načíst interní poznámku');
-            } finally {
-                setIsLoadingInternalNote(false);
-            }
-        };
-
-        fetchInternalNote();
     }, [orderId]);
 
     const persistInternalNote = async (noteValue: string) => {

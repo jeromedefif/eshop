@@ -9,11 +9,14 @@ export async function requireAdmin() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
+        getAll() {
+          return cookieStore.getAll();
         },
-        set() {},
-        remove() {},
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+          });
+        },
       },
     }
   );
@@ -23,12 +26,22 @@ export async function requireAdmin() {
     error,
   } = await supabase.auth.getUser();
 
-  if (error || !user) return null;
+  if (error || !user) {
+    console.warn('Admin authorization failed', {
+      reason: error?.code || 'missing_user',
+    });
+    return null;
+  }
 
   const profile = await prisma.profile.findUnique({
     where: { id: user.id },
     select: { is_admin: true },
   });
 
-  return profile?.is_admin ? user : null;
+  if (!profile?.is_admin) {
+    console.warn('Admin authorization failed', { reason: 'not_admin' });
+    return null;
+  }
+
+  return user;
 }
