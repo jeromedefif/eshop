@@ -90,7 +90,7 @@ export function useQuickReorder() {
       const result = await requestCartImport(nextCartItems, 'poslední objednávka');
       if (result === 'cancelled') return;
 
-      trackAnalyticsEvent(ANALYTICS_EVENTS.historyOrderUsed, {
+      void trackAnalyticsEvent(ANALYTICS_EVENTS.historyOrderUsed, {
         source: 'latest_order',
         itemCount: Object.values(nextCartItems).reduce((sum, quantity) => sum + quantity, 0),
       });

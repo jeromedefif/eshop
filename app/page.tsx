@@ -68,7 +68,7 @@ export default function Home() {
 
    useEffect(() => {
        if (!user) return;
-       trackAnalyticsEvent(ANALYTICS_EVENTS.catalogOpened, {
+       void trackAnalyticsEvent(ANALYTICS_EVENTS.catalogOpened, {
            source: 'catalog',
            oncePerJourney: true,
        });

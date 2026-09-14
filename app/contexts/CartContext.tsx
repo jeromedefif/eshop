@@ -165,7 +165,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const nextQuantity = currentQuantity === 0 ? minimumQuantity : currentQuantity + 1;
       const nextItems = { ...currentItems, [key]: nextQuantity };
       if (Object.keys(currentItems).length === 0) {
-        trackAnalyticsEvent(ANALYTICS_EVENTS.firstItemAdded, {
+        void trackAnalyticsEvent(ANALYTICS_EVENTS.firstItemAdded, {
           source: 'catalog',
           itemCount: Object.values(nextItems).reduce((sum, quantity) => sum + quantity, 0),
           oncePerJourney: true,

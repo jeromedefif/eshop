@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, Clock3, History, Loader2, MonitorSmartphone, MousePointerClick, RefreshCw, ShoppingCart, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { Activity, Clock3, ExternalLink, Heart, History, Loader2, MonitorSmartphone, MousePointerClick, RefreshCw, ShoppingCart, Sparkles } from 'lucide-react';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
 
 type Period = '30d' | '90d' | 'year' | 'all';
@@ -9,12 +10,16 @@ type Period = '30d' | '90d' | 'year' | 'all';
 type ConversionData = {
   period: Period;
   funnel: {
+    journey_started: number;
     catalog_opened: number;
     first_item_added: number;
+    cart_ready: number;
     order_summary_opened: number;
+    summary_reached: number;
     order_submitted: number;
     tracked_customers: number;
     average_seconds_to_order: number | null;
+    median_seconds_to_order: number | null;
     template_uses: number;
     history_uses: number;
     template_orders: number;
@@ -24,6 +29,22 @@ type ConversionData = {
     recommendation_orders: number;
   };
   devices: Array<{ device_type: string; journeys: number; submitted: number }>;
+  favorites: Array<{
+    user_id: string;
+    full_name: string | null;
+    company: string | null;
+    email: string | null;
+    favorite_count: number;
+    latest_favorite_at: string;
+    products: Array<{
+      product_id: string;
+      name: string;
+      category: string;
+      added_at: string;
+      in_stock: boolean;
+      is_archived: boolean;
+    }>;
+  }>;
 };
 
 const percent = (value: number, base: number) => base > 0 ? Math.round((value / base) * 1000) / 10 : 0;
@@ -73,9 +94,9 @@ function AdminConversionsPage() {
   const funnel = useMemo(() => {
     if (!data) return [];
     const rows = [
-      { label: 'Otevření katalogu', value: data.funnel.catalog_opened },
-      { label: 'První položka v košíku', value: data.funnel.first_item_added },
-      { label: 'Otevření souhrnu', value: data.funnel.order_summary_opened },
+      { label: 'Zahájení objednávky', value: data.funnel.journey_started },
+      { label: 'Košík s položkami', value: data.funnel.cart_ready },
+      { label: 'Dosažení souhrnu', value: data.funnel.summary_reached },
       { label: 'Odeslaná objednávka', value: data.funnel.order_submitted },
     ];
     return rows.map((row, index) => ({
@@ -91,7 +112,7 @@ function AdminConversionsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-950">Konverze objednávek</h1>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-            Pseudonymizovaný přehled kroků objednávky. Neobsahuje jména, e-maily, produkty ani čísla objednávek.
+            Funnel pracuje pouze s pseudonymizovanými událostmi. Níže je oddělený provozní přehled aktuálních oblíbených položek zákazníků.
           </p>
         </div>
         <div className="flex gap-2">
@@ -126,13 +147,13 @@ function AdminConversionsPage() {
           <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard icon={Activity} label="Sledovaní zákazníci" value={String(data.funnel.tracked_customers)} />
             <MetricCard icon={ShoppingCart} label="Dokončené objednávky" value={String(data.funnel.order_submitted)} />
-            <MetricCard icon={Clock3} label="Průměr od první položky" value={formatDuration(data.funnel.average_seconds_to_order)} />
-            <MetricCard icon={MousePointerClick} label="Celková konverze" value={`${percent(data.funnel.order_submitted, data.funnel.catalog_opened)} %`} />
+            <MetricCard icon={Clock3} label="Medián aktivního objednání" value={formatDuration(data.funnel.median_seconds_to_order)} />
+            <MetricCard icon={MousePointerClick} label="Celková konverze" value={`${percent(data.funnel.order_submitted, data.funnel.journey_started)} %`} />
           </div>
 
           <section className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:p-6">
             <h2 className="text-lg font-bold text-slate-950">Objednávkový funnel</h2>
-            <p className="mt-1 text-sm text-slate-600">Každý krok počítá unikátní rozpracovanou objednávku, ne počet kliknutí.</p>
+            <p className="mt-1 text-sm text-slate-600">Každý krok počítá unikátní objednávkovou cestu. Košík zahrnuje i položky vložené ze šablony nebo historie.</p>
             <div className="mt-5 grid gap-3 lg:grid-cols-4">
               {funnel.map((row, index) => (
                 <div key={row.label} className="relative rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -177,9 +198,85 @@ function AdminConversionsPage() {
               </div>
             </section>
           </div>
+
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
+                  <Heart className="h-5 w-5 fill-rose-100 text-rose-600" /> Oblíbené položky zákazníků
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">Aktuální stav oblíbených položek. Odebrané položky se zde již nezobrazují.</p>
+              </div>
+              <div className="text-sm font-semibold text-slate-600">
+                {data.favorites.length} {data.favorites.length === 1 ? 'zákazník' : 'zákazníků'}
+              </div>
+            </div>
+
+            {data.favorites.length === 0 ? (
+              <div className="mt-5 rounded-xl bg-slate-50 p-5 text-sm text-slate-600">Žádný zákazník zatím nemá uložené oblíbené položky.</div>
+            ) : (
+              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                {data.favorites.map((customer) => (
+                  <FavoriteCustomerCard key={customer.user_id} customer={customer} />
+                ))}
+              </div>
+            )}
+          </section>
         </>
       )}
     </div>
+  );
+}
+
+type FavoriteCustomer = ConversionData['favorites'][number];
+
+const formatFavoriteDate = (value: string) => new Intl.DateTimeFormat('cs-CZ', {
+  day: 'numeric',
+  month: 'numeric',
+  year: 'numeric',
+}).format(new Date(value));
+
+function FavoriteCustomerCard({ customer }: { customer: FavoriteCustomer }) {
+  const visibleProducts = customer.products.slice(0, 4);
+  const remainingProducts = customer.products.slice(4);
+
+  const renderProduct = (product: FavoriteCustomer['products'][number]) => (
+    <div key={product.product_id} className="flex items-start justify-between gap-3 border-t border-slate-100 py-2.5 first:border-t-0">
+      <div className="min-w-0">
+        <div className="font-medium text-slate-900">{product.name}</div>
+        <div className="mt-0.5 text-xs text-slate-500">{product.category} · přidáno {formatFavoriteDate(product.added_at)}</div>
+      </div>
+      <div className="flex shrink-0 gap-1">
+        {product.is_archived && <span className="rounded-full bg-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700">Archivováno</span>}
+        {!product.is_archived && !product.in_stock && <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Není skladem</span>}
+      </div>
+    </div>
+  );
+
+  return (
+    <article className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+      <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white p-4">
+        <div className="min-w-0">
+          <div className="font-bold text-slate-950">{customer.full_name || 'Zákazník bez jména'}</div>
+          {customer.company && <div className="text-sm font-medium text-slate-700">{customer.company}</div>}
+          {customer.email && <div className="truncate text-xs text-slate-500">{customer.email}</div>}
+        </div>
+        <div className="text-right">
+          <div className="text-2xl font-bold text-rose-600">{customer.favorite_count}</div>
+          <div className="text-xs text-slate-500">oblíbených</div>
+        </div>
+      </div>
+      <div className="px-4 py-1">{visibleProducts.map(renderProduct)}</div>
+      {remainingProducts.length > 0 && (
+        <details className="border-t border-slate-200 px-4 py-3">
+          <summary className="cursor-pointer text-sm font-semibold text-blue-700">Zobrazit dalších {remainingProducts.length}</summary>
+          <div className="mt-2">{remainingProducts.map(renderProduct)}</div>
+        </details>
+      )}
+      <Link href={`/admin/users/${customer.user_id}`} className="flex items-center justify-center gap-2 border-t border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50">
+        Detail zákazníka <ExternalLink className="h-4 w-4" />
+      </Link>
+    </article>
   );
 }
 

@@ -200,7 +200,7 @@ export default function UsuallyOrderedRecommendations({
 
     useEffect(() => {
         if (isLoading || visibleRecommendations.length === 0) return;
-        trackAnalyticsEvent(ANALYTICS_EVENTS.recommendationsShown, {
+        void trackAnalyticsEvent(ANALYTICS_EVENTS.recommendationsShown, {
             source: 'recommendation',
             itemCount: visibleRecommendations.length,
             oncePerJourney: true
@@ -208,7 +208,7 @@ export default function UsuallyOrderedRecommendations({
     }, [isLoading, visibleRecommendations.length]);
 
     const handleAddRecommendation = (recommendation: Recommendation) => {
-        trackAnalyticsEvent(ANALYTICS_EVENTS.recommendationAdded, {
+        void trackAnalyticsEvent(ANALYTICS_EVENTS.recommendationAdded, {
             source: 'recommendation'
         });
         onAddToCart(recommendation.product.id, recommendation.volume);

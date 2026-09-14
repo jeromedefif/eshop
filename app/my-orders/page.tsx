@@ -326,7 +326,7 @@ const MyOrdersPage = () => {
             if (result === 'cancelled') return;
         }
 
-        trackAnalyticsEvent(ANALYTICS_EVENTS.historyOrderUsed, {
+        void trackAnalyticsEvent(ANALYTICS_EVENTS.historyOrderUsed, {
             source: 'history',
             itemCount: order.order_items.reduce((sum, item) => sum + item.quantity, 0),
         });
@@ -374,7 +374,7 @@ const MyOrdersPage = () => {
         }
         const result = await requestCartImport(nextItems, `šablona „${template.name}“`);
         if (result === 'cancelled') return;
-        trackAnalyticsEvent(ANALYTICS_EVENTS.templateUsed, {
+        void trackAnalyticsEvent(ANALYTICS_EVENTS.templateUsed, {
             source: 'template',
             itemCount: Object.values(nextItems).reduce((sum, quantity) => sum + quantity, 0),
         });

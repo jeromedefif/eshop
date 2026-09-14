@@ -15,7 +15,7 @@ const OrderSummaryPage = () => {
 
     useEffect(() => {
         if (!cartContext?.isCartHydrated || Object.keys(cartContext.cartItems).length === 0) return;
-        trackAnalyticsEvent(ANALYTICS_EVENTS.orderSummaryOpened, {
+        void trackAnalyticsEvent(ANALYTICS_EVENTS.orderSummaryOpened, {
             itemCount: Object.values(cartContext.cartItems).reduce((sum, quantity) => sum + quantity, 0),
             oncePerJourney: true,
         });
