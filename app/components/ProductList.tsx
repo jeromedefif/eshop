@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
 import Link from 'next/link';
-import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, Layout, LayoutList, Sparkles, Amphora, Info, Heart, SlidersHorizontal, Tag, RotateCcw, Star } from 'lucide-react';
+import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, Layout, LayoutList, Sparkles, Amphora, Heart, SlidersHorizontal, Tag, RotateCcw, Star, CircleHelp } from 'lucide-react';
 import { Product, ProductColor, ProductSweetness } from '@/types/database';
 import { CATEGORY_ORDER, PRODUCT_COLOR_OPTIONS, PRODUCT_SWEETNESS_OPTIONS, getAllowedVolumes, getCategoryBySlug, getCategoryDetails, normalizeProductCategory, sortCatalogProducts } from '@/lib/product-config';
 import { getProductPath } from '@/lib/product-slug';
@@ -11,6 +11,7 @@ import { toast } from 'react-toastify';
 import CustomerAnnouncements from '@/components/CustomerAnnouncements';
 import type { CustomerAnnouncement } from '@/types/announcements';
 import { normalizeCatalogProductIds, setCatalogProductIds } from '@/lib/catalog-product-links';
+import CatalogGuide, { CATALOG_GUIDE_VERSION } from '@/components/CatalogGuide';
 
 type ProductListProps = {
     onAddToCart: (productId: string | number, volume: string | number) => void;
@@ -53,7 +54,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
-    const [isOrderingHelpDismissed, setIsOrderingHelpDismissed] = useState(false);
+    const [isCatalogGuideOpen, setIsCatalogGuideOpen] = useState(false);
     const [directProductIds, setDirectProductIds] = useState<string[]>([]);
     const [specialView, setSpecialView] = useState<'favorites' | 'new' | 'featured' | null>(null);
     const [colorFilters, setColorFilters] = useState<ProductColor[]>([]);
@@ -61,11 +62,10 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
     const [onlyInStock, setOnlyInStock] = useState(false);
     const [areFiltersOpen, setAreFiltersOpen] = useState(false);
     const [filtersReady, setFiltersReady] = useState(false);
+    const guideAutoHandledRef = useRef(false);
     const directProductIdSet = useMemo(() => new Set(directProductIds), [directProductIds]);
 
     useEffect(() => {
-        setIsOrderingHelpDismissed(sessionStorage.getItem('ordering-help-dismissed') === 'true');
-
         const params = new URLSearchParams(window.location.search);
         const category = getCategoryBySlug(params.get('kategorie') || '');
         const statuses = (params.get('stav') || '').split(',');
@@ -106,10 +106,22 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
         window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
     }, [colorFilters, filtersReady, onlyInStock, searchQuery, selectedCategory, specialView, sweetnessFilters]);
 
-    const dismissOrderingHelp = () => {
-        sessionStorage.setItem('ordering-help-dismissed', 'true');
-        setIsOrderingHelpDismissed(true);
-    };
+    useEffect(() => {
+        if (!filtersReady || guideAutoHandledRef.current) return;
+
+        const manualStart = new URLSearchParams(window.location.search).get('pruvodce') === '1';
+        const shouldStartAutomatically = Boolean(
+            user
+            && profile
+            && profile.show_ordering_help !== false
+            && (profile.catalog_guide_version ?? 0) < CATALOG_GUIDE_VERSION
+        );
+
+        if (!manualStart && !shouldStartAutomatically) return;
+        guideAutoHandledRef.current = true;
+        const timer = window.setTimeout(() => setIsCatalogGuideOpen(true), 450);
+        return () => window.clearTimeout(timer);
+    }, [filtersReady, profile, user]);
 
     const clearDirectProducts = (clearSearch = true) => {
         setDirectProductIds([]);
@@ -332,6 +344,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
             <button
                 type="button"
                 onClick={() => void handleFavorite(product.id)}
+                data-catalog-guide="favorite-button"
                 className={`shrink-0 rounded-lg p-1.5 transition ${isFavorite ? 'bg-rose-50 text-rose-600' : 'text-slate-400 hover:bg-rose-50 hover:text-rose-600'}`}
                 aria-label={isFavorite ? 'Odebrat z oblíbených' : 'Přidat do oblíbených'}
                 title={isFavorite ? 'Odebrat z oblíbených' : 'Přidat do oblíbených'}
@@ -353,6 +366,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                 <button
                     type="button"
                     onClick={() => product.in_stock && !product.is_archived && onAddToCart(product.id, volume)}
+                    data-catalog-guide="volume-button"
                     disabled={!product.in_stock || product.is_archived}
                     className={`w-full px-2.5 py-1.5 text-xs border rounded-md min-w-[42px]
              transition-colors duration-150 ${
@@ -483,13 +497,23 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
             <div className="sticky top-16 bg-white z-40 pb-3 pt-3 shadow-sm">
                 <div className="flex items-center justify-between gap-3 mb-3">
                     <h1 className="text-lg font-bold text-gray-900">Katalog vín a nápojů</h1>
-                    <button
-                        type="button"
-                        onClick={openOfferModal}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold shadow hover:bg-blue-700 transition-colors"
-                    >
-                        Chci cenovou nabídku
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setIsCatalogGuideOpen(true)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800 sm:text-sm"
+                        >
+                            <CircleHelp className="h-4 w-4" />
+                            <span className="hidden sm:inline">Jak objednávat</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={openOfferModal}
+                            className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow transition-colors hover:bg-blue-700 sm:px-4 sm:text-sm"
+                        >
+                            Chci cenovou nabídku
+                        </button>
+                    </div>
                 </div>
 
                 {/* Search bar */}
@@ -544,6 +568,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                                     if (directProductIds.length) clearDirectProducts();
                                     toggleSpecialView('favorites');
                                 }}
+                                data-catalog-guide="favorites-filter"
                                 aria-pressed={specialView === 'favorites'}
                                 className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${specialView === 'favorites' ? 'bg-rose-100 text-rose-700' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
                                 title="Oblíbené"
@@ -665,54 +690,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
 
             <div id="catalog-products" />
 
-            {profile?.show_ordering_help !== false && !isOrderingHelpDismissed && (
-                <section className="relative my-3 overflow-hidden rounded-xl border border-blue-200 bg-blue-50/70 px-4 py-3 text-gray-800">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                        <span className="flex items-center gap-2 text-sm font-semibold text-blue-950">
-                            <Info className="h-4 w-4 text-blue-600" />
-                            Jak objednávat
-                        </span>
-                        <button
-                            type="button"
-                            onClick={dismissOrderingHelp}
-                            className="rounded-md p-1 text-blue-700 hover:bg-blue-100 hover:text-blue-950"
-                            aria-label="Skrýt nápovědu pro tuto návštěvu"
-                            title="Skrýt nápovědu"
-                        >
-                            <X className="h-4 w-4" />
-                        </button>
-                    </div>
-
-                    <div id="ordering-help">
-                        <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
-                            <div className="grid gap-2 text-xs leading-relaxed text-gray-700 sm:grid-cols-3 sm:gap-4">
-                                <p><strong className="text-gray-900">1.</strong> Kliknutím na zvolený objem přidáte jeden kus.</p>
-                                <p><strong className="text-gray-900">2.</strong> Dalším kliknutím na objem přidáváte další kusy.</p>
-                                <p><strong className="text-gray-900">3.</strong> Kliknutím na červené kolečko množství o jeden kus snížíte.</p>
-                            </div>
-
-                            <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-white px-3 py-2 shadow-sm">
-                                <div className="relative shrink-0">
-                                    <span className="flex min-w-[52px] items-center justify-center rounded-md border border-blue-500 bg-blue-600/15 px-3 py-2 text-sm font-medium text-blue-700">
-                                        20L
-                                    </span>
-                                    <span className="absolute -right-2 -top-2 flex h-[20px] min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white shadow-sm">
-                                        3
-                                    </span>
-                                </div>
-                                <div className="text-[11px] leading-snug text-gray-600">
-                                    <strong className="block text-gray-900">Ukázka</strong>
-                                    3 kusy po 20 litrech
-                                </div>
-                            </div>
-                        </div>
-                        <p className="mt-3 text-[11px] text-gray-500">
-                            Celou objednávku můžete kdykoliv zkontrolovat a upravit v Souhrnu objednávky. Nápovědu lze trvale vypnout v sekci{' '}
-                            <Link href="/my-profile" className="font-semibold text-blue-700 hover:underline">Můj profil</Link>.
-                        </p>
-                    </div>
-                </section>
-            )}
+            <CatalogGuide open={isCatalogGuideOpen} onOpenChange={setIsCatalogGuideOpen} />
 
             {isOfferModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">

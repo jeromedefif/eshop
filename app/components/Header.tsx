@@ -103,6 +103,7 @@ const Header = () => {
               </Link>
               <Link
                 href="/order-summary"
+                data-catalog-guide="order-summary"
                 className={desktopLinkClass('/order-summary')}
                 aria-current={isActive('/order-summary') ? 'page' : undefined}
               >
@@ -194,6 +195,7 @@ const Header = () => {
               <button
                 type="button"
                 onClick={() => setIsCartOpen(true)}
+                data-catalog-guide="order-summary"
                 className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-900 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 aria-label={`Otevřít košík, ${cartItemsCount} položek`}
               >

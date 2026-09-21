@@ -206,8 +206,11 @@ export default function MyProfilePage() {
                     <Section title="Nastavení katalogu" icon={<Eye className="h-5 w-5 text-slate-600" />} className="border-slate-200 bg-slate-50">
                         <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white p-4">
                             <input type="checkbox" name="show_ordering_help" checked={formData.show_ordering_help} onChange={handleInputChange} className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" disabled={isLoading} />
-                            <span><span className="block font-medium text-slate-900">Zobrazovat nápovědu „Jak objednávat“</span><span className="mt-1 block text-sm text-slate-600">Nápovědu lze na katalogu dočasně zavřít nebo zde trvale vypnout.</span></span>
+                            <span><span className="block font-medium text-slate-900">Automaticky zobrazovat nové tipy v katalogu</span><span className="mt-1 block text-sm text-slate-600">Každou novou verzi průvodce uvidíte pouze jednou. Vypnutím zakážete jeho automatické zobrazování.</span></span>
                         </label>
+                        <button type="button" onClick={() => router.push('/?pruvodce=1')} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800">
+                            Spustit průvodce znovu
+                        </button>
                     </Section>
 
                     {error && <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</div>}

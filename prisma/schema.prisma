@@ -151,6 +151,7 @@ model Profile {
   shipping_country         String?  @default("Česká republika") @db.Text
   delivery_instructions    String?  @db.Text
   show_ordering_help       Boolean  @default(true)
+  catalog_guide_version    Int      @default(0)
   is_admin                 Boolean  @default(false)
   admin_registration_notification_status     String    @default("pending") @db.Text
   admin_registration_notification_attempts   Int       @default(0)

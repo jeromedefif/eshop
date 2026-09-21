@@ -29,6 +29,7 @@ export interface UserProfile {
    shipping_country: string | null;
    delivery_instructions: string | null;
    show_ordering_help: boolean;
+   catalog_guide_version: number;
    is_admin: boolean;
    last_sign_in_at?: string | null;
    email_confirmed_at?: string | null;
@@ -97,6 +98,7 @@ export interface AuthContextType {
    signUp: (data: SignUpData) => Promise<{ success: boolean; message: string } | undefined>;
    signOut: () => Promise<void>;
    updateProfile: (data: UpdateProfileData) => Promise<void>;
+   markCatalogGuideSeen: (version: number) => Promise<void>;
    refreshProfile: () => Promise<UserProfile | null>;
    forgotPassword: (email: string) => Promise<void>;
 }

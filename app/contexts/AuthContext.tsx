@@ -721,6 +721,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const markCatalogGuideSeen = async (version: number) => {
+    if (!user || !Number.isInteger(version) || version < 0) return;
+    if ((profile?.catalog_guide_version ?? 0) >= version) return;
+
+    const { data: updatedProfile, error } = await supabase
+      .from('profiles')
+      .update({
+        catalog_guide_version: version,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', user.id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    if (!updatedProfile || updatedProfile.id !== user.id) {
+      throw new Error('Databáze nepotvrdila uložení průvodce');
+    }
+
+    profileCache[user.id] = {
+      data: updatedProfile,
+      timestamp: Date.now(),
+    };
+    setProfile(updatedProfile);
+  };
+
   // Zajistíme korektní inicializaci
   if (!isInitialized) {
     return (
@@ -743,6 +769,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signOut,
     updateProfile,
+    markCatalogGuideSeen,
     refreshProfile,
     forgotPassword,
     

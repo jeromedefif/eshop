@@ -433,7 +433,11 @@ const UserDetailPage = () => {
                             <div>
                                 <dt className="font-medium text-gray-600">Nápověda objednávání</dt>
                                 <dd className="mt-1 font-semibold text-gray-900">
-                                    {profile?.show_ordering_help ? 'Zobrazuje se' : 'Trvale skrytá'}
+                                    {!profile?.show_ordering_help
+                                        ? 'Automatické tipy vypnuté'
+                                        : (profile.catalog_guide_version ?? 0) >= 1
+                                            ? 'Průvodce dokončen'
+                                            : 'Čeká na první zobrazení'}
                                 </dd>
                             </div>
                             <div>

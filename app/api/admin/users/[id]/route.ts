@@ -45,6 +45,7 @@ export async function GET(_request: Request, { params }: Params) {
         shipping_country: string | null;
         delivery_instructions: string | null;
         show_ordering_help: boolean;
+        catalog_guide_version: number;
         is_admin: boolean;
         created_at: Date;
         updated_at: Date;
@@ -76,6 +77,7 @@ export async function GET(_request: Request, { params }: Params) {
         p.shipping_country,
         p.delivery_instructions,
         p.show_ordering_help,
+        p.catalog_guide_version,
         p.is_admin,
         p.created_at,
         p.updated_at,
