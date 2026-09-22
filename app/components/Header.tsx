@@ -18,7 +18,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useQuickReorder } from '@/hooks/useQuickReorder';
-import { SITE_CONTAINER_CLASS } from '@/lib/layout';
+import { SITE_CONTAINER_CLASS } from '@/lib/layout-classes';
 import Cart from './Cart';
 
 const Header = () => {

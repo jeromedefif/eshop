@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ExternalLink, LogIn } from 'lucide-react';
-import { SITE_CONTAINER_CLASS } from '@/lib/layout';
+import { SITE_CONTAINER_CLASS } from '@/lib/layout-classes';
 
 type PublicHeaderProps = {
     active?: 'catalog' | 'login' | 'register';

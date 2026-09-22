@@ -1,5 +1,6 @@
 // app/contexts/AuthContext.tsx
 'use client'
+import { clearOrderDrafts } from '@/lib/orders/draft'
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
@@ -17,6 +18,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const cleanupAuthStorage = () => {
   // Vyčistíme localStorage
   try {
+    clearOrderDrafts(localStorage);
+    clearOrderDrafts(sessionStorage);
     const authKeys = ['supabase.auth.token', 'supabase.auth.refreshToken'];
     for (const key of Object.keys(localStorage)) {
       if (key.startsWith('sb-') || authKeys.includes(key) || key.includes('supabase')) {

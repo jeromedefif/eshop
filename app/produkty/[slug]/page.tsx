@@ -17,7 +17,7 @@ export function generateStaticParams() {
 }
 
 type ProductPageProps = {
-    params: { slug: string };
+    params: Promise<{ slug: string }>;
 };
 
 const formatVolume = (volume: string) => {
@@ -33,7 +33,8 @@ async function loadProduct(slug: string) {
     return getPublicProductById(id);
 }
 
-export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
+export async function generateMetadata(props: ProductPageProps): Promise<Metadata> {
+    const params = await props.params;
     const product = await loadProduct(params.slug);
     if (!product) {
         return {
@@ -60,7 +61,8 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     };
 }
 
-export default async function ProductPage({ params }: ProductPageProps) {
+export default async function ProductPage(props: ProductPageProps) {
+    const params = await props.params;
     const product = await loadProduct(params.slug);
     if (!product) notFound();
 

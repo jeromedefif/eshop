@@ -7,12 +7,13 @@ export const fetchCache = 'force-no-store';
 export const revalidate = 0;
 
 type Params = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
-export async function GET(_request: NextRequest, { params }: Params) {
+export async function GET(_request: NextRequest, props: Params) {
+  const params = await props.params;
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: 'Nemáte oprávnění zobrazit interní poznámku.' }, { status: 403 });
   }
@@ -35,7 +36,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
   }
 }
 
-export async function PUT(request: NextRequest, { params }: Params) {
+export async function PUT(request: NextRequest, props: Params) {
+  const params = await props.params;
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: 'Nemáte oprávnění upravit interní poznámku.' }, { status: 403 });
   }

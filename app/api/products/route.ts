@@ -1,146 +1,71 @@
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { NextResponse } from 'next/server';
+import { revalidateTag, revalidatePath } from 'next/cache';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
-import type { Product } from '@prisma/client';
-import type { ProductColor, ProductSweetness } from '@/types/database';
-import { PRODUCT_COLOR_OPTIONS, PRODUCT_SWEETNESS_OPTIONS, supportsProductAttributes } from '@/lib/product-config';
+import { PRODUCT_CATEGORIES, PRODUCT_COLOR_OPTIONS, PRODUCT_SWEETNESS_OPTIONS, normalizeProductCategory, supportsProductAttributes } from '@/lib/product-config';
 
-const validColors = new Set(PRODUCT_COLOR_OPTIONS.map((option) => option.value));
-const validSweetness = new Set(PRODUCT_SWEETNESS_OPTIONS.map((option) => option.value));
-
-function productAttributes(data: Record<string, unknown>) {
-    if (!supportsProductAttributes(String(data.category || ''))) {
-        return { product_color: null, sweetness: null };
-    }
-
-    return {
-        product_color: typeof data.product_color === 'string' && validColors.has(data.product_color as ProductColor) ? data.product_color : null,
-        sweetness: typeof data.sweetness === 'string' && validSweetness.has(data.sweetness as ProductSweetness) ? data.sweetness : null
-    };
+function invalidate() {
+  revalidateTag('public-products', { expire: 0 });
+  revalidatePath('/produkty', 'layout');
+  revalidatePath('/sitemap.xml');
 }
-
-export async function GET() {
-    try {
-        const products = await prisma.product.findMany({
-            where: { is_archived: false },
-            orderBy: [
-                { is_new: 'desc' },
-                { is_featured: 'desc' },
-                { sort_priority: 'desc' },
-                { name: 'asc' }
-            ]
-        });
-
-        const serializedProducts = products.map((product: Product) => ({
-            ...product,
-            id: product.id.toString()
-        }));
-
-        return NextResponse.json(serializedProducts);
-    } catch (error) {
-        console.error('Error fetching products:', error);
-        return NextResponse.json(
-            { error: 'Chyba při načítání produktů' },
-            { status: 500 }
-        );
-    }
+function serialized(product: { id: bigint }) { return { ...product, id: product.id.toString() }; }
+function validate(data: Record<string, unknown>) {
+  if (typeof data.name !== 'string' || !data.name.trim() || data.name.length > 300) throw new Error('Vyplňte název produktu (nejvýše 300 znaků).');
+  const category = normalizeProductCategory(String(data.category));
+  if (!(PRODUCT_CATEGORIES as readonly string[]).includes(category)) throw new Error('Neplatná kategorie.');
+  for (const key of ['in_stock', 'is_archived', 'is_new', 'is_featured']) if (typeof data[key] !== 'boolean') throw new Error('Neplatné přepínače produktu.');
+  if (!Number.isSafeInteger(data.min_order_qty) || Number(data.min_order_qty) < 1 || Number(data.min_order_qty) > 10000 || !Number.isSafeInteger(data.sort_priority)) throw new Error('Neplatné množství nebo pořadí.');
+  if (!Array.isArray(data.allowed_volumes) || data.allowed_volumes.length > 30 || data.allowed_volumes.some((v) => typeof v !== 'string' || !/^(?:\d+(?:\.\d+)?|maly|velky|baleni)$/.test(v) || (Number.isFinite(Number(v)) && Number(v) <= 0))) throw new Error('Neplatné objemy.');
+  const attributes = supportsProductAttributes(category);
+  for (const [key, options] of [['product_color', PRODUCT_COLOR_OPTIONS], ['sweetness', PRODUCT_SWEETNESS_OPTIONS]] as const) {
+    if (attributes && data[key] != null && !options.some((o) => o.value === data[key])) throw new Error('Neplatné vlastnosti produktu.');
+  }
+  return { name: data.name.trim(), category, in_stock: data.in_stock as boolean,
+    is_archived: data.is_archived as boolean, archived_at: data.is_archived ? new Date() : null,
+    is_new: data.is_new as boolean, is_featured: data.is_featured as boolean,
+    min_order_qty: Number(data.min_order_qty), sort_priority: Number(data.sort_priority), allowed_volumes: data.allowed_volumes as string[],
+    product_color: attributes ? data.product_color as string | null : null, sweetness: attributes ? data.sweetness as string | null : null };
 }
-
+export async function GET(request: Request) {
+  const archived = new URL(request.url).searchParams.get('includeArchived') === '1';
+  if (archived && !(await requireAdmin())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const products = await prisma.product.findMany({ where: archived ? {} : { is_archived: false }, orderBy: [{ is_new: 'desc' }, { is_featured: 'desc' }, { sort_priority: 'desc' }, { name: 'asc' }] });
+  return NextResponse.json(products.map(serialized));
+}
 export async function POST(request: Request) {
-    if (!(await requireAdmin())) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    try {
-        const data = await request.json();
-        const product = await prisma.product.create({
-            data: {
-                name: data.name,
-                category: data.category,
-                in_stock: data.in_stock,
-                is_archived: data.is_archived ?? false,
-                is_new: data.is_new ?? false,
-                is_featured: data.is_featured ?? false,
-                sort_priority: data.sort_priority ?? 0,
-                min_order_qty: data.min_order_qty ?? 1,
-                allowed_volumes: Array.isArray(data.allowed_volumes) ? data.allowed_volumes as string[] : [],
-                ...productAttributes(data)
-            }
-        });
-
-        return NextResponse.json({
-            ...product,
-            id: product.id.toString()
-        });
-    } catch (error) {
-        console.error('Error creating product:', error);
-        return NextResponse.json(
-            { error: 'Chyba při vytváření produktu' },
-            { status: 500 }
-        );
-    }
+  if (!(await requireAdmin())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  try {
+    const input = await request.json();
+    const data = validate({ in_stock: true, is_archived: false, is_new: false, is_featured: false, min_order_qty: 1, sort_priority: 0, allowed_volumes: [], product_color: null, sweetness: null, ...input });
+    const product = await prisma.product.create({ data }); invalidate();
+    return NextResponse.json(serialized(product));
+  } catch (error) { return NextResponse.json({ error: error instanceof Error && !(error instanceof Prisma.PrismaClientKnownRequestError) ? error.message : 'Produkt se nepodařilo uložit.' }, { status: 400 }); }
 }
-
 export async function PUT(request: Request) {
-    if (!(await requireAdmin())) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    try {
-        const data = await request.json();
-        const product = await prisma.product.update({
-            where: { id: BigInt(data.id) },
-            data: {
-                name: data.name,
-                category: data.category,
-                in_stock: data.in_stock,
-                is_archived: data.is_archived,
-                archived_at: data.is_archived ? new Date() : null,
-                is_new: data.is_new,
-                is_featured: data.is_featured,
-                sort_priority: data.sort_priority,
-                min_order_qty: data.min_order_qty,
-                allowed_volumes: data.allowed_volumes as string[],
-                ...productAttributes(data)
-            }
-        });
-
-        return NextResponse.json({
-            ...product,
-            id: product.id.toString()
-        });
-    } catch (error) {
-        console.error('Error updating product:', error);
-        return NextResponse.json(
-            { error: 'Chyba při aktualizaci produktu' },
-            { status: 500 }
-        );
-    }
+  if (!(await requireAdmin())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  try {
+    const input = await request.json();
+    if (!/^\d+$/.test(String(input.id))) return NextResponse.json({ error: 'Neplatné ID.' }, { status: 400 });
+    const current = await prisma.product.findUnique({ where: { id: BigInt(input.id) } });
+    if (!current) return NextResponse.json({ error: 'Produkt nenalezen.' }, { status: 404 });
+    const product = await prisma.product.update({ where: { id: current.id }, data: validate({ ...current, ...input }) }); invalidate();
+    return NextResponse.json(serialized(product));
+  } catch (error) { return NextResponse.json({ error: error instanceof Error && !(error instanceof Prisma.PrismaClientKnownRequestError) ? error.message : 'Produkt se nepodařilo uložit.' }, { status: 400 }); }
 }
-
 export async function DELETE(request: Request) {
-    if (!(await requireAdmin())) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
+  if (!(await requireAdmin())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const id = new URL(request.url).searchParams.get('id');
+  if (!id || !/^\d+$/.test(id)) return NextResponse.json({ error: 'Neplatné ID.' }, { status: 400 });
+  try {
     try {
-        const { searchParams } = new URL(request.url);
-        const id = searchParams.get('id');
-        if (!id) throw new Error('No ID provided');
-
-        const product = await prisma.product.delete({
-            where: { id: BigInt(id) }
-        });
-
-        return NextResponse.json({
-            success: true,
-            id: product.id.toString()
-        });
+      await prisma.product.delete({ where: { id: BigInt(id) } }); invalidate();
+      return NextResponse.json({ mode: 'deleted', message: 'Produkt byl smazán.' });
     } catch (error) {
-        console.error('Error deleting product:', error);
-        return NextResponse.json(
-            { error: 'Chyba při mazání produktu' },
-            { status: 500 }
-        );
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2003') throw error;
+      await prisma.product.update({ where: { id: BigInt(id) }, data: { is_archived: true, in_stock: false, archived_at: new Date() } }); invalidate();
+      return NextResponse.json({ mode: 'archived', message: 'Produkt je použit v objednávkách, byl proto archivován.' });
     }
+  } catch { return NextResponse.json({ error: 'Produkt se nepodařilo odstranit.' }, { status: 400 }); }
 }

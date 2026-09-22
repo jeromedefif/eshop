@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 const PASSWORD_RECOVERY_COOKIE = 'beginy-password-recovery-user'
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' }
 
-function clearRecoveryCookie(cookieStore: ReturnType<typeof cookies>) {
+function clearRecoveryCookie(cookieStore: Awaited<ReturnType<typeof cookies>>) {
   cookieStore.set(PASSWORD_RECOVERY_COOKIE, '', {
     httpOnly: true,
     sameSite: 'lax',
@@ -15,7 +15,7 @@ function clearRecoveryCookie(cookieStore: ReturnType<typeof cookies>) {
   })
 }
 
-function createSupabaseClient(cookieStore: ReturnType<typeof cookies>) {
+function createSupabaseClient(cookieStore: Awaited<ReturnType<typeof cookies>>) {
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -35,7 +35,7 @@ function createSupabaseClient(cookieStore: ReturnType<typeof cookies>) {
 }
 
 async function getVerifiedRecoveryUser() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const expectedUserId = cookieStore.get(PASSWORD_RECOVERY_COOKIE)?.value
 
   if (!expectedUserId) {

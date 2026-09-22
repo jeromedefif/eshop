@@ -1,3 +1,7 @@
+import { after } from 'next/server';
+import { statusMessage } from '@/lib/email/templates';
+import { deliverPendingEmails } from '@/lib/email/delivery';
+import { withOrderSnapshots } from '@/lib/orders/snapshots';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -8,13 +12,11 @@ export const fetchCache = 'force-no-store';
 export const revalidate = 0;
 
 // GET endpoint pro získání detailu objednávky podle ID
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-    if (!(await requireAdmin())) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  if (!(await requireAdmin())) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   console.log('Fetch order detail API called', new Date().toISOString(), 'for orderId:', params.id);
 
@@ -47,7 +49,7 @@ export async function GET(
 
     // Konvertovat BigInt na String před serializací
     const serializedOrder = JSON.parse(JSON.stringify(
-      order,
+      withOrderSnapshots(order),
       (key, value) =>
         typeof value === 'bigint'
           ? value.toString()
@@ -82,13 +84,11 @@ export async function GET(
 }
 
 // PATCH endpoint pro aktualizaci statusu objednávky
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-    if (!(await requireAdmin())) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  if (!(await requireAdmin())) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   console.log('Update order status API called', new Date().toISOString(), 'for orderId:', params.id);
 
@@ -106,13 +106,17 @@ export async function PATCH(
       );
     }
 
-    const updatedOrder = await prisma.order.update({
-      where: { id },
-      data: {
-        status,
-        updated_at: new Date()
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM public.orders WHERE id = ${id}::uuid FOR UPDATE`;
+      const existing = await tx.order.findUniqueOrThrow({ where: { id } });
+      if (existing.status === status) return existing;
+      const order = await tx.order.update({ where: { id }, data: { status, updated_at: new Date() }, include: { order_items: { include: { product: true } } } });
+      if (['confirmed', 'cancelled'].includes(status)) {
+        await tx.emailDelivery.create({ data: { ...statusMessage(order), order_id: id } });
       }
+      return order;
     });
+    after(async () => { await deliverPendingEmails(id); });
 
     // Konvertovat BigInt na String před serializací
     const serializedOrder = JSON.parse(JSON.stringify(
@@ -151,13 +155,11 @@ export async function PATCH(
 }
 
 // DELETE endpoint pro smazání objednávky včetně všech jejích položek
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-    if (!(await requireAdmin())) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  if (!(await requireAdmin())) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   console.log('Delete order API called', new Date().toISOString(), 'for orderId:', params.id);
 
@@ -223,18 +225,18 @@ export async function DELETE(
     console.error('Error deleting order:', error);
 
     // Poskytnutí podrobnějších informací o chybě pro snazší ladění
-    let errorMessage = 'Chyba při mazání objednávky';
-    let errorDetails = 'Neznámá chyba';
+    const errorMessage = 'Chyba při mazání objednávky';
+
 
     if (error instanceof Error) {
-      errorMessage = error.message;
-      errorDetails = error.stack || 'Bez detailů';
+      console.error('Order deletion failed:', error.name);
+
     }
 
     return NextResponse.json(
       {
         error: errorMessage,
-        details: errorDetails
+        details: undefined
       },
       {
         status: 500,

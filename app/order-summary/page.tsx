@@ -37,7 +37,7 @@ const OrderSummaryPage = () => {
     // Odstraněno přesměrování - místo toho budeme zobrazovat prázdný stav košíku
 
     // Obsah pro prázdný košík
-    const EmptyCartContent = () => (
+    const emptyCartContent = (
         <div>
             <h1 className="mb-6 text-3xl font-bold tracking-tight text-slate-950">
                 Souhrn objednávky
@@ -65,7 +65,7 @@ const OrderSummaryPage = () => {
     return (
         <CustomerPageShell width="5xl" mainClassName="notranslate">
                     {Object.keys(cartItems).length === 0 ? (
-                        <EmptyCartContent />
+                        emptyCartContent
                     ) : (
                         <div>
                             <h1

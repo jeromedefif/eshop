@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, RefreshCw, FileSpreadsheet, Calendar, Box, TestTube, MessageSquare, LockKeyhole } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
@@ -9,7 +9,8 @@ import type { Order, AdminOrdersProps } from '../types/orders';
 
 export default function AdminOrders({
   orders,
-  onOrdersChange
+  onOrdersChange,
+  onSearch
 }: AdminOrdersProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [filteredOrders, setFilteredOrders] = useState<Order[]>(orders);
@@ -21,6 +22,12 @@ export default function AdminOrders({
     const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
     const [isExportingSelectedExcel, setIsExportingSelectedExcel] = useState(false);
     const router = useRouter();
+    const searchCallback = useRef(onSearch);
+    searchCallback.current = onSearch;
+    useEffect(() => {
+        const timer = window.setTimeout(() => searchCallback.current?.(searchQuery), 300);
+        return () => window.clearTimeout(timer);
+    }, [searchQuery]);
 
     // Při změně vstupních orders aktualizujeme i filtrované orders
     useEffect(() => {
@@ -41,6 +48,7 @@ export default function AdminOrders({
 
     // Efekt pro vyhledávání - při změně searchQuery filtrujeme orders
     useEffect(() => {
+        if (onSearch) { setFilteredOrders(orders); return; }
         if (!searchQuery.trim()) {
             // Pokud je dotaz prázdný, zobrazíme všechny objednávky
             setFilteredOrders(orders);
@@ -59,7 +67,7 @@ export default function AdminOrders({
         );
 
         setFilteredOrders(filtered);
-    }, [searchQuery, orders]);
+    }, [searchQuery, orders, onSearch]);
 
     // Funkce pro získání popisu období
     const getPeriodDescription = (period: typeof selectedPeriod) => {
@@ -439,7 +447,7 @@ export default function AdminOrders({
                 </div>
                 {searchQuery && (
                     <div className="mt-1 text-xs text-gray-600">
-                        Nalezeno {filteredOrders.length} objednávek
+                        {onSearch ? 'Na této stránce' : 'Nalezeno'} {filteredOrders.length} objednávek
                     </div>
                 )}
             </div>
@@ -487,7 +495,7 @@ export default function AdminOrders({
                                                 filteredOrders.every((order) => selectedOrderIds.has(order.id))
                                             }
                                             onChange={toggleSelectAllFiltered}
-                                            aria-label="Vybrat všechny objednávky"
+                                            aria-label="Vybrat všechny zobrazené objednávky"
                                         />
                                     </th>
                                 )}

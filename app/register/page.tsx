@@ -183,39 +183,6 @@ export default function RegisterPage() {
                 throw new Error('Registrace se nezdařila');
             }
 
-            // Explicitně vytvoříme záznam v tabulce profiles - jako "pojistka" k triggeru
-            try {
-                const { error: profileError } = await supabase
-                    .from('profiles')
-                    .upsert({
-                        id: data.user.id,
-                        email: formData.email,
-                        full_name: formData.full_name,
-                        company: formData.company,
-                        phone: formData.phone,
-                        address: formData.billing_address,
-                        city: formData.billing_city,
-                        postal_code: formData.billing_postal_code,
-                        company_id: formData.company_id,
-                        vat_id: formData.vat_id,
-                        billing_address: formData.billing_address,
-                        billing_city: formData.billing_city,
-                        billing_postal_code: formData.billing_postal_code,
-                        billing_country: formData.billing_country,
-                        shipping_same_as_billing: formData.shipping_same_as_billing,
-                        ...shippingData,
-                        delivery_instructions: formData.delivery_instructions,
-                        show_ordering_help: true,
-                        is_admin: false,
-                    });
-
-                if (profileError) {
-                    console.error('Chyba při vytváření profilu:', profileError);
-                }
-            } catch (profileError) {
-                console.error('Chyba při vytváření profilu:', profileError);
-            }
-
             // Resetujeme formulář
             setFormData({
                 email: '',

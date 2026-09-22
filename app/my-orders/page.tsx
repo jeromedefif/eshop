@@ -30,6 +30,8 @@ type OrderItem = {
     product_id: string | number;
     volume: string;
     quantity: number;
+    product_name?: string | null;
+    product_category?: string | null;
     product: Product | null;
 };
 
@@ -97,6 +99,8 @@ const MyOrdersPage = () => {
                         order_items (
                             id,
                             product_id,
+                            product_name,
+                            product_category,
                             volume,
                             quantity,
                             product:products (
@@ -650,7 +654,7 @@ const MyOrdersPage = () => {
                                             {order.order_items.map((item) => (
                                                 <li key={item.id} className="flex justify-between items-center">
                                                     <div className="text-gray-800">
-                                                        {(item.product?.name || 'Smazaný produkt')} - {item.volume === 'maly'
+                                                        {(item.product_name || item.product?.name || 'Smazaný produkt')} - {item.volume === 'maly'
                                                             ? 'malý'
                                                             : item.volume === 'velky'
                                                                 ? 'velký'

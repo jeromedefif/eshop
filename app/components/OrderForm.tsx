@@ -1,5 +1,6 @@
 'use client';
 
+import { draftKey, parseDraft, sameDraftContents } from '@/lib/orders/draft';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import OrderSummary from './OrderSummary';
@@ -33,7 +34,10 @@ const OrderForm = ({
       const orderData = getOrderSummary();
 
       // Uložit data do localStorage pro následující stránku
-      localStorage.setItem('pendingOrderData', JSON.stringify(orderData));
+      localStorage.removeItem('pendingOrderData');
+      const prior = parseDraft(sessionStorage.getItem(draftKey(user.id)), user.id);
+      const requestKey = prior && sameDraftContents(prior, orderData) ? prior.requestKey : crypto.randomUUID();
+      sessionStorage.setItem(draftKey(user.id), JSON.stringify({ ...orderData, userId: user.id, requestKey, createdAt: Date.now() }));
 
       // Přesměrovat na stránku potvrzení objednávky
       router.push('/order-confirmation');

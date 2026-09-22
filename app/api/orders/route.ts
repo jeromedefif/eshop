@@ -1,191 +1,48 @@
 import { requireAdmin } from '@/lib/auth/require-admin';
-// app/api/orders/route.ts - kompletní verze s výběrem období
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
-
-// Přidáváme definici, která zakazuje caching pro tento endpoint
+import { withOrderSnapshots } from '@/lib/orders/snapshots';
 export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
-export const revalidate = 0;
-
 export async function GET(request: Request) {
-    if (!(await requireAdmin())) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-  console.log('Admin orders API called at', new Date().toISOString());
-
-  // Získání URL parametrů (pokud existují)
-  const url = new URL(request.url);
-  const timestamp = url.searchParams.get('t') || Date.now();
-  console.log('Request timestamp:', timestamp);
-
-  // Získání parametru search pro vyhledávání
-  const searchQuery = url.searchParams.get('search') || '';
-  const hasSearch = searchQuery.trim().length > 0;
-
-  // Filtrování podle userId
-  const userId = url.searchParams.get('userId') || '';
-  const hasUserFilter = userId.trim().length > 0;
-
-  // NOVÉ: Získání parametru pro období (výchozí hodnota je 'month')
-  const period = url.searchParams.get('period') || 'month';
-  console.log('Selected period:', period);
-
+  if (!(await requireAdmin())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   try {
-    console.log(`Fetching orders: ${hasSearch ? 'with search' : 'all'}, ${hasUserFilter ? 'for specific user' : 'all users'}, period: ${period}`);
-
-    // NOVÁ ČÁST: Výpočet data podle vybraného období
-    let dateFilter: Date | null = null;
-
+    const url = new URL(request.url);
+    const period = url.searchParams.get('period') || 'month';
+    const search = (url.searchParams.get('search') || '').trim().slice(0, 200);
+    const userId = url.searchParams.get('userId');
+    const paginated = url.searchParams.has('page');
+    const page = Math.max(1, Math.min(100000, Number(url.searchParams.get('page')) || 1));
+    if (!Number.isInteger(page)) return NextResponse.json({ error: 'Neplatná stránka.' }, { status: 400 });
+    const pageSize = 50;
+    const where: Prisma.OrderWhereInput = userId ? { user_id: userId } : {};
     if (period !== 'all') {
-      dateFilter = new Date();
-
-      switch (period) {
-        case 'week':
-          // Posledních 7 dnů
-          dateFilter.setDate(dateFilter.getDate() - 7);
-          break;
-        case 'month':
-          // Posledních 30 dnů (výchozí)
-          dateFilter.setDate(dateFilter.getDate() - 30);
-          break;
-        case 'year':
-          // Poslední rok
-          dateFilter.setFullYear(dateFilter.getFullYear() - 1);
-          break;
-        default:
-          // Výchozí je měsíc
-          dateFilter.setDate(dateFilter.getDate() - 30);
-      }
-
-      dateFilter.setHours(0, 0, 0, 0); // Nastavíme na začátek dne
-      console.log(`Fetching orders since: ${dateFilter.toISOString()}`);
-    } else {
-      console.log('Fetching all orders (no date filter)');
+      const from = new Date();
+      if (period === 'year') from.setFullYear(from.getFullYear() - 1);
+      else from.setDate(from.getDate() - (period === 'week' ? 7 : 30));
+      from.setHours(0, 0, 0, 0); where.created_at = { gte: from };
     }
-
-    // Sestavení where podmínky pro Prisma
-    let whereCondition: Prisma.OrderWhereInput = {};
-
-    // Přidání filtru na datum, pokud není vybráno "vše"
-    if (dateFilter) {
-      whereCondition.created_at = {
-        gte: dateFilter
-      };
+    if (search) {
+      const matchingIds = await prisma.$queryRaw<Array<{ id: string }>>`SELECT id FROM public.orders WHERE strpos(lower(id::text), lower(${search})) > 0`;
+      where.OR = [
+        { customer_name: { contains: search, mode: 'insensitive' } },
+        { customer_email: { contains: search, mode: 'insensitive' } },
+        { customer_company: { contains: search, mode: 'insensitive' } },
+        { note: { contains: search, mode: 'insensitive' } },
+        { internal_note: { is: { note: { contains: search, mode: 'insensitive' } } } },
+        { id: { in: matchingIds.map(o => o.id) } },
+      ];
     }
-
-    if (hasSearch) {
-      // UUID columns do not support Prisma contains; preserve partial ID search.
-      const matchingIds = await prisma.$queryRaw<Array<{ id: string }>>`
-        SELECT id FROM orders WHERE strpos(lower(id::text), lower(${searchQuery})) > 0
-      `;
-      // Pokud máme datum filter, musíme použít AND
-      if (dateFilter) {
-        whereCondition = {
-          AND: [
-            {
-              created_at: {
-                gte: dateFilter
-              }
-            },
-            {
-              OR: [
-                { customer_name: { contains: searchQuery, mode: 'insensitive' } },
-                { customer_email: { contains: searchQuery, mode: 'insensitive' } },
-                { customer_company: { contains: searchQuery, mode: 'insensitive' } },
-                { id: { in: matchingIds.map((order) => order.id) } }
-              ]
-            }
-          ]
-        };
-      } else {
-        // Pokud nemáme datum filter, stačí OR podmínka
-        whereCondition = {
-          OR: [
-            { customer_name: { contains: searchQuery, mode: 'insensitive' } },
-            { customer_email: { contains: searchQuery, mode: 'insensitive' } },
-            { customer_company: { contains: searchQuery, mode: 'insensitive' } },
-            { id: { in: matchingIds.map((order) => order.id) } }
-          ]
-        };
-      }
-    }
-
-    // Přidání podmínky pro filtrování podle userId
-    if (hasUserFilter) {
-      if (Array.isArray(whereCondition.AND)) {
-        whereCondition.AND.push({ user_id: userId });
-      } else if (whereCondition.OR) {
-        // Pokud máme OR podmínku, musíme ji zabalit do AND
-        whereCondition = {
-          AND: [
-            { OR: whereCondition.OR },
-            { user_id: userId }
-          ]
-        };
-      } else {
-        whereCondition = {
-          ...whereCondition,
-          user_id: userId
-        };
-      }
-    }
-
-    // Získání objednávek podle filtru
-    const orders = await prisma.order.findMany({
-      where: whereCondition,
-      include: {
-        order_items: {
-          include: {
-            product: true
-          }
-        },
-        internal_note: {
-          select: {
-            note: true,
-            updated_at: true
-          }
-        }
-      },
-      orderBy: {
-        created_at: 'desc'
-      }
-    });
-
-    console.log(`Successfully fetched ${orders.length} orders for period: ${period}`);
-
-    // Konvertujeme BigInt na string před serializací
-    const serializedOrders = JSON.parse(JSON.stringify(
-      orders,
-      (key, value) =>
-        typeof value === 'bigint'
-          ? value.toString()
-          : value
-    ));
-
-    // Nastavení hlaviček proti cachování
-    return new NextResponse(JSON.stringify(serializedOrders), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, max-age=0, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
-    });
+    const [rows, total] = await prisma.$transaction([
+      prisma.order.findMany({ where, include: { order_items: { include: { product: true } }, internal_note: { select: { note: true, updated_at: true } } },
+        orderBy: [{ created_at: 'desc' }, { id: 'desc' }], ...(paginated ? { skip: (page - 1) * pageSize, take: pageSize } : {}) }),
+      prisma.order.count({ where }),
+    ]);
+    const orders = rows.map(withOrderSnapshots);
+    const payload = paginated ? { orders, pagination: { page, pageSize, totalOrders: total, hasMore: page * pageSize < total } } : orders;
+    return new NextResponse(JSON.stringify(payload, (_key, value) => typeof value === 'bigint' ? String(value) : value), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
   } catch (error) {
-    console.error('Error fetching orders:', error);
-    return NextResponse.json(
-      { error: 'Chyba při načítání objednávek' },
-      {
-        status: 500,
-        headers: {
-          'Cache-Control': 'no-store, max-age=0, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      }
-    );
+    console.error('Orders query failed', error);
+    return NextResponse.json({ error: 'Objednávky se nepodařilo načíst.' }, { status: 500 });
   }
 }

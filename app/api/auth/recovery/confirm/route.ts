@@ -20,7 +20,7 @@ function createRedirect(requestUrl: URL, path: string) {
 
 export async function POST(request: Request) {
   const requestUrl = new URL(request.url)
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const tokenHash = cookieStore.get(PASSWORD_RECOVERY_TOKEN_COOKIE)?.value
 
   if (!tokenHash) {

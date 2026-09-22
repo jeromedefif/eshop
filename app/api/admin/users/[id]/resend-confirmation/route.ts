@@ -7,12 +7,13 @@ export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
 type Params = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
-export async function POST(_request: Request, { params }: Params) {
+export async function POST(_request: Request, props: Params) {
+  const params = await props.params;
   const currentAdmin = await requireAdmin();
   if (!currentAdmin) {
     return NextResponse.json({ error: 'Nemáte oprávnění odesílat aktivační e-maily.' }, { status: 403 });

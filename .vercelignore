@@ -1,0 +1,9 @@
+.release-backups/
+.env*
+.git/
+.vercel/
+.next/
+node_modules/
+*.tsbuildinfo
+*.log
+supabase/.temp/

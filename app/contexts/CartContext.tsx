@@ -13,6 +13,8 @@ export type CartImportResult = 'merged' | 'replaced' | 'cancelled';
 export type CartContextType = {
   cartItems: CartItems;
   products: Product[];
+  isProductsLoading: boolean;
+  productsError: string | null;
   setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
   totalVolume: number;
   isCartHydrated: boolean;
@@ -55,16 +57,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItems>(defaultCartItems);
   const [isCartHydrated, setIsCartHydrated] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
+  const [isProductsLoading, setIsProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState<string | null>(null);
   const [totalVolume, setTotalVolume] = useState(0);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const activeStorageKeyRef = useRef('cart');
   const hydrationIdRef = useRef(0);
+  const cartRevision = useRef(0);
+  const remoteReady = useRef(false);
+  const hydratedOwner = useRef<string | null | undefined>(undefined);
+  const saveChain = useRef<Promise<void>>(Promise.resolve());
+  const [cartSyncError, setCartSyncError] = useState<string | null>(null);
+  const [reloadCart, setReloadCart] = useState(0);
   const { user } = useAuth();
 
   useEffect(() => {
     let isMounted = true;
     const loadProducts = async () => {
       try {
+        setProductsError(null);
         const { data, error } = await supabase
           .from('products').select('*').eq('is_archived', false)
           .order('is_new', { ascending: false }).order('is_featured', { ascending: false })
@@ -73,6 +84,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         if (isMounted) setProducts(sortCatalogProducts(data || []));
       } catch (error) {
         console.error('Error loading products in CartProvider:', error);
+        if (isMounted) setProductsError('Katalog se nepodařilo obnovit. Zkuste stránku načíst znovu.');
+      } finally {
+        if (isMounted) setIsProductsLoading(false);
       }
     };
     void loadProducts();
@@ -89,59 +103,60 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const hydrateCart = async () => {
       const localCart = readStoredCart(storageKey);
       let nextCart = localCart;
-      let canRemoveLegacyCart = false;
+      remoteReady.current = false;
+      setCartSyncError(null);
       if (userId) {
-        const { data, error } = await supabase.from('customer_carts').select('items').eq('user_id', userId).maybeSingle();
-        if (error) {
-          console.error('Error loading server cart, using local fallback:', error);
-        } else if (data) {
-          nextCart = sanitizeCart(data.items);
-          canRemoveLegacyCart = true;
-        } else {
-          const legacyCart = readStoredCart('cart');
-          if (Object.keys(nextCart).length === 0 && Object.keys(legacyCart).length > 0) nextCart = legacyCart;
-          if (Object.keys(nextCart).length > 0) {
-            const { error: migrationError } = await supabase.from('customer_carts').upsert({
-              user_id: userId, items: nextCart, updated_at: new Date().toISOString()
-            });
-            if (migrationError) console.error('Error migrating cart to server:', migrationError);
-            else canRemoveLegacyCart = true;
-          } else {
-            canRemoveLegacyCart = true;
-          }
+        try {
+          const response = await fetch('/api/cart', { cache: 'no-store' });
+          if (!response.ok) throw new Error();
+          const data = await response.json();
+          if (hydrationId !== hydrationIdRef.current) return;
+          cartRevision.current = data.revision;
+          if (data.exists) nextCart = sanitizeCart(data.items);
+          else if (!Object.keys(nextCart).length) nextCart = readStoredCart('cart');
+          remoteReady.current = true;
+        } catch {
+          if (hydrationId === hydrationIdRef.current) setCartSyncError('Košík je uložen jen v tomto prohlížeči. Spojení se serverem se nepodařilo obnovit.');
         }
       }
       if (hydrationId !== hydrationIdRef.current) return;
-      if (userId && canRemoveLegacyCart) {
-        try {
-          localStorage.removeItem('cart');
-        } catch (error) {
-          console.error('Error removing migrated legacy cart:', error);
-        }
-      }
+      hydratedOwner.current = userId;
       setCartItems(nextCart);
       setIsCartHydrated(true);
     };
     void hydrateCart();
-  }, [user?.id]);
+  }, [user?.id, reloadCart]);
 
   useEffect(() => {
-    if (!isCartHydrated) return;
+    if (!isCartHydrated || hydratedOwner.current !== (user?.id || null)) return;
     try {
       localStorage.setItem(activeStorageKeyRef.current, JSON.stringify(cartItems));
     } catch (error) {
       console.error('Error saving cart to localStorage:', error);
     }
-  }, [cartItems, isCartHydrated]);
+  }, [cartItems, isCartHydrated, user?.id]);
 
   useEffect(() => {
-    if (!isCartHydrated || !user) return;
+    if (!isCartHydrated || !user || hydratedOwner.current !== user.id || !remoteReady.current) return;
+    const generation = hydrationIdRef.current;
     const userId = user.id;
-    const timer = window.setTimeout(async () => {
-      const { error } = await supabase.from('customer_carts').upsert({
-        user_id: userId, items: cartItems, updated_at: new Date().toISOString()
+    const timer = window.setTimeout(() => {
+      saveChain.current = saveChain.current.catch(() => {}).then(async () => {
+        if (generation !== hydrationIdRef.current || !remoteReady.current) return;
+        try {
+          const response = await fetch('/api/cart', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, items: cartItems, revision: cartRevision.current }) });
+          const result = await response.json();
+          if (generation !== hydrationIdRef.current) return;
+          if (!response.ok) throw new Error(result.error || 'Košík se nepodařilo synchronizovat.');
+          cartRevision.current = result.revision;
+          localStorage.removeItem('cart');
+        } catch (error) {
+          if (generation !== hydrationIdRef.current) return;
+          remoteReady.current = false;
+          try { localStorage.setItem(`cart:unsynced:${userId}`, JSON.stringify(cartItems)); } catch { /* Keep the in-memory cart and show the sync error. */ }
+          setCartSyncError(error instanceof Error ? error.message : 'Košík se nepodařilo synchronizovat.');
+        }
       });
-      if (error) console.error('Error synchronizing cart:', error);
     }, 700);
     return () => window.clearTimeout(timer);
   }, [cartItems, isCartHydrated, user]);
@@ -195,22 +210,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = useCallback(() => {
     setCartItems({});
-
-    if (!user) return;
-    try {
-      localStorage.setItem(`cart:${user.id}`, '{}');
-    } catch (error) {
-      console.error('Error clearing local cart:', error);
-    }
-
-    void supabase.from('customer_carts').upsert({
-      user_id: user.id,
-      items: {},
-      updated_at: new Date().toISOString()
-    }).then(({ error }) => {
-      if (error) console.error('Error clearing server cart:', error);
-    });
-  }, [user]);
+    // The revision-checked effect serializes this write behind in-flight saves.
+  }, []);
 
   const requestCartImport = useCallback((items: CartItems, sourceLabel: string) => {
     const sanitizedItems = sanitizeCart(items);
@@ -237,7 +238,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <CartContext.Provider value={{ cartItems, products, setProducts, totalVolume, isCartHydrated, addToCart, removeFromCart, removeLineFromCart, clearCart, requestCartImport }}>
+    <CartContext.Provider value={{ cartItems, products, isProductsLoading, productsError, setProducts, totalVolume, isCartHydrated, addToCart, removeFromCart, removeLineFromCart, clearCart, requestCartImport }}>
+      {cartSyncError && <div role="alert" className="border-b border-amber-300 bg-amber-50 p-3 text-center text-sm text-amber-950">
+        {cartSyncError} Záloha místních položek zůstává v prohlížeči.
+        <button className="ml-3 font-semibold underline" onClick={() => { if (user) localStorage.setItem(`cart:unsynced:${user.id}`, JSON.stringify(cartItems)); setReloadCart(n => n + 1); }}>Načíst společný košík</button>
+      </div>}
       {children}
       {pendingImport && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-labelledby="cart-import-title">

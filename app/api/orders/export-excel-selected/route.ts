@@ -1,3 +1,4 @@
+import { withOrderSnapshots } from '@/lib/orders/snapshots';
 import type { Order } from '@/types/orders';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { NextResponse } from 'next/server';
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
     }
 
     const serializedOrders: Order[] = JSON.parse(JSON.stringify(
-      selectedOrders,
+      selectedOrders.map(withOrderSnapshots),
       (key, value) => (typeof value === 'bigint' ? value.toString() : value)
     ));
 

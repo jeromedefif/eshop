@@ -51,3 +51,8 @@ next-env.d.ts
 .npm
 .eslintcache
 .stylelintcache
+.vercel
+.env*
+
+# Private local release backups
+.release-backups/

@@ -1,160 +1,68 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase/client';
+import { draftKey, parseDraft, type OrderDraft } from '@/lib/orders/draft';
 import { toast } from 'react-toastify';
-import type { OrderStatus, OrderConfirmationData } from '@/types/orders';
-import { isVolumeAllowed } from '@/lib/product-config';
+import type { OrderStatus } from '@/types/orders';
 import CustomerPageShell from '@/components/CustomerPageShell';
 import { useCart } from '@/contexts/CartContext';
 import { ANALYTICS_EVENTS, completeAnalyticsJourney, trackAnalyticsEvent } from '@/lib/analytics/client';
 
 export default function OrderConfirmationPage() {
     const router = useRouter();
-    const { user, profile } = useAuth();
+    const { user, profile, isLoading } = useAuth();
     const { clearCart } = useCart();
     const [orderStatus, setOrderStatus] = useState<OrderStatus>('pending');
-    const [orderData, setOrderData] = useState<OrderConfirmationData | null>(null);
+    const [orderData, setOrderData] = useState<OrderDraft | null>(null);
+
+    const submitting = useRef(false);
 
     useEffect(() => {
+        if (isLoading) return;
         // Pokud uživatel není přihlášen, přesměrovat na přihlášení
         if (!user) {
+            setOrderData(null);
             router.push('/login');
             return;
         }
 
-        // Zkontrolovat, zda jsou data objednávky v localStorage
-        const storedOrderData = localStorage.getItem('pendingOrderData');
-        if (!storedOrderData) {
-            // Pokud nejsou data k dispozici, přesměrovat na souhrn objednávky
-            router.push('/order-summary');
-            return;
-        }
-
-        // Načíst data objednávky z localStorage
-        try {
-            const parsedOrderData = JSON.parse(storedOrderData);
-            setOrderData(parsedOrderData);
-        } catch (error) {
-            console.error('Chyba při načítání dat objednávky:', error);
-            router.push('/order-summary');
-        }
-    }, [user, router]);
+        localStorage.removeItem('pendingOrderData');
+        const draft = parseDraft(sessionStorage.getItem(draftKey(user.id)), user.id);
+        if (!draft) { router.replace('/order-summary'); return; }
+        setOrderData(draft);
+    }, [user, router, isLoading]);
 
     const handleConfirmOrder = async () => {
-        if (!user || !profile || !orderData) return;
+        if (!user || !profile || !orderData || orderData.userId !== user.id || submitting.current) return;
+        submitting.current = true;
 
         setOrderStatus('processing');
 
         try {
-            // Re-check product availability immediately before the order is saved.
-            // The database migration applies the same rules server-side as well.
-            const productIds = Array.from(new Set(orderData.items.map((item) => item.productId)));
-            const { data: currentProducts, error: productsError } = await supabase
-                .from('products')
-                .select('id, name, category, in_stock, is_archived, min_order_qty, allowed_volumes')
-                .in('id', productIds);
-
-            if (productsError) throw productsError;
-
-            const productsById = new Map((currentProducts || []).map((product) => [String(product.id), product]));
-            for (const item of orderData.items) {
-                const product = productsById.get(String(item.productId));
-                if (!product) throw new Error('Jedna z položek již neexistuje. Vraťte se prosím do katalogu a košík upravte.');
-                if (product.is_archived || !product.in_stock) throw new Error(`Produkt „${product.name}“ již není skladem.`);
-                if (!isVolumeAllowed(product, item.volume)) throw new Error(`Objem u produktu „${product.name}“ již není dostupný.`);
-                if (item.quantity < product.min_order_qty) throw new Error(`Minimální odběr produktu „${product.name}“ je ${product.min_order_qty} ks.`);
-            }
-
-            const orderInput = {
-                user_id: user.id,
-                total_volume: orderData.totalVolume,
-                customer_name: orderData.customer.name,
-                customer_email: orderData.customer.email,
-                customer_phone: orderData.customer.phone,
-                customer_company: orderData.customer.company || null,
-                customer_company_id: orderData.customer.companyId || null,
-                customer_vat_id: orderData.customer.vatId || null,
-                billing_address: orderData.customer.billingAddress || null,
-                billing_city: orderData.customer.billingCity || null,
-                billing_postal_code: orderData.customer.billingPostalCode || null,
-                billing_country: orderData.customer.billingCountry || null,
-                shipping_company: orderData.customer.shippingCompany || null,
-                shipping_contact_name: orderData.customer.shippingContactName || null,
-                shipping_address: orderData.customer.shippingAddress || null,
-                shipping_city: orderData.customer.shippingCity || null,
-                shipping_postal_code: orderData.customer.shippingPostalCode || null,
-                shipping_country: orderData.customer.shippingCountry || null,
-                delivery_instructions: orderData.customer.deliveryInstructions || null,
-                note: orderData.customer.note || '',
-                status: 'pending'
-            };
-
-            // Vytvoření objednávky
-            const { data: order, error: orderError } = await supabase
-                .from('orders')
-                .insert([orderInput])
-                .select()
-                .single();
-
-            if (orderError) {
-                console.error('Chyba při vytváření objednávky:', orderError);
-                throw orderError;
-            }
-
-            // Vytvoření položek objednávky
-            const orderItems = orderData.items.map(item => ({
-                order_id: order.id,
-                product_id: parseInt(item.productId.toString()),
-                volume: item.volume,
-                quantity: item.quantity
-            }));
-
-            const { error: itemsError } = await supabase
-                .from('order_items')
-                .insert(orderItems);
-
-            if (itemsError) {
-                console.error('Chyba při vytváření položek objednávky:', itemsError);
-                // Pokus o odstranění objednávky v případě chyby
-                await supabase.from('orders').delete().eq('id', order.id);
-                throw itemsError;
-            }
-
-            // Odeslání potvrzovacího emailu
-            try {
-                const emailResponse = await fetch('/api/send-email', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ orderId: order.id })
-                });
-
-                if (!emailResponse.ok) {
-                    const errorData = await emailResponse.json();
-                    console.error('Chyba při odesílání emailu:', errorData);
-                }
-            } catch (emailError) {
-                console.error('Chyba při odesílání emailu:', emailError);
-                // Pokračujeme i když se nepodaří odeslat email
-            }
+            const response = await fetch('/api/checkout', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: user.id, requestKey: orderData.requestKey, items: orderData.items, note: orderData.customer.note || '' }),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Objednávku se nepodařilo uložit.');
 
             // Nastavení statusu na dokončeno
             setOrderStatus('completed');
 
-            await trackAnalyticsEvent(ANALYTICS_EVENTS.orderSubmitted, {
+            // Telemetry/storage failures must never turn an already saved order into
+            // a failed checkout or invite a second submission.
+            void trackAnalyticsEvent(ANALYTICS_EVENTS.orderSubmitted, {
                 itemCount: orderData.items.reduce((sum, item) => sum + item.quantity, 0),
                 oncePerJourney: true,
-            });
-            completeAnalyticsJourney();
-
-            // Odstranění dat objednávky z localStorage
-            localStorage.removeItem('pendingOrderData');
+            }).catch(() => {});
+            try {
+                completeAnalyticsJourney();
+                sessionStorage.removeItem(draftKey(user.id));
+            } catch { /* A retry with the retained request key remains idempotent. */ }
 
             // Vyčištění lokálního i serverového košíku po úspěšném uložení objednávky.
             clearCart();
@@ -169,6 +77,7 @@ export default function OrderConfirmationPage() {
             }, 2000);
         } catch (error) {
             console.error('Chyba při zpracování objednávky:', error);
+            submitting.current = false;
             setOrderStatus('error');
             toast.error(error instanceof Error ? error.message : 'Při zpracování objednávky došlo k chybě. Zkuste to prosím znovu.');
         }
@@ -179,7 +88,7 @@ export default function OrderConfirmationPage() {
         router.push('/order-summary');
     };
 
-    if (!orderData) {
+    if (!orderData || !user || orderData.userId !== user.id) {
         return (
             <CustomerPageShell width="3xl">
                     <div className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

@@ -14,14 +14,13 @@ export const metadata = {
 }
 
 type RecoveryConfirmationPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     error?: string
-  }
+  }>
 }
 
-export default function RecoveryConfirmationPage({
-  searchParams,
-}: RecoveryConfirmationPageProps) {
+export default async function RecoveryConfirmationPage(props: RecoveryConfirmationPageProps) {
+  const searchParams = await props.searchParams;
   const hasError = searchParams?.error === 'missing' || searchParams?.error === 'invalid'
 
   return (

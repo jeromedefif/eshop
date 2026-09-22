@@ -7,11 +7,7 @@ import { Lock, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { supabase } from '@/lib/supabase/client';
 
-interface ResetPasswordClientFormProps {
-  // Komponenta nepotřebuje žádné props, protože token je uložen v session
-}
-
-const ResetPasswordClientForm: React.FC<ResetPasswordClientFormProps> = () => {
+const ResetPasswordClientForm: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');

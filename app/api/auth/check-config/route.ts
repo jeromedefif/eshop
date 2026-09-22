@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -5,6 +6,7 @@ export const fetchCache = 'force-no-store';
 export const revalidate = 0;
 
 export async function GET() {
+  if (!(await requireAdmin())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   try {
     // Kontrola konfigurace pro Supabase a další služby
     const configuration = {

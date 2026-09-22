@@ -1,13 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import EmailDeliveryIssues from '@/components/EmailDeliveryIssues';
 import AdminOrders from '@/components/AdminOrders';
-import type { Order } from '@/types/orders';
+import type { Order, OrdersApiResponse } from '@/types/orders';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchWithRetry } from '@/lib/fetch-with-retry';
 
 export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
+    const [page, setPage] = useState(1);
+    const [search, setSearch] = useState('');
+    const [pagination, setPagination] = useState<OrdersApiResponse['pagination'] | null>(null);
     const [loading, setLoading] = useState(true);
     const [currentPeriod, setCurrentPeriod] = useState<'week' | 'month' | 'year' | 'all'>('month');
     const { isAdmin } = useAuth();
@@ -16,10 +20,11 @@ export default function OrdersPage() {
 
     // Funkce pro načtení všech objednávek s podporou období
     const fetchOrders = useCallback(async (period: 'week' | 'month' | 'year' | 'all') => {
-        if (activeRequest.current?.period === period) return;
+        const requestKey = `${period}:${page}:${search}`;
+        if (activeRequest.current?.period === requestKey) return;
         activeRequest.current?.controller.abort();
         const controller = new AbortController();
-        activeRequest.current = { controller, period };
+        activeRequest.current = { controller, period: requestKey };
         try {
             setLoading(true);
             setLoadError(null);
@@ -30,7 +35,7 @@ export default function OrdersPage() {
             // Sestavení URL s parametry
             const params = new URLSearchParams({
                 t: timestamp.toString(),
-                period: period // Přidáme parametr období
+                period, page: String(page), search
             });
 
             const response = await fetchWithRetry(`/api/orders?${params.toString()}`, {
@@ -47,11 +52,10 @@ export default function OrdersPage() {
                 throw new Error(`API error: ${response.status}`);
             }
 
-            const data: Order[] = await response.json();
-            console.log(`Načteno ${data.length} objednávek pro období: ${period}`);
-
+            const data: OrdersApiResponse = await response.json();
             if (controller.signal.aborted) return;
-            setOrders(data);
+            setOrders(data.orders);
+            setPagination(data.pagination);
         } catch (error) {
             if (controller.signal.aborted) return;
             console.error('Chyba při načítání objednávek:', error);
@@ -62,7 +66,7 @@ export default function OrdersPage() {
                 setLoading(false);
             }
         }
-    }, []);
+    }, [page, search]);
 
     // Export objednávek do CSV
     const handleExportOrders = useCallback(async () => {
@@ -117,6 +121,7 @@ export default function OrdersPage() {
 
     return (
         <div className="w-full">
+            <EmailDeliveryIssues />
             {loading && <p role="status" className="mb-3 text-sm text-slate-600">Načítání objednávek…</p>}
             {loadError && <p role="alert" className="mb-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{loadError}</p>}
             <AdminOrders
@@ -124,13 +129,20 @@ export default function OrdersPage() {
                 onOrdersChange={(period?: 'week' | 'month' | 'year' | 'all') => {
                     const nextPeriod = period ?? currentPeriod;
                     if (nextPeriod !== currentPeriod) {
+                        setPage(1);
                         setCurrentPeriod(nextPeriod);
                         return Promise.resolve();
                     }
                     return fetchOrders(currentPeriod);
                 }}
+                onSearch={(query) => { setPage(1); setSearch(query); }}
                 onExportOrders={handleExportOrders}
             />
+            {pagination && <nav aria-label="Stránkování objednávek" className="mt-4 flex items-center justify-between gap-3">
+                <button disabled={page === 1 || loading} onClick={() => setPage(page - 1)} className="rounded border px-4 py-2 disabled:opacity-40">Předchozí</button>
+                <span>Strana {page} · celkem {pagination.totalOrders} objednávek</span>
+                <button disabled={!pagination.hasMore || loading} onClick={() => setPage(page + 1)} className="rounded border px-4 py-2 disabled:opacity-40">Další</button>
+            </nav>}
         </div>
     );
 }

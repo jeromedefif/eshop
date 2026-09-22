@@ -93,10 +93,16 @@ model Order {
   total_volume          Decimal            @db.Decimal
   status                String             @default("pending") @db.Text
   note                  String?            @db.Text
+  request_key           String?            @db.Uuid
+  request_hash          String?            @db.Text
+  notifications         EmailDelivery[]
   order_items           OrderItem[]
   internal_note         OrderInternalNote?
   user                  User?              @relation(fields: [user_id], references: [id], map: "orders_user_id_fkey")
 
+  @@unique([user_id, request_key])
+  @@index([created_at(sort: Desc), id])
+  @@index([user_id, created_at(sort: Desc)])
   @@map("orders")
   @@schema("public")
 }
@@ -118,11 +124,14 @@ model OrderItem {
   id         String  @id @default(uuid()) @db.Uuid
   order_id   String  @db.Uuid
   product_id BigInt
+  product_name String? @db.Text
+  product_category String? @db.Text
   quantity   Int
   volume     String  @db.Text
   order      Order   @relation(fields: [order_id], references: [id], map: "order_items_order_id_fkey")
   product    Product @relation(fields: [product_id], references: [id], map: "order_items_product_id_fkey")
 
+  @@index([order_id])
   @@map("order_items")
   @@schema("public")
 }
@@ -209,6 +218,7 @@ model SavedOrderTemplateItem {
 }
 
 model CustomerCart {
+  revision   Int @default(0)
   user_id    String   @id @db.Uuid
   items      Json     @default("{}")
   updated_at DateTime @default(now()) @db.Timestamptz(6)
@@ -247,4 +257,27 @@ model User {
 
   @@map("users")
   @@schema("auth")
+}
+
+model EmailDelivery {
+  id String @id @default(uuid()) @db.Uuid
+  order_id String @db.Uuid
+  dedupe_key String @unique @db.Text
+  recipient String @db.Text
+  subject String @db.Text
+  html String @db.Text
+  status String @default("pending") @db.Text
+  attempts Int @default(0)
+  next_attempt_at DateTime @default(now()) @db.Timestamptz(6)
+  claimed_at DateTime? @db.Timestamptz(6)
+  first_attempt_at DateTime? @db.Timestamptz(6)
+  claim_token String? @db.Uuid
+  sent_at DateTime? @db.Timestamptz(6)
+  last_error String? @db.Text
+  provider_id String? @db.Text
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  order Order @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  @@index([status, next_attempt_at])
+  @@map("email_deliveries")
+  @@schema("public")
 }

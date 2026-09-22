@@ -1,6 +1,8 @@
+import { requireAdmin } from '@/lib/auth/require-admin';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
+  if (!(await requireAdmin())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   return NextResponse.json({
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Nastaveno' : 'Chybí',
     supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Nastaveno' : 'Chybí',

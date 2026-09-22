@@ -1,3 +1,4 @@
+import { withOrderSnapshots } from '@/lib/orders/snapshots';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -51,25 +52,6 @@ export async function GET(request: Request) {
     console.log('Request timestamp:', timestamp);
 
     try {
-        // Nejprve ověříme, zda můžeme vůbec číst z databáze
-        console.log('Testing database connection...');
-        try {
-            const testQuery = await prisma.$queryRaw`SELECT 1 as test`;
-            console.log('Database connection test:', testQuery);
-        } catch (testError) {
-            console.error('Database connection test failed:', testError);
-        }
-
-        // Nejprve kontrolní dotaz na všechny stavy objednávek pro diagnostiku
-        const statusCounts = await prisma.$queryRaw`
-            SELECT status, COUNT(*) as count
-            FROM "orders"
-            GROUP BY status
-        `;
-        console.log('Order status counts:', statusCounts);
-
-        // Načtení pouze objednávek se statusem "pending" (čeká na vyřízení)
-        console.log('Fetching all pending orders...');
         const pendingOrders = await prisma.order.findMany({
             where: {
                 status: 'pending'
@@ -104,7 +86,7 @@ export async function GET(request: Request) {
 
         // Serializace BigInt
         const serializedOrders = JSON.parse(JSON.stringify(
-            pendingOrders,
+            pendingOrders.map(withOrderSnapshots),
             (key, value) => typeof value === 'bigint' ? value.toString() : value
         ));
 

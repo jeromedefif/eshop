@@ -8,12 +8,13 @@ export const fetchCache = 'force-no-store';
 export const revalidate = 0;
 
 type Params = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
-export async function GET(_request: Request, { params }: Params) {
+export async function GET(_request: Request, props: Params) {
+  const params = await props.params;
   const currentAdmin = await requireAdmin();
   if (!currentAdmin) {
     return NextResponse.json({ error: 'Nemáte oprávnění zobrazit detail uživatele.' }, { status: 403 });
@@ -112,7 +113,8 @@ export async function GET(_request: Request, { params }: Params) {
   }
 }
 
-export async function DELETE(_request: Request, { params }: Params) {
+export async function DELETE(_request: Request, props: Params) {
+  const params = await props.params;
   const currentAdmin = await requireAdmin();
   if (!currentAdmin) {
     return NextResponse.json({ error: 'Nemáte oprávnění smazat uživatele.' }, { status: 403 });

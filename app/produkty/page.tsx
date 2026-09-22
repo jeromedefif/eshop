@@ -3,7 +3,7 @@ import { PublicCategoryCard, PublicProductCard } from '@/components/PublicCatalo
 import { CATEGORY_DETAILS, PRODUCT_CATEGORIES, normalizeProductCategory } from '@/lib/product-config';
 import { getPublicProducts } from '@/lib/public-products';
 import SiteFooter from '@/components/SiteFooter';
-import { SITE_CONTAINER_CLASS } from '@/lib/layout';
+import { SITE_CONTAINER_CLASS } from '@/lib/layout-classes';
 import PublicHeader from '@/components/PublicHeader';
 
 export const revalidate = 3600;

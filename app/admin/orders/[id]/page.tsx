@@ -120,32 +120,6 @@ const OrderDetailPage = () => {
                 throw new Error(errorData.error || 'Nepodařilo se aktualizovat status objednávky');
             }
 
-            // 2. Odeslání emailu zákazníkovi při změně stavu (pouze pro confirmed a cancelled)
-            if (newStatus === 'confirmed' || newStatus === 'cancelled') {
-                try {
-                    const emailResponse = await fetch('/api/orders/send-status-email', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            orderId: orderId,
-                            status: newStatus
-                        }),
-                    });
-
-                    if (!emailResponse.ok) {
-                        console.warn('Nepodařilo se odeslat email, ale status byl změněn');
-                    } else {
-                        console.log('Email byl úspěšně odeslán');
-                    }
-                } catch (emailError) {
-                    console.warn('Chyba při odesílání emailu:', emailError);
-                    // Pokračujeme dál i v případě chyby s emailem
-                }
-            }
-
-            // 3. Nastavit nový status v UI
             setStatus(newStatus);
             toast.success(`Stav objednávky změněn na „${getStatusText(newStatus)}“`);
         } catch (error) {
@@ -288,10 +262,7 @@ const OrderDetailPage = () => {
     })();
 
     // Komponenta pro potvrzovací dialog
-    const DeleteConfirmationDialog = () => {
-        if (!showDeleteConfirm) return null;
-
-        return (
+    const deleteConfirmationDialog = showDeleteConfirm ? (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                 <div className="bg-white rounded-lg p-6 max-w-md w-full">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Potvrzení smazání</h3>
@@ -323,8 +294,7 @@ const OrderDetailPage = () => {
                     </div>
                 </div>
             </div>
-        );
-    };
+        ) : null;
 
     if (isLoading) {
         return (
@@ -601,7 +571,7 @@ const OrderDetailPage = () => {
             </div>
 
             {/* Potvrzovací dialog pro smazání */}
-            <DeleteConfirmationDialog />
+            {deleteConfirmationDialog}
             <OrderEmailComposer open={isEmailComposerOpen} order={order} onClose={() => setIsEmailComposerOpen(false)} />
         </div>
     );

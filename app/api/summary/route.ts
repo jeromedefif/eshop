@@ -1,290 +1,40 @@
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
-
-const LITER_CATEGORIES = ['Víno', 'Perlivé', 'Nápoje', 'Ovocné víno', 'Burčák', 'Ovocné'];
-// Keep 30L for historical orders and include the current 25L Burčák packaging.
-const PACKAGE_SIZES = [3, 5, 10, 20, 25, 30, 50];
-
-type Period = 'week' | 'month' | 'year' | 'all';
-
-const getDateFilter = (period: Period) => {
-  if (period === 'all') return null;
-
-  const date = new Date();
-  switch (period) {
-    case 'week':
-      date.setDate(date.getDate() - 7);
-      break;
-    case 'month':
-      date.setDate(date.getDate() - 30);
-      break;
-    case 'year':
-      date.setFullYear(date.getFullYear() - 1);
-      break;
-    default:
-      date.setDate(date.getDate() - 30);
-  }
-
-  date.setHours(0, 0, 0, 0);
-  return date;
-};
-
-const parseVolume = (volume: string) => {
-  const value = parseFloat(String(volume).replace(/[^\d.-]/g, ''));
-  return Number.isFinite(value) ? value : 0;
-};
-
-const normalizeCategory = (category?: string | null) => {
-  if (!category) return 'Neznámá';
-  if (category === 'Ovocné') return 'Ovocné víno';
-  return category;
-};
-
-const getMonthKey = (date: Date) => {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  return `${year}-${month}`;
-};
-
-const getMonthLabel = (key: string) => {
-  const [year, month] = key.split('-');
-  return `${month}/${year}`;
-};
-
+import { periodStart, summaryStats, monthlyStats } from '@/lib/stats/queries';
 export async function GET(request: Request) {
-    if (!(await requireAdmin())) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
+  if (!(await requireAdmin())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   try {
-    const url = new URL(request.url);
-    const period = (url.searchParams.get('period') || 'all') as Period;
-    const dateFilter = getDateFilter(period);
-
-    const usersCount = await prisma.profile.count({
-      where: { is_admin: false },
-    });
-
-    const ordersCount = await prisma.order.count({
-      where: {
-        ...(dateFilter ? { created_at: { gte: dateFilter } } : {}),
-      },
-    });
-
-    const activeCustomers = await prisma.order.findMany({
-      where: {
-        user_id: { not: null },
-        ...(dateFilter ? { created_at: { gte: dateFilter } } : {}),
-      },
-      distinct: ['user_id'],
-      select: { user_id: true },
-    });
-
-    const profiles = await prisma.profile.findMany({
-      where: { is_admin: false },
-      select: {
-        id: true,
-        full_name: true,
-        company: true,
-        email: true,
-      },
-    });
-
-    const profileMap = new Map(
-      profiles.map((p) => [p.id, p])
-    );
-
-    const orders = await prisma.order.findMany({
-      where: {
-        user_id: { not: null },
-        ...(dateFilter ? { created_at: { gte: dateFilter } } : {}),
-      },
-      include: {
-        order_items: {
-          include: {
-            product: true,
-          },
-          where: {
-            product: {
-              category: { in: LITER_CATEGORIES },
-            },
-          },
-        },
-      },
-      orderBy: { created_at: 'desc' },
-    });
-
-    let totalLiters = 0;
-    let literOrdersCount = 0;
-    let maxOrderLiters = 0;
-    const productTotals: Record<string, number> = {};
-    const customerTotals: Record<string, number> = {};
-    const categoryTotals: Record<string, number> = {};
-    const packageTotals: Record<string, number> = {};
-
-    for (const order of orders) {
-      let orderLiters = 0;
-
-      for (const item of order.order_items) {
-        const liters = parseVolume(item.volume) * item.quantity;
-        if (!liters) continue;
-
-        orderLiters += liters;
-        totalLiters += liters;
-
-        const productName = item.product?.name || `#${item.product_id}`;
-        productTotals[productName] = (productTotals[productName] || 0) + liters;
-
-        if (order.user_id) {
-          customerTotals[order.user_id] = (customerTotals[order.user_id] || 0) + liters;
-        }
-
-        const category = normalizeCategory(item.product?.category);
-        categoryTotals[category] = (categoryTotals[category] || 0) + liters;
-
-        const size = parseVolume(item.volume);
-        if (PACKAGE_SIZES.includes(size)) {
-          const key = `${size}L`;
-          packageTotals[key] = (packageTotals[key] || 0) + liters;
-        }
-      }
-
-      if (orderLiters > 0) {
-        literOrdersCount += 1;
-        if (orderLiters > maxOrderLiters) {
-          maxOrderLiters = orderLiters;
-        }
-      }
-    }
-
-    const averageLiters = literOrdersCount > 0
-      ? Math.round((totalLiters / literOrdersCount) * 10) / 10
-      : 0;
-
-    const topProducts = Object.entries(productTotals)
-      .map(([name, liters]) => ({ name, liters: Math.round(liters * 10) / 10 }))
-      .sort((a, b) => b.liters - a.liters);
-
-    const topCustomers = Object.entries(customerTotals)
-      .map(([userId, liters]) => {
-        const profile = profileMap.get(userId);
-        return {
-          user_id: userId,
-          full_name: profile?.full_name || null,
-          company: profile?.company || null,
-          email: profile?.email || null,
-          liters: Math.round(liters * 10) / 10,
-        };
-      })
-      .sort((a, b) => b.liters - a.liters)
-      .slice(0, 5);
-
-    const categoryShares = Object.entries(categoryTotals)
-      .map(([category, liters]) => ({
-        category,
-        liters: Math.round(liters * 10) / 10,
-      }))
-      .sort((a, b) => b.liters - a.liters);
-
-    const packageShares = Object.entries(packageTotals)
-      .map(([pack, liters]) => ({
-        pack,
-        liters: Math.round(liters * 10) / 10,
-      }))
-      .sort((a, b) => b.liters - a.liters);
-
-    const totalPackageLiters = packageShares.reduce((sum, row) => sum + row.liters, 0);
-    const topPackage = packageShares.length
-      ? {
-          pack: packageShares[0].pack,
-          liters: packageShares[0].liters,
-          percent: totalPackageLiters
-            ? Math.round((packageShares[0].liters / totalPackageLiters) * 1000) / 10
-            : 0,
-        }
-      : null;
-
+    const since = periodStart(new URL(request.url).searchParams.get('period') || 'all');
     const now = new Date();
-    const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const months: string[] = [];
-    for (let i = 5; i >= 0; i -= 1) {
-      const date = new Date(startOfCurrentMonth);
-      date.setMonth(date.getMonth() - i);
-      months.push(getMonthKey(date));
-    }
-
-    const trendStart = new Date(startOfCurrentMonth);
-    trendStart.setMonth(trendStart.getMonth() - 5);
-
-    const trendOrders = await prisma.order.findMany({
-      where: {
-        user_id: { not: null },
-        created_at: { gte: trendStart },
-      },
-      include: {
-        order_items: {
-          include: {
-            product: true,
-          },
-          where: {
-            product: {
-              category: { in: LITER_CATEGORIES },
-            },
-          },
-        },
-      },
-      orderBy: { created_at: 'asc' },
+    const months = Array.from({ length: 6 }, (_, index) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - 5 + index, 1);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
     });
-
-    const trendTotals: Record<string, number> = {};
-    for (const key of months) {
-      trendTotals[key] = 0;
-    }
-
-    for (const order of trendOrders) {
-      const key = getMonthKey(order.created_at);
-      if (!(key in trendTotals)) continue;
-      for (const item of order.order_items) {
-        const liters = parseVolume(item.volume) * item.quantity;
-        if (!liters) continue;
-        trendTotals[key] += liters;
-      }
-    }
-
-    const monthlyTrend = months.map((key, index) => {
-      const liters = Math.round(trendTotals[key] * 10) / 10;
-      const prevKey = index > 0 ? months[index - 1] : null;
-      const prevLiters = prevKey ? Math.round(trendTotals[prevKey] * 10) / 10 : 0;
-      const changePct = prevKey && prevLiters > 0
-        ? Math.round(((liters - prevLiters) / prevLiters) * 1000) / 10
-        : null;
-      return {
-        month: getMonthLabel(key),
-        liters,
-        change_pct: changePct,
-      };
-    });
-
+    const [usersCount, counts, aggregate, trend] = await Promise.all([
+      prisma.profile.count({ where: { is_admin: false } }),
+      prisma.$queryRaw<Array<{ orders: number; customers: number }>>`SELECT count(*)::int AS orders, count(DISTINCT user_id)::int AS customers FROM public.orders ${since ? Prisma.sql`WHERE created_at >= ${since}` : Prisma.empty}`,
+      summaryStats(prisma, since), monthlyStats(prisma, new Date(now.getFullYear(), now.getMonth()-5,1)),
+    ]);
+    const round = (n: number) => Math.round(n*10)/10;
+    const roundRows = <T extends { liters: number }>(rows: T[]) => rows.map(row => ({ ...row, liters: round(row.liters) }));
+    const packages = roundRows(aggregate.package_shares);
+    const packageTotal = packages.reduce((sum,row) => sum+row.liters,0);
+    const byMonth = new Map(trend.map(row => [row.month,round(row.liters)]));
     return NextResponse.json({
-      users_count: usersCount,
-      orders_count: ordersCount,
-      total_liters: Math.round(totalLiters * 10) / 10,
-      active_customers: activeCustomers.length,
-      average_liters: averageLiters,
-      max_order_liters: Math.round(maxOrderLiters * 10) / 10,
-      top_customers: topCustomers,
-      top_products: topProducts,
-      category_shares: categoryShares,
-      package_shares: packageShares,
-      top_package: topPackage,
-      monthly_trend: monthlyTrend,
+      users_count: usersCount, orders_count: counts[0].orders, active_customers: counts[0].customers,
+      total_liters: round(aggregate.total_liters), average_liters: round(aggregate.average_liters), max_order_liters: round(aggregate.max_order_liters),
+      top_products: roundRows(aggregate.top_products), top_customers: roundRows(aggregate.top_customers),
+      category_shares: roundRows(aggregate.category_shares), package_shares: packages,
+      top_package: packages[0] ? { ...packages[0], percent: packageTotal ? round(packages[0].liters/packageTotal*100) : 0 } : null,
+      monthly_trend: months.map((key,index) => {
+        const liters = byMonth.get(key) || 0; const previous = index ? byMonth.get(months[index-1]) || 0 : 0;
+        return { month: `${key.slice(5)}/${key.slice(0,4)}`, liters, change_pct: previous > 0 ? round((liters-previous)/previous*100) : null };
+      }),
     });
   } catch (error) {
-    console.error('Error building summary:', error);
-    return NextResponse.json(
-      { error: 'Failed to build summary' },
-      { status: 500 }
-    );
+    console.error('Summary aggregation failed', error);
+    return NextResponse.json({ error: 'Souhrn se nepodařilo načíst.' }, { status: 500 });
   }
 }

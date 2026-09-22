@@ -5,18 +5,19 @@ import { PublicCategoryIcon, PublicProductCard } from '@/components/PublicCatalo
 import { CATEGORY_DETAILS, PRODUCT_CATEGORIES, getCategoryBySlug, normalizeProductCategory } from '@/lib/product-config';
 import { getPublicProducts } from '@/lib/public-products';
 import SiteFooter from '@/components/SiteFooter';
-import { SITE_CONTAINER_CLASS } from '@/lib/layout';
+import { SITE_CONTAINER_CLASS } from '@/lib/layout-classes';
 import PublicHeader from '@/components/PublicHeader';
 
 export const revalidate = 3600;
 
-type CategoryPageProps = { params: { slug: string } };
+type CategoryPageProps = { params: Promise<{ slug: string }> };
 
 export function generateStaticParams() {
     return PRODUCT_CATEGORIES.map((category) => ({ slug: CATEGORY_DETAILS[category].slug }));
 }
 
-export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+export async function generateMetadata(props: CategoryPageProps): Promise<Metadata> {
+    const params = await props.params;
     const category = getCategoryBySlug(params.slug);
     if (!category) return { title: 'Kategorie nebyla nalezena', robots: { index: false, follow: false } };
 
@@ -36,7 +37,8 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
     };
 }
 
-export default async function PublicCategoryPage({ params }: CategoryPageProps) {
+export default async function PublicCategoryPage(props: CategoryPageProps) {
+    const params = await props.params;
     const category = getCategoryBySlug(params.slug);
     if (!category) notFound();
 

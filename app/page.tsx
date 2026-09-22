@@ -2,65 +2,26 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase/client';
 import Header from '@/components/Header';
 import ProductList from '@/components/ProductList';
-import OrderForm from '@/components/OrderForm';
-import AdminProducts from '@/components/AdminProducts';
-import AuthDialog from '@/components/AuthDialog';
-import { sortCatalogProducts } from '@/lib/product-config';
-import { archiveProduct, createProduct, deleteProduct, restoreProduct, updateProduct } from '@/lib/products';
 import { useCart } from '@/contexts/CartContext';
 import SiteFooter from '@/components/SiteFooter';
 import CustomerPageState from '@/components/CustomerPageState';
 import { ANALYTICS_EVENTS, trackAnalyticsEvent } from '@/lib/analytics/client';
-import { SITE_CONTAINER_CLASS } from '@/lib/layout';
+import { SITE_CONTAINER_CLASS } from '@/lib/layout-classes';
 import { readCatalogProductIds } from '@/lib/catalog-product-links';
 
 export default function Home() {
    const cartContext = useCart();
-   const { user, profile } = useAuth();
-   const [currentView] = useState<'catalog' | 'order' | 'admin'>('catalog');
-   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
-   const [isLoading, setIsLoading] = useState(true);
+   const { user } = useAuth();
    const [linkedProductIds, setLinkedProductIds] = useState<string[]>([]);
 
    const {
        cartItems,
-       products, setProducts,
-       totalVolume,
+       products, isProductsLoading: isLoading, productsError,
        addToCart,
-       removeFromCart,
-       clearCart
+       removeFromCart
    } = cartContext;
-
-   const loadProducts = async () => {
-       try {
-           setIsLoading(true);
-           const { data, error } = await supabase
-               .from('products')
-               .select('*')
-               .eq('is_archived', false)
-               .order('is_new', { ascending: false })
-               .order('is_featured', { ascending: false })
-               .order('sort_priority', { ascending: false })
-               .order('name');
-
-           if (error) {
-               throw error;
-           }
-
-           setProducts(sortCatalogProducts(data || []));
-       } catch (error) {
-           console.error('Error loading products:', error);
-       } finally {
-           setIsLoading(false);
-       }
-   };
-
-   useEffect(() => {
-       loadProducts();
-   }, []);
 
    useEffect(() => {
        setLinkedProductIds(readCatalogProductIds(new URLSearchParams(window.location.search)));
@@ -89,7 +50,8 @@ export default function Home() {
            <Header />
 
            <main className={`${SITE_CONTAINER_CLASS} flex-1 py-6`}>
-               {currentView === 'catalog' && (
+               {productsError && <p role="alert" className="mb-4 rounded-lg bg-amber-50 p-4 text-amber-900">{productsError}</p>}
+               {(
                    <ProductList
                        onAddToCart={addToCart}
                        onRemoveFromCart={removeFromCart}
@@ -99,41 +61,10 @@ export default function Home() {
                    />
                )}
 
-               {currentView === 'order' && (
-                   <OrderForm
-                       cartItems={cartItems}
-                       products={products}
-                       onRemoveFromCart={removeFromCart}
-                       onAddToCart={addToCart}
-                       onClearCart={clearCart}
-                       totalVolume={totalVolume}
-                       user={user}
-                       profile={profile}
-                   />
-               )}
-
-               {currentView === 'admin' && profile?.is_admin && (
-                   <AdminProducts
-                       products={products}
-                       onProductsChange={loadProducts}
-                       onAddProduct={createProduct}
-                       onUpdateProduct={async (product) => {
-                           const { id, ...updates } = product;
-                           return updateProduct(id, updates);
-                       }}
-                       onDeleteProduct={deleteProduct}
-                       onArchiveProduct={archiveProduct}
-                       onRestoreProduct={restoreProduct}
-                   />
-               )}
            </main>
 
            <SiteFooter />
 
-           <AuthDialog
-               isOpen={isLoginDialogOpen}
-               onClose={() => setIsLoginDialogOpen(false)}
-           />
        </div>
    );
 }

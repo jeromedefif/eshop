@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ExternalLink, Mail, Phone } from 'lucide-react';
-import { SITE_CONTAINER_CLASS } from '@/lib/layout';
+import { SITE_CONTAINER_CLASS } from '@/lib/layout-classes';
 
 export default function SiteFooter() {
     return (
