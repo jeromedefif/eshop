@@ -177,3 +177,15 @@ Dřívější úplná sada 22 testů v izolované DB prošla.
 - Přihlášené zákaznické/admin UI a reset hesla nebyly plošně proklikané
   skutečnými účty. Produkční objednávka ověřuje reálný checkout, nikoliv všechny
   možné průchody. Historická data ani stará oznámení se zpětně nepřepisují.
+
+## Uzavření nasazení 24. 9. 2026
+
+- Vercel `dpl_5QZVRs7KjBcYzJT5Vmm9au3aj1Lg`, commit `a528df4`, sestaven
+  bez přepnutí domény, ověřen a následně úspěšně povýšen na produkci.
+- Úplná lokální sada s izolovanou DB: **25/25 testů prošlo**. Vercel build,
+  TypeScript a lint bez chyb (čtyři dřívější upozornění).
+- Edge Function `send-order-confirmation` nasazena jako **verze 25**, JWT
+  kontrola zůstala zapnutá. Adaptér otestován pro preflight, odmítnutí anonymního
+  požadavku, předání autorizace a selhání upstreamu. Původní zdroj je v historii Git.
+- Plánovač je aktivní; první automatický běh 24. 9. 09:15 UTC skončil succeeded.
+- Záloha před migrací má doplněný SHA-256 kontrolní součet.
