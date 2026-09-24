@@ -7,7 +7,7 @@ import { deliverPendingEmails } from '@/lib/email/delivery';
 
 // Compatibility endpoint for clients opened before the checkout upgrade.
 export async function POST(request: Request) {
-  const user = await requireUser();
+  const user = await requireUser(request);
   if (!user) return NextResponse.json({ error: 'Přihlaste se prosím.' }, { status: 401 });
   try {
     const { orderId } = await request.json();

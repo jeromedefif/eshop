@@ -1,8 +1,9 @@
 # Bezpečné nasazení oprav auditu
 
-Stav 22. 9. 2026: změny jsou pouze lokální. Nebyl proveden push, deployment,
-produkční migrace ani testovací objednávka či e-mail na produkci. Tento dokument
-není souhlas se spuštěním produkčních příkazů.
+Stav 24. 9. 2026: základní opravy jsou nasazené od 22. 9. na produkci.
+Deployment `dpl_6rVJj2C6RApzewsBGFrCAnvfUMZv`, commit `c2ae409`, projekt
+Vercel `fiala`, Supabase `uhawlwolmyoqcdurhuel`. Následující postup je runbook;
+aktuální výsledky a zbývající omezení jsou uvedené na konci.
 
 ## Co se mění
 
@@ -81,10 +82,8 @@ Starý otevřený klient po této bráně neumí zapisovat a musí být obnoven.
 
 ### D. Starý e-mailový odesílač
 
-Supabase Edge Function `send-order-confirmation` je stále aktivní a její
-zdroj zůstává zachovaný. Před vyřazením ověřit provozní logy, webhooky a jiné
-volající. Pouhá absence volání v tomto repozitáři nedokazuje, že není používána.
-Její případné vyřazení nebo zabezpečení je samostatný krok s regresním testem.
+Supabase Edge Function `send-order-confirmation` zůstává dostupná pod stejnou
+adresou. Zabezpečení adaptérem a jeho změna odpovědi jsou popsány níže.
 
 ## Návrat při problému
 
@@ -121,31 +120,60 @@ TEST_DATABASE_URL, spustit `node scripts/setup-test-db.mjs` a `npm test`.
 Skript i integrační test odmítnou jiný než lokální host a netestovací název DB.
 Bez TEST_DATABASE_URL běží jen jednotkové testy; CI proměnnou nastavuje.
 
-## Zbývající rizika
+## Výsledky produkčního nasazení
 
-Produkční oprávnění zjištěná auditem se samotnou lokální úpravou neopravila.
-Nasazení nesmí být označeno za hotové bez aplikace migrací a ověření provozu.
-Staging Auth/email průchody, obnova zálohy, plánovač a stará Edge Function
-zůstávají vstupními podmínkami produkčního nasazení. Tyto změny neprovádějí
-historickou opravu případných neúplných objednávek ani zpětné rozesílání e-mailů.
+- Uživatel výslovně schválil export zákaznických a Auth dat a izolovanou obnovu.
+  Zálohy `.release-backups/20260922/before-hardening.dump` a
+  `before-hardening-final.dump` mají oprávnění 600, adresář 700 a jsou mimo Git
+  i Vercel upload. Obsahují public, auth, private a supabase_migrations;
+  nejde o úplnou zálohu Storage/Vault/platformy.
+- Obnova prvního archivu prošla v lokálním PostgreSQL 15 v Dockeru bez sítě.
+  Na klonu prošla migrace, kontrola původních dat, registrační trigger,
+  vlastnická oprávnění a přechodový checkout. Testovací transakce byly vráceny.
+- Produkční migrace proběhla s krátkými timeouty a kontrolou otisků původních
+  dat v téže transakci. Počet 823 objednávek a 5 490 položek se při nasazení
+  nezměnil. Dne 24. 9. je 824 objednávek a 5 495 položek: nová skutečná
+  objednávka má dvě oznámení ve stavu sent (přijetí poskytovatelem).
+- Produkční historie: `20260922212344 security_order_delivery`
+  odpovídá lokálnímu souboru `20260921210504_security_order_delivery.sql`;
+  `20260922212548 restrict_legacy_function_access` odpovídá lokálnímu
+  `20260922212511_restrict_legacy_function_access.sql`.
+  `20260922212637 prepare_email_delivery_schedule` a
+  `20260922212804 checkout_server_only` odpovídají ručním post-deploy souborům.
+  Nepouštět celou historickou řadu přes db push: časové identifikátory se liší.
+- Závěrečná brána přímých zákaznických zápisů je aktivní. Staré otevřené karty
+  vyžadují obnovení. Při návratu na starou aplikaci platí omezení části Návrat.
+- CRON_SECRET je nastaven v produkčním Vercelu i Supabase Vault.
+  Dne 24. 9. ověřen pg_net požadavek na produkční worker: HTTP 200,
+  processed=0, bez timeoutu. Job beginy-email-deliveries aktivován po této
+  kontrole, interval pět minut. Prázdná fronta nevyvolá HTTP požadavek.
+- Veřejný web, login a katalog po prvním nasazení HTTP 200; chráněná API
+  odmítla anonymní požadavky. Prohlížeč bez runtime chyb. Nebyly vytvářeny
+  testovací produkční objednávky ani odesílány testovací e-maily.
 
-## Zahájení produkční přípravy 22. 9. 2026
+## Dokončení zabezpečení starého odesílače
 
-Uživatel schválil řízené nasazení během provozní pauzy. Read-only kontrola
-v 11:19 UTC: 823 objednávek, 5 490 položek, 31 profilů, 158 produktů,
-žádná nová objednávka za 30 minut. Poslední objednávka 21. 9. 2026 19:16 UTC.
-Produkční projekt Vercel je `fiala` (`prj_i9OpLBQ1lPWjguzMwc2Wuh7ZUJOj`),
-domény `beginy.cz` a `www.beginy.cz`. Dosavadní ověřený rollback kandidát:
-`dpl_G6SBbCt9Kv2Rty6VJmbXE5VjzBKs`, commit `cac1e34c2b4d1fba4b71a5cb0de81600b392529d`.
+Připravený kompatibilní adaptér zachovává URL send-order-confirmation a
+předává požadavek na stejné API jako aplikace. API ověřuje bearer token přes
+Supabase Auth a v databázi kontroluje vlastníka nebo administrátora.
+Neplatný bearer token se nikdy nenahradí identitou z cookies.
+Adaptér nepoužívá service-role ani Resend klíč, neposílá přímo a nemění stav
+objednávky. Úspěch vrací HTTP 202 a queued=true, nikoliv tvrzení o doručení.
+Nasazovat nejprve aplikaci s podporou bearer tokenu, až poté Edge adaptér.
+Tři nové regresní testy ověřují bearer autorizaci; 16 jednotkových/API testů
+prošlo, 9 DB testů v tomto běhu záměrně přeskočeno bez TEST_DATABASE_URL.
+Dřívější úplná sada 22 testů v izolované DB prošla.
 
-Před samotnou změnou zatím zbývá přihlášení CLI ke správnému Vercel účtu
-(a následná kontrola plánu/proměnných) a výslovný souhlas s lokální zálohou
-včetně Auth, který si vyžádala automatická bezpečnostní kontrola. Do té doby
-není povoleno zahájit export ani produkční migraci. Toto je aktuální záznam
-přípravy, nikoli potvrzení nasazení.
+## Zbývající omezení
 
-Propojení CLI bylo dokončeno a ověřeno: účet `jeromedefif`, tým
-`jeromedefifs-projects`, projekt `fiala`. Produkce používá Node 22.x a tarif
-Hobby. Původní pětiminutový Vercel Cron byl z lokální konfigurace odstraněn,
-protože by na tomto tarifu zablokoval deployment. Připravený Supabase job
-zatím nebyl aplikován ani aktivován. CRON_SECRET zatím v projektu není.
+- [Aktualizace Supabase PostgreSQL](https://supabase.com/docs/guides/platform/upgrading)
+  vyžaduje vlastní servisní okno a ověření obnovy; v této změně se neprovádí.
+- [Ochrana před uniklými hesly](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)
+  je vypnutá; je třeba ověřit dostupnost na tarifu před případnou aktivací.
+- Pět informačních hlášení RLS bez policy je záměrných pro serverové tabulky;
+  klienti k nim nemají přímý přístup.
+  [Význam hlášení](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy).
+- E-mailové přijetí poskytovatelem není důkaz doručení do schránky.
+- Přihlášené zákaznické/admin UI a reset hesla nebyly plošně proklikané
+  skutečnými účty. Produkční objednávka ověřuje reálný checkout, nikoliv všechny
+  možné průchody. Historická data ani stará oznámení se zpětně nepřepisují.
