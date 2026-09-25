@@ -112,8 +112,8 @@ Neobnovovat plošně starou databázi přes nově přijaté objednávky.
 - Inicializace nového lokálního schématu a přechodový starý checkout prošly.
 - npm audit po aktualizaci hlásil 0 známých zranitelností.
 - Testy nepoužívají ostrou DB ani skutečné odesílání. Lokální PostgreSQL je
-  verze 14; CI je připraveno pro PostgreSQL 15 stejně jako produkce. CI se
-  dosud nespustilo na vzdáleném serveru.
+  tehdy běžel ve verzi 14; původní CI používalo PostgreSQL 15.
+  Aktuální sladění na PostgreSQL 17 je zaznamenáno níže.
 
 Spuštění testů: vytvořit prázdnou lokální DB s názvem končícím `_test`, nastavit
 TEST_DATABASE_URL, spustit `node scripts/setup-test-db.mjs` a `npm test`.
@@ -233,3 +233,32 @@ Nebyla vytvořena testovací objednávka, nový účet ani odeslán testovací e
 Přihlášená existující relace načetla katalog i administraci objednávek;
 objednávky se zobrazily, bez chyb konzole. Vercel production log za posledních
 15 minut při závěrečné kontrole neobsahoval error/fatal záznamy.
+
+
+## Testovací prostředí PostgreSQL 17
+
+CI používá postgres:17-alpine a Node.js 22. Inicializace testovací databáze
+kontroluje hlavní verzi serveru 17 ještě před změnou schématu; zůstává také
+omezení na localhost a název končící _test. Zahrnuty jsou i migrace omezení
+starších funkcí a odstranění pgjwt. Každá migrace běží v jedné transakci.
+Standardní PostgreSQL kontejner neobsahuje všechny služby a rozšíření Supabase.
+
+Lokální ověření: čistý postgres:17-alpine (17.11), pouze syntetická data,
+25/25 testů prošlo. Testuje se shodná hlavní verze 17, nikoli identický
+Supabase image 17.6.1.166. Žádná produkční data nebyla importována.
+Uživatel také potvrdil funkčnost obnovy hesla, objednávek a e-mailů v produkci.
+
+Opakování lokálně (vyžaduje Docker, psql a Node):
+
+```sh
+docker run --detach --rm --name beginy-pg17-test --publish 127.0.0.1:55447:5432 --env POSTGRES_USER=test --env POSTGRES_PASSWORD=test --env POSTGRES_DB=beginy_audit_test postgres:17-alpine
+# Počkejte, až pg_isready oznámí accepting connections:
+docker exec beginy-pg17-test pg_isready -U test -d beginy_audit_test
+export TEST_DATABASE_URL=postgresql://test:test@127.0.0.1:55447/beginy_audit_test
+node scripts/setup-test-db.mjs
+npm test
+docker stop beginy-pg17-test
+```
+
+Inicializaci spouštět pouze jednou pro čerstvý kontejner. Kontejner je dočasný,
+bez připojeného produkčního úložiště; jeho zastavení odstraní testovací data.

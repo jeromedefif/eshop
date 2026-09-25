@@ -9,7 +9,11 @@ const run = (args, input) => {
     encoding: 'utf8', input,
   });
   if (result.status !== 0) throw new Error(result.stderr || String(result.error));
+  return result.stdout.trim();
 };
+const version = run(['-Atc', 'SHOW server_version_num']);
+if (Math.floor(Number(version) / 10000) !== 17) throw new Error('Tests require PostgreSQL 17 to match the production major version.');
+console.log(`Test database: PostgreSQL ${run(['-Atc', 'SHOW server_version'])}`);
 run(['-f', 'tests/fixtures/baseline.sql']);
 run([], `
 DO $$ BEGIN CREATE ROLE anon NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -18,7 +22,7 @@ GRANT USAGE ON SCHEMA public, auth TO anon, authenticated;
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 GRANT EXECUTE ON FUNCTION auth.uid() TO anon, authenticated;
 `);
-for (const path of ['202608110001_product_lifecycle.sql', '20260921210504_security_order_delivery.sql']) run(['-f', `supabase/migrations/${path}`]);
+for (const path of ['202608110001_product_lifecycle.sql', '20260921210504_security_order_delivery.sql', '20260922212511_restrict_legacy_function_access.sql', '20260924193610_remove_unused_pgjwt.sql']) run(['--single-transaction', '-f', `supabase/migrations/${path}`]);
 run(['-f', 'tests/fixtures/legacy-checkout.sql']);
 run(['-f', 'supabase/post-deploy/checkout_server_only.sql']);
 console.log('Isolated test schema and security migrations initialized.');

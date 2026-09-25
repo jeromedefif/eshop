@@ -15,12 +15,12 @@ concurrency:
 
 jobs:
   quality:
-    name: TypeScript and ESLint
+    name: PostgreSQL 17 tests, TypeScript and ESLint
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
       postgres:
-        image: postgres:15-alpine
+        image: postgres:17-alpine
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
