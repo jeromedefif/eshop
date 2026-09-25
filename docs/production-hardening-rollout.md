@@ -189,3 +189,47 @@ Dřívější úplná sada 22 testů v izolované DB prošla.
   požadavku, předání autorizace a selhání upstreamu. Původní zdroj je v historii Git.
 - Plánovač je aktivní; první automatický běh 24. 9. 09:15 UTC skončil succeeded.
 - Záloha před migrací má doplněný SHA-256 kontrolní součet.
+
+## Aktualizace databáze 25. 9. 2026
+
+Uživatel schválil aktualizaci PostgreSQL po upozornění na odstávku až jednu
+hodinu a nemožnost downgradu. Výslovně nepožadoval novou zálohu; nebyla
+vytvořena. Starší ověřený archiv obsahuje 823 objednávek a není aktuální.
+
+Před upgradem bylo po kontrole zdrojů aplikace, nasazené Edge Function,
+databázových závislostí a textů funkcí/pohledů/cron úloh odstraněno nepoužívané
+rozšíření pgjwt pomocí DROP EXTENSION RESTRICT. Migrace 20260924193610.
+Sledování volání funkcí bylo vypnuté, takže kontrola nevylučuje neznámého
+externího volajícího.
+
+Upgrade na verzi 17.6.1.166 (bez označení Preview) zahájen 25. 9. 07:27:33 UTC.
+Tracking ID: 32ea1570-f9d3-4b89-97c1-603478ce2382.
+Před upgradem: 826 objednávek, 5 505 položek, 31 profilů, 158 produktů,
+32 Auth uživatelů, žádná čekající e-mailová oznámení.
+Otisk objednávek: 143863793cd7f70d2e98cf12e998b4f3.
+Otisk položek: a069bd4cef199a1a2274b0139e5054af.
+Cron beginy-email-deliveries aktivní každých pět minut.
+
+Výsledek ověřen 25. 9. přibližně v 17:27 UTC: projekt ACTIVE_HEALTHY,
+PostgreSQL 17.6.1.166, release channel ga. Bezpečnostní advisor již nehlásí
+zastaralou verzi PostgreSQL. Zůstává vypnutá placená ochrana uniklých hesel
+(a informační RLS hlášení serverových tabulek).
+
+Všech 826 původních objednávek a 5 505 původních položek je přítomno.
+Otisk původních položek přesně souhlasí s hodnotou před upgradem.
+Otisk objednávek není totožný; dvě původní objednávky mají aktualizaci stavu
+confirmed v 07:58 a 07:59 UTC. Bez per-row snapshotu před upgradem nelze
+prokázat shodu všech ostatních sloupců objednávek. Nová objednávka vznikla
+ve 14:46 UTC, dvě její oznámení mají stav sent. Aktuálně 827 objednávek,
+5 507 položek, 158 produktů. Auth audit eviduje user_deleted v 12:25:39 UTC;
+počty Auth/profilů klesly na 31/30. Tato kontrola sama neurčuje původce smazání.
+
+Cron beginy-email-deliveries je nadále aktivní každých pět minut, poslední
+ověřené běhy 17:15, 17:20 a 17:25 UTC succeeded. Fronta bez čekajících zpráv.
+Přímý zákaznický INSERT objednávek a čtení Vault zůstávají zakázané.
+HTTP kontroly: web, login, veřejný katalog 200; chráněná API odmítají
+anonymní volání; autorizovaný e-mailový worker 200 a processed=0.
+Nebyla vytvořena testovací objednávka, nový účet ani odeslán testovací e-mail.
+Přihlášená existující relace načetla katalog i administraci objednávek;
+objednávky se zobrazily, bez chyb konzole. Vercel production log za posledních
+15 minut při závěrečné kontrole neobsahoval error/fatal záznamy.
