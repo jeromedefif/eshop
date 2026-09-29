@@ -26,3 +26,17 @@ Výjimka burčáku a nastavení produktů se nemění. Není nutná migrace data
 Předchozí produkční deployment: `dpl_ANTHd4eZuXGSdAEW1CZZJXjRgDLp`,
 `https://fiala-p5rjhn57f-jeromedefifs-projects.vercel.app`, commit `fc999cf`.
 Rollback aplikace nevyžaduje změnu dat ani schématu.
+
+## Vizuální doladění
+
+Po uživatelském ověření funkčnosti objednávek a návratu z úpravy profilu byla
+upravena pouze prezentace potvrzení a společného ukazatele kroků. Vzhled navazuje
+na tmavě modrý přehled v historii objednávek: samostatné bílé karty, zvýrazněná
+dodací adresa, kompaktní kontakt a vlastní poznámka. Na desktopu je přehled
+s odesláním v bočním sloupci; na mobilu následuje po kontrolovaných údajích.
+Obsluha odesílání, retry, timeoutu, profilů a serverová logika jsou beze změny.
+
+Ověřeno TypeScriptem, ESLintem (pouze dřívější čtyři upozornění) a izolovaným
+prohlížečem na desktopu i mobilu. Znovu prošly simulované návraty, obnovení,
+chyba a opakování, změna adresy, potvrzení a timeout. Žádná skutečná objednávka
+nebyla při těchto kontrolách odeslána.
