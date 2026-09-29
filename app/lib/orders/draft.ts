@@ -1,6 +1,7 @@
 import type { OrderConfirmationData } from '@/types/orders';
-export type OrderDraft = OrderConfirmationData & { userId: string; requestKey: string; createdAt: number };
+export type OrderDraft = OrderConfirmationData & { userId: string; requestKey: string; createdAt: number; completedOrderId?: string; attempted?: boolean };
 const PREFIX = 'beginy:order-draft:';
+export const noteKey = (userId: string) => `${PREFIX}note:${userId}`;
 export const draftKey = (userId: string) => `${PREFIX}${userId}`;
 export function sameDraftContents(a: OrderConfirmationData, b: OrderConfirmationData) {
   const contents = (order: OrderConfirmationData) => JSON.stringify({

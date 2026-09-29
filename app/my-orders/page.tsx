@@ -77,6 +77,12 @@ const MyOrdersPage = () => {
     const [previouslyOrderedSearch, setPreviouslyOrderedSearch] = useState('');
     const [previouslyOrderedError, setPreviouslyOrderedError] = useState(false);
 
+    useEffect(() => {
+        if (loading || !window.location.hash.startsWith('#order-')) return;
+        const element = document.getElementById(window.location.hash.slice(1));
+        if (element) { element.scrollIntoView({ block: 'center' }); element.focus({ preventScroll: true }); }
+    }, [loading, orders]);
+
     // Minimální nové proměnné pro paginaci
     const [currentPage, setCurrentPage] = useState(0);
     const [hasMoreOrders, setHasMoreOrders] = useState(false);
@@ -626,7 +632,7 @@ const MyOrdersPage = () => {
                     <div>
                         <div className="space-y-4">
                             {orders.map((order) => (
-                                <article key={order.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md">
+                                <article id={`order-${order.id}`} tabIndex={-1} key={order.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md">
                                     <div className="flex flex-col gap-4 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
                                         <div>
                                             <div className="flex items-center space-x-3">

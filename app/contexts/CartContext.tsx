@@ -1,5 +1,7 @@
 'use client';
 
+import { removeOrderedLines } from '@/lib/orders/checkout-cart';
+import type { OrderConfirmationItem } from '@/types/orders';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase/client';
@@ -22,6 +24,7 @@ export type CartContextType = {
   removeFromCart: (productId: string | number, volume: string | number) => void;
   removeLineFromCart: (productId: string | number, volume: string | number) => void;
   clearCart: () => void;
+  clearOrderedItems: (orderedItems: OrderConfirmationItem[]) => void;
   requestCartImport: (items: CartItems, sourceLabel: string) => Promise<CartImportResult>;
 };
 
@@ -213,6 +216,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     // The revision-checked effect serializes this write behind in-flight saves.
   }, []);
 
+  const clearOrderedItems = useCallback((orderedItems: OrderConfirmationItem[]) => {
+    setCartItems(current => removeOrderedLines(current, orderedItems));
+  }, []);
+
   const requestCartImport = useCallback((items: CartItems, sourceLabel: string) => {
     const sanitizedItems = sanitizeCart(items);
     if (Object.keys(sanitizedItems).length === 0) return Promise.resolve<CartImportResult>('cancelled');
@@ -238,7 +245,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <CartContext.Provider value={{ cartItems, products, isProductsLoading, productsError, setProducts, totalVolume, isCartHydrated, addToCart, removeFromCart, removeLineFromCart, clearCart, requestCartImport }}>
+    <CartContext.Provider value={{ cartItems, products, isProductsLoading, productsError, setProducts, totalVolume, isCartHydrated, addToCart, removeFromCart, removeLineFromCart, clearCart, clearOrderedItems, requestCartImport }}>
       {cartSyncError && <div role="alert" className="border-b border-amber-300 bg-amber-50 p-3 text-center text-sm text-amber-950">
         {cartSyncError} Záloha místních položek zůstává v prohlížeči.
         <button className="ml-3 font-semibold underline" onClick={() => { if (user) localStorage.setItem(`cart:unsynced:${user.id}`, JSON.stringify(cartItems)); setReloadCart(n => n + 1); }}>Načíst společný košík</button>

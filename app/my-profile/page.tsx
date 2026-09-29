@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Building, CheckCircle, Eye, FileText, LockKeyhole, Mail, MapPin, Phone, Save, Truck, User } from 'lucide-react';
 import CustomerPageState from '@/components/CustomerPageState';
@@ -23,6 +24,8 @@ export default function MyProfilePage() {
     const { user, profile, updateProfile } = useAuth();
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
+    const [fromCheckout, setFromCheckout] = useState(false);
+    useEffect(() => { setFromCheckout(new URLSearchParams(window.location.search).get('checkout') === '1'); }, []);
     const [successMessage, setSuccessMessage] = useState('');
     const [error, setError] = useState('');
     const [formData, setFormData] = useState<ProfileFormData>(emptyForm);
@@ -85,6 +88,7 @@ export default function MyProfilePage() {
         } : formData;
         try {
             await updateProfile(normalizedData);
+            if (fromCheckout) router.push('/order-confirmation');
             setFormData(normalizedData); setOriginalData(normalizedData);
             setSuccessMessage('Profil byl úspěšně aktualizován.');
             window.setTimeout(() => setSuccessMessage(''), 3000);
@@ -157,6 +161,7 @@ export default function MyProfilePage() {
 
     return (
         <CustomerPageShell width="5xl">
+            {fromCheckout && <Link href="/order-confirmation" className="mb-4 inline-flex min-h-11 items-center font-semibold text-blue-700 underline">Zpět ke kontrole objednávky</Link>}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
                 <div className="mb-6 border-b border-slate-200 pb-5">
                     <h1 className="text-3xl font-bold tracking-tight text-slate-950">Můj profil</h1>

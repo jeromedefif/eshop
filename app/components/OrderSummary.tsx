@@ -171,7 +171,7 @@ const OrderSummary = ({
 
     if (Object.keys(cartItems).length === 0) {
         return (
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
                 <div className="text-center text-gray-700">
                     <Package className="h-12 w-12 mx-auto mb-4 text-gray-600" />
                     <p className="text-lg">Košík je prázdný</p>
@@ -181,7 +181,7 @@ const OrderSummary = ({
     }
 
     return (
-        <div className="bg-white rounded-lg shadow">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="p-4 border-b border-gray-100">
                 <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-gray-900">Přehled objednávky</h2>
@@ -210,14 +210,14 @@ const OrderSummary = ({
                                     {items.map(({ product, volume, count }) => (
                                         <div
                                             key={`${product.id}-${volume}`}
-                                            className="flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-blue-50 rounded-lg transition-colors"
+                                            className="flex flex-col items-stretch sm:flex-row sm:items-center justify-between gap-3 px-3 py-2.5 hover:bg-blue-50 rounded-lg transition-colors"
                                         >
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 min-w-0">
+                                                <div className="flex flex-wrap items-center gap-2 min-w-0">
                                                     <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold shrink-0 ${theme.volumeChip}`}>
                                                         {getItemText(product, volume)}
                                                     </span>
-                                                    <span className="font-medium text-gray-900 truncate">
+                                                    <span className="font-medium text-gray-900 break-words">
                                                         {product.name}
                                                     </span>
                                                 </div>
@@ -227,7 +227,7 @@ const OrderSummary = ({
                                                 <div className="flex items-center bg-white border rounded-lg">
                                                     <button
                                                         onClick={() => handleDecrement(product.id, volume)}
-                                                        className="p-1 hover:bg-gray-100 rounded-l-lg border-r"
+                                                        className="min-h-11 min-w-11 flex items-center justify-center p-2 hover:bg-gray-100 rounded-l-lg border-r"
                                                         title="Snížit množství"
                                                     >
                                                         <Minus className="w-4 h-4 text-gray-600" />
@@ -237,7 +237,7 @@ const OrderSummary = ({
                                                     </span>
                                                     <button
                                                         onClick={() => handleIncrement(product.id, volume)}
-                                                        className="p-1 hover:bg-gray-100 rounded-r-lg border-l"
+                                                        className="min-h-11 min-w-11 flex items-center justify-center p-2 hover:bg-gray-100 rounded-r-lg border-l"
                                                         title="Zvýšit množství"
                                                     >
                                                         <Plus className="w-4 h-4 text-gray-600" />
@@ -246,7 +246,7 @@ const OrderSummary = ({
 
                                                 <button
                                                     onClick={() => handleRemoveItem(product.id, volume)}
-                                                    className="p-1.5 hover:bg-red-100 rounded-lg transition-colors"
+                                                    className="min-h-11 min-w-11 flex items-center justify-center p-2 hover:bg-red-100 rounded-lg transition-colors"
                                                     title="Odebrat položku"
                                                 >
                                                     <Trash2 className="w-4 h-4 text-red-500" />

@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { saveCart } from '@/lib/orders/cart';
 import { customerStats, summaryStats } from '@/lib/stats/queries';
+import { customerFromProfile, CustomerChangedError } from '@/lib/orders/customer';
 import { createOrder } from '@/lib/orders/create';
 import { parseOrderRequest } from '@/lib/orders/validation';
 import { deliverPendingEmails } from '@/lib/email/delivery';
@@ -35,6 +36,20 @@ suite('Atomic checkout and durable delivery (real PostgreSQL)', () => {
     expect(await db!.orderItem.count({ where: { order_id: a.id } })).toBe(1);
     expect(await db!.emailDelivery.count({ where: { order_id: a.id } })).toBe(2);
     await expect(createOrder(db!, alice, { ...request, note: 'changed' })).rejects.toThrow('jiným obsahem');
+  });
+  it('requires review of a changed profile, but replays an already saved order safely', async () => {
+    const request = input();
+    const profile = await db!.profile.findUniqueOrThrow({ where: { id: alice } });
+    const customer = customerFromProfile({ ...profile, email: profile.email! });
+    await db!.profile.update({ where: { id: alice }, data: { shipping_same_as_billing: false, shipping_address: 'New address' } });
+    await expect(createOrder(db!, alice, request, customer)).rejects.toBeInstanceOf(CustomerChangedError);
+    expect(await db!.order.count({ where: { request_key: request.requestKey } })).toBe(0);
+    const updated = await db!.profile.findUniqueOrThrow({ where: { id: alice } });
+    const saved = await createOrder(db!, alice, request, customerFromProfile({ ...updated, email: updated.email! }));
+    expect(saved.shipping_address).toBe('New address');
+    const replay = await createOrder(db!, alice, request, customer);
+    expect(replay.id).toBe(saved.id);
+    expect(await db!.order.count({ where: { request_key: request.requestKey } })).toBe(1);
   });
   it('rolls back the order and items if queuing the notification fails', async () => {
     await db!.$executeRawUnsafe(`CREATE FUNCTION public.test_delivery_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected queue failure'; END $$`);

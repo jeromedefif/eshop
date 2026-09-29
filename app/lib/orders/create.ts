@@ -1,8 +1,10 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
+import { customerFromProfile, sameCustomer, CustomerChangedError } from './customer';
+import type { OrderCustomer } from '@/types/orders';
 import { receiptMessages } from '@/lib/email/templates';
 import { OrderInputError, orderFingerprint, validateOrderItems, type OrderRequest } from './validation';
 
-export async function createOrder(db: PrismaClient, userId: string, input: OrderRequest) {
+export async function createOrder(db: PrismaClient, userId: string, input: OrderRequest, expectedCustomer?: OrderCustomer) {
   const fingerprint = orderFingerprint(input);
   const findExisting = () => db.order.findUnique({ where: { user_id_request_key: { user_id: userId, request_key: input.requestKey } } });
   const checkExisting = (order: NonNullable<Awaited<ReturnType<typeof findExisting>>>) => {
@@ -23,8 +25,13 @@ export async function createOrder(db: PrismaClient, userId: string, input: Order
       await tx.$queryRaw`SELECT id FROM public.products WHERE id IN (${Prisma.join(ids)}) ORDER BY id FOR SHARE`;
       const products = await tx.product.findMany({ where: { id: { in: ids } } });
       const { records, totalVolume } = validateOrderItems(input.items, products);
+      await tx.$queryRaw`SELECT id FROM public.profiles WHERE id = ${userId}::uuid FOR SHARE`;
       const profile = await tx.profile.findUnique({ where: { id: userId } });
       if (!profile?.email || !profile.full_name) throw new OrderInputError('Před objednáním doplňte jméno a e-mail v profilu.');
+      if (expectedCustomer && !sameCustomer(expectedCustomer, customerFromProfile({ ...profile, email: profile.email }))) {
+        throw new CustomerChangedError(customerFromProfile({ ...profile, email: profile.email }));
+      }
+      const customer = customerFromProfile({ ...profile, email: profile.email });
       const shipping = profile.shipping_same_as_billing;
       const billingAddress = profile.billing_address || profile.address;
       const billingCity = profile.billing_city || profile.city;
@@ -36,13 +43,13 @@ export async function createOrder(db: PrismaClient, userId: string, input: Order
           customer_phone: profile.phone, customer_company: profile.company,
           customer_company_id: profile.company_id, customer_vat_id: profile.vat_id,
           billing_address: billingAddress, billing_city: billingCity,
-          billing_postal_code: billingPostal, billing_country: profile.billing_country,
+          billing_postal_code: billingPostal, billing_country: customer.billingCountry,
           shipping_company: shipping ? profile.company : profile.shipping_company,
           shipping_contact_name: shipping ? profile.full_name : profile.shipping_contact_name,
           shipping_address: shipping ? billingAddress : profile.shipping_address,
           shipping_city: shipping ? billingCity : profile.shipping_city,
           shipping_postal_code: shipping ? billingPostal : profile.shipping_postal_code,
-          shipping_country: shipping ? profile.billing_country : profile.shipping_country,
+          shipping_country: customer.shippingCountry,
           delivery_instructions: profile.delivery_instructions, note: input.note,
           total_volume: totalVolume, status: 'pending', order_items: { create: records },
         },

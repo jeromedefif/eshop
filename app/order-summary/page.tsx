@@ -3,6 +3,7 @@
 import { useContext, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { CartContext } from '@/contexts/CartContext';
+import CheckoutSteps from '@/components/CheckoutSteps';
 import OrderForm from '@/components/OrderForm';
 import Link from 'next/link';
 import { ShoppingBag, ArrowLeft } from 'lucide-react';
@@ -10,7 +11,7 @@ import CustomerPageShell from '@/components/CustomerPageShell';
 import { ANALYTICS_EVENTS, trackAnalyticsEvent } from '@/lib/analytics/client';
 
 const OrderSummaryPage = () => {
-    const { user, profile } = useAuth();
+    const { user, profile, isLoading } = useAuth();
     const cartContext = useContext(CartContext);
 
     useEffect(() => {
@@ -33,6 +34,9 @@ const OrderSummaryPage = () => {
         removeFromCart,
         clearCart
     } = cartContext;
+
+    if (isLoading || !cartContext.isCartHydrated || cartContext.isProductsLoading) return <CustomerPageShell width="5xl"><p role="status">Načítáme košík a vaše údaje…</p></CustomerPageShell>;
+    if (cartContext.productsError) return <CustomerPageShell width="5xl"><p role="alert">{cartContext.productsError}</p><button onClick={() => window.location.reload()} className="mt-4 text-blue-700 underline">Zkusit znovu</button></CustomerPageShell>;
 
     // Odstraněno přesměrování - místo toho budeme zobrazovat prázdný stav košíku
 
@@ -76,7 +80,9 @@ const OrderSummaryPage = () => {
                                 Souhrn objednávky
                             </h1>
 
+                            <CheckoutSteps current={1} />
                             <OrderForm
+                                key={user?.id || 'guest'}
                                 cartItems={cartItems}
                                 products={products}
                                 onRemoveFromCart={removeFromCart}
