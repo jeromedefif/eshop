@@ -78,6 +78,7 @@ const OrderForm = ({
           return {
               productId: Number(product.id),
               productName: product.name,
+              productCategory: category,
               volume: volume as string | number,
               quantity,
               display

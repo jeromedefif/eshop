@@ -109,6 +109,7 @@ export interface OrderCustomer {
 }
 
 export interface OrderConfirmationItem {
+    productCategory?: string;
     productId: number;
     productName: string;
     volume: string | number;

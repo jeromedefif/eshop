@@ -6,6 +6,7 @@ import { CheckCircle, Loader2, ClipboardCheck, Package, Truck, MapPin, Building2
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { draftKey, noteKey, parseDraft, type OrderDraft } from '@/lib/orders/draft';
+import { checkoutAccessoryTotals } from '@/lib/orders/checkout-totals';
 import { sameCustomer } from '@/lib/orders/customer';
 import type { OrderStatus, OrderCustomer } from '@/types/orders';
 import CustomerPageShell from '@/components/CustomerPageShell';
@@ -16,7 +17,7 @@ import { ANALYTICS_EVENTS, completeAnalyticsJourney, trackAnalyticsEvent } from 
 export default function OrderConfirmationPage() {
     const router = useRouter();
     const { user, isLoading } = useAuth();
-    const { clearOrderedItems } = useCart();
+    const { clearOrderedItems, products } = useCart();
     const [orderStatus, setOrderStatus] = useState<OrderStatus>('pending');
     const [orderData, setOrderData] = useState<OrderDraft | null>(null);
     const [error, setError] = useState('');
@@ -143,7 +144,7 @@ export default function OrderConfirmationPage() {
     const validCustomer = Boolean(orderData.customer.name && orderData.customer.email);
     const customer = orderData.customer;
     const canEdit = !completed && !processing && !orderData.attempted;
-    const itemCount = orderData.items.reduce((sum, item) => sum + item.quantity, 0);
+    const { petPackages, gasPieces } = checkoutAccessoryTotals(orderData.items, products);
     return (
         <CustomerPageShell width="5xl">
             <header className="mb-5 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 to-slate-800 p-6 text-white shadow-sm sm:p-8">
@@ -233,10 +234,16 @@ export default function OrderConfirmationPage() {
                 <aside aria-label="Přehled a odeslání objednávky" className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-24">
                     <div className="border-b border-slate-100 p-5 sm:p-6">
                         <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{completed ? 'Přijatá objednávka' : 'Vaše objednávka'}</p>
-                        {orderData.totalVolume > 0 && <div className="mt-4"><p className="text-4xl font-bold tracking-tight text-slate-950">{orderData.totalVolume}<span className="ml-1.5 text-xl font-medium text-slate-400">l</span></p><p className="mt-1 text-sm text-slate-500">Celkový objem nápojů</p></div>}
-                        <dl className="mt-5 space-y-2 text-sm">
-                            <div className="flex justify-between gap-3"><dt className="text-slate-500">Položek objednávky</dt><dd className="font-semibold tabular-nums text-slate-900">{orderData.items.length}</dd></div>
-                            <div className="flex justify-between gap-3"><dt className="text-slate-500">Balení / ks</dt><dd className="font-semibold tabular-nums text-slate-900">{itemCount}</dd></div>
+                        <div className="mt-4"><p className="text-sm text-slate-500">Celkový objem vín a nápojů</p><p className="mt-2 text-4xl font-bold tracking-tight text-slate-950">{orderData.totalVolume}<span className="ml-2 text-xl font-medium text-slate-500">litrů</span></p></div>
+                        <dl className="mt-5 space-y-3 text-sm">
+                            <div className={`flex items-center justify-between gap-3 rounded-xl border p-3 ${petPackages === 0 ? 'border-amber-200 bg-amber-50' : 'border-blue-100 bg-blue-50/60'}`}>
+                                <dt className="font-medium text-slate-700">Celkem balení PET</dt>
+                                <dd className={`shrink-0 font-bold tabular-nums ${petPackages === 0 ? 'text-amber-900' : 'text-blue-900'}`}>{petPackages} balení</dd>
+                            </div>
+                            <div className={`flex items-center justify-between gap-3 rounded-xl border p-3 ${gasPieces === 0 ? 'border-amber-200 bg-amber-50' : 'border-blue-100 bg-blue-50/60'}`}>
+                                <dt className="font-medium text-slate-700">Celkem plynů</dt>
+                                <dd className={`shrink-0 font-bold tabular-nums ${gasPieces === 0 ? 'text-amber-900' : 'text-blue-900'}`}>{gasPieces} ks</dd>
+                            </div>
                         </dl>
                     </div>
                     {!completed ? <div className="p-5 sm:p-6">
