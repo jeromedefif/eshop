@@ -4,11 +4,13 @@ import { draftKey, noteKey, parseDraft, sameDraftContents } from '@/lib/orders/d
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import OrderSummary from './OrderSummary';
+import CheckoutSteps from './CheckoutSteps';
 import type {
   OrderFormProps,
   OrderConfirmationData
 } from '@/types/orders';
 import Link from 'next/link';
+import { History, Plus } from 'lucide-react';
 import { sortOrderItems } from '@/lib/order-item-sorting';
 import { customerFromProfile } from '@/lib/orders/customer';
 import { normalizeProductCategory } from '@/lib/product-config';
@@ -39,10 +41,11 @@ const OrderForm = ({
     if (user) try { sessionStorage.setItem(noteKey(user.id), value); } catch { setError('Poznámku se nepodařilo uložit. Povolte úložiště webu před pokračováním.'); }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
+  const reviewDisabled = Object.keys(cartItems).length === 0 || !user || !profile?.full_name || !profile?.email || !noteReady;
 
-      if (!user || !profile || Object.keys(cartItems).length === 0) {
+  const handleSubmit = async () => {
+
+      if (reviewDisabled || !user || !profile) {
           return;
       }
 
@@ -93,6 +96,8 @@ const OrderForm = ({
   };
 
   return (
+      <>
+      <CheckoutSteps current={1} onReview={handleSubmit} reviewDisabled={reviewDisabled} />
       <div className="space-y-6">
           <OrderSummary
               cartItems={cartItems}
@@ -110,6 +115,21 @@ const OrderForm = ({
                   onAddToCart={onAddToCart}
               />
           )}
+
+          <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+              <div>
+                  <h2 className="font-semibold text-slate-950">Chcete ještě něco přidat?</h2>
+                  <p className="mt-1 text-sm text-slate-600">Vybrané položky zůstanou v košíku.</p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Link href="/" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-800 transition-colors hover:bg-blue-100">
+                      <Plus aria-hidden="true" className="h-4 w-4" />Doplnit z katalogu
+                  </Link>
+                  {user && <Link href="/my-orders" title="Historie, oblíbené a uložené šablony" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100">
+                      <History aria-hidden="true" className="h-4 w-4" />Moje objednávky
+                  </Link>}
+              </div>
+          </div>
 
           <div className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="p-6">
@@ -131,7 +151,7 @@ const OrderForm = ({
                   <p className="mb-3 text-sm text-slate-600">Objednávka se odešle až v následujícím kroku.</p>
                   <button
                       onClick={handleSubmit}
-                      disabled={Object.keys(cartItems).length === 0 || !user || !profile?.full_name || !profile?.email || !noteReady}
+                      disabled={reviewDisabled}
                       className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg
                                hover:bg-blue-700 transition-colors disabled:bg-gray-400
                                disabled:cursor-not-allowed"
@@ -146,6 +166,7 @@ const OrderForm = ({
               </div>
           </div>
       </div>
+      </>
   );
 };
 

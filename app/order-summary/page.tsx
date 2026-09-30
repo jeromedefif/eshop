@@ -3,7 +3,6 @@
 import { useContext, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { CartContext } from '@/contexts/CartContext';
-import CheckoutSteps from '@/components/CheckoutSteps';
 import OrderForm from '@/components/OrderForm';
 import Link from 'next/link';
 import { ShoppingBag, ArrowLeft } from 'lucide-react';
@@ -80,7 +79,6 @@ const OrderSummaryPage = () => {
                                 Souhrn objednávky
                             </h1>
 
-                            <CheckoutSteps current={1} />
                             <OrderForm
                                 key={user?.id || 'guest'}
                                 cartItems={cartItems}

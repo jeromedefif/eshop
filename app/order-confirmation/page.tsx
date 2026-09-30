@@ -159,7 +159,7 @@ export default function OrderConfirmationPage() {
                     </div>
                 </div>
             </header>
-            <CheckoutSteps current={completed ? 3 : 2} />
+            <CheckoutSteps current={completed ? 3 : 2} onSummary={!completed && !processing && !orderData.attempted ? () => router.push('/order-summary') : undefined} />
             {notice && <p role="status" className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900">{notice}</p>}
             {completed && (
                 <section role="status" className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 sm:p-6">
@@ -231,9 +231,10 @@ export default function OrderConfirmationPage() {
                     {customer.note && <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><h2 className="mb-3 flex items-center gap-3 text-base font-bold text-slate-950"><MessageSquareText aria-hidden="true" className="h-5 w-5 text-blue-700" />Poznámka k objednávce</h2><p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{customer.note}</p></section>}
                 </div>
 
-                <aside aria-label="Přehled a odeslání objednávky" className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-24">
-                    <div className="border-b border-slate-100 p-5 sm:p-6">
-                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{completed ? 'Přijatá objednávka' : 'Vaše objednávka'}</p>
+                <aside aria-label="Přehled a odeslání objednávky" className="overflow-hidden rounded-2xl border-2 border-blue-300 bg-white shadow-lg shadow-blue-950/10 lg:sticky lg:top-24">
+                    <div className="border-b border-blue-100 bg-gradient-to-b from-blue-50 to-white p-5 sm:p-6">
+                        <h2 className="text-2xl font-bold tracking-tight text-slate-950">{completed ? 'Přijatá objednávka' : 'Vaše objednávka'}</h2>
+                        {!completed && <p className="mt-2 text-sm font-medium text-blue-800">Přehled a odeslání objednávky</p>}
                         <div className="mt-4"><p className="text-sm text-slate-500">Celkový objem vín a nápojů</p><p className="mt-2 text-4xl font-bold tracking-tight text-slate-950">{orderData.totalVolume}<span className="ml-2 text-xl font-medium text-slate-500">litrů</span></p></div>
                         <dl className="mt-5 space-y-3 text-sm">
                             <div className={`flex items-center justify-between gap-3 rounded-xl border p-3 ${petPackages === 0 ? 'border-amber-200 bg-amber-50' : 'border-blue-100 bg-blue-50/60'}`}>

@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
-import { Package, ShoppingCart, Loader2, ChevronDown, Bookmark, Heart, Pencil, Trash2, History, Search, ArrowRight, CalendarDays, Layers3 } from 'lucide-react';
+import { Package, ShoppingCart, Loader2, ChevronDown, Bookmark, Heart, Pencil, Trash2, History, Search, ArrowLeft, ArrowRight, CalendarDays, Layers3 } from 'lucide-react';
 import Link from 'next/link';
 import { useCart, type CartItems } from '@/contexts/CartContext';
 import { usePurchasing } from '@/contexts/PurchasingContext';
@@ -516,9 +516,14 @@ const MyOrdersPage = () => {
 
     return (
         <CustomerPageShell width="5xl">
-                <div className="mb-6">
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-950">Moje objednávky</h1>
-                    <p className="mt-2 text-sm text-slate-600">Historie, dříve objednané produkty, uložené šablony a oblíbené na jednom místě.</p>
+                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight text-slate-950">Moje objednávky</h1>
+                        <p className="mt-2 text-sm text-slate-600">Historie, dříve objednané produkty, uložené šablony a oblíbené na jednom místě.</p>
+                    </div>
+                    {cartQuantity > 0 && <Link href="/order-summary" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-800">
+                        <ArrowLeft aria-hidden="true" className="h-4 w-4" />Zpět do souhrnu objednávky
+                    </Link>}
                 </div>
 
                 <section className="mb-6 grid gap-4 lg:grid-cols-2" aria-label="Rychlý přehled nákupů">
