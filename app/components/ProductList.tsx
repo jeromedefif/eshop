@@ -368,7 +368,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                     onClick={() => product.in_stock && !product.is_archived && onAddToCart(product.id, volume)}
                     data-catalog-guide="volume-button"
                     disabled={!product.in_stock || product.is_archived}
-                    className={`w-full px-2.5 py-1.5 text-xs border rounded-md min-w-[42px]
+                    className={`min-h-11 sm:min-h-0 w-full px-2.5 py-1.5 text-sm sm:text-xs border rounded-md min-w-[42px]
              transition-colors duration-150 ${
             isInCart
                 ? 'bg-blue-600/15 border-blue-500 text-blue-700 hover:bg-blue-600/25'
@@ -383,13 +383,14 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                     <button
                         type="button"
                         onClick={() => onRemoveFromCart(product.id, volume)}
-                        className="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600
-                                 text-white text-[10px] rounded-full w-[18px] h-[18px]
+                        className="mt-1 min-h-11 w-full sm:mt-0 sm:min-h-0 sm:absolute sm:-top-1.5 sm:-right-1.5 bg-slate-100 hover:bg-slate-200 sm:bg-red-500 sm:hover:bg-red-600
+                                 text-slate-700 sm:text-white text-xs sm:text-[10px] rounded-md sm:rounded-full sm:w-[18px] sm:h-[18px]
                                  flex items-center justify-center font-medium shadow-sm
                                  transition-colors duration-150 cursor-pointer"
+                        aria-label={`Snížit množství: ${product.name}, ${label}`}
                         title="Kliknutím snížíte počet o 1"
                     >
-                        {count}
+                        <span className="sm:hidden">−&nbsp;</span>{count}<span className="sm:hidden">&nbsp;v košíku</span>
                     </button>
                 )}
             </div>
@@ -437,7 +438,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                 </div>
 
                 {/* Tlačítka objemů - stejná jako v desktop verzi */}
-                <div className="flex gap-1.5 mt-3">
+                <div className="grid grid-cols-3 gap-2 mt-3">
                     {productButtons.map(({ label, value }) => renderVolumeButton(product, value, label))}
                 </div>
             </div>
@@ -531,7 +532,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                                 setSearchQuery(e.target.value);
                             }}
                             placeholder="Vyhledat produkt..."
-                            className="block h-10 w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-4 text-sm text-gray-900
+                            className="block h-10 w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-4 text-base sm:text-sm text-gray-900
                                          focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                         />
                         {(searchQuery || directProductIds.length > 0) && (

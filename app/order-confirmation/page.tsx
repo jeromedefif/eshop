@@ -147,7 +147,7 @@ export default function OrderConfirmationPage() {
     const { petPackages, gasPieces } = checkoutAccessoryTotals(orderData.items, products);
     return (
         <CustomerPageShell width="5xl">
-            <header className="mb-5 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 to-slate-800 p-6 text-white shadow-sm sm:p-8">
+            <header className="mb-5 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 to-slate-800 p-4 sm:p-6 text-white shadow-sm sm:p-8">
                 <div className="flex items-start justify-between gap-5">
                     <div>
                         <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-blue-200">{completed ? 'Děkujeme za vaši objednávku' : 'Poslední krok před odesláním'}</p>
@@ -160,6 +160,15 @@ export default function OrderConfirmationPage() {
                 </div>
             </header>
             <CheckoutSteps current={completed ? 3 : 2} onSummary={!completed && !processing && !orderData.attempted ? () => router.push('/order-summary') : undefined} />
+            {!completed && <section aria-label="Rychlý přehled objednávky" className="mb-5 rounded-2xl border border-blue-200 bg-blue-50 p-4 lg:hidden">
+                <p className="text-sm font-semibold text-blue-950">Vaše objednávka v kostce</p>
+                <dl className="mt-3 grid grid-cols-3 gap-2 text-xs text-slate-600">
+                    <div><dt>Vína a nápoje</dt><dd className="mt-1 text-base font-bold text-slate-950">{orderData.totalVolume} litrů</dd></div>
+                    <div><dt>PET</dt><dd className={`mt-1 text-base font-bold ${petPackages === 0 ? 'text-amber-800' : 'text-slate-950'}`}>{petPackages} balení</dd></div>
+                    <div><dt>Plyny</dt><dd className={`mt-1 text-base font-bold ${gasPieces === 0 ? 'text-amber-800' : 'text-slate-950'}`}>{gasPieces} ks</dd></div>
+                </dl>
+                <a href="#checkout-submit" className="mt-3 flex min-h-11 items-center justify-center rounded-xl border border-blue-200 bg-white px-3 text-sm font-semibold text-blue-800 hover:bg-blue-100">Přejít k odeslání ↓</a>
+            </section>}
             {notice && <p role="status" className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900">{notice}</p>}
             {completed && (
                 <section role="status" className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 sm:p-6">
@@ -231,7 +240,7 @@ export default function OrderConfirmationPage() {
                     {customer.note && <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><h2 className="mb-3 flex items-center gap-3 text-base font-bold text-slate-950"><MessageSquareText aria-hidden="true" className="h-5 w-5 text-blue-700" />Poznámka k objednávce</h2><p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{customer.note}</p></section>}
                 </div>
 
-                <aside aria-label="Přehled a odeslání objednávky" className="overflow-hidden rounded-2xl border-2 border-blue-300 bg-white shadow-lg shadow-blue-950/10 lg:sticky lg:top-24">
+                <aside id="checkout-submit" tabIndex={-1} aria-label="Přehled a odeslání objednávky" className="scroll-mt-24 overflow-hidden rounded-2xl border-2 border-blue-300 bg-white shadow-lg shadow-blue-950/10 lg:sticky lg:top-24">
                     <div className="border-b border-blue-100 bg-gradient-to-b from-blue-50 to-white p-5 sm:p-6">
                         <h2 className="text-2xl font-bold tracking-tight text-slate-950">{completed ? 'Přijatá objednávka' : 'Vaše objednávka'}</h2>
                         {!completed && <p className="mt-2 text-sm font-medium text-blue-800">Přehled a odeslání objednávky</p>}

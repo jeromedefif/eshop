@@ -183,7 +183,7 @@ const OrderSummary = ({
     return (
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="p-4 border-b border-gray-100">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                     <h2 className="text-lg font-semibold text-gray-900">Přehled objednávky</h2>
                     <span className="text-sm text-gray-800">
                         {totalItemsCount} {getItemsCount(totalItemsCount)}
@@ -210,7 +210,7 @@ const OrderSummary = ({
                                     {items.map(({ product, volume, count }) => (
                                         <div
                                             key={`${product.id}-${volume}`}
-                                            className="flex flex-col items-stretch sm:flex-row sm:items-center justify-between gap-3 px-3 py-2.5 hover:bg-blue-50 rounded-lg transition-colors"
+                                            className="flex flex-col items-stretch sm:flex-row sm:items-center justify-between gap-3 border border-slate-100 bg-slate-50/50 px-3 py-3 sm:border-0 sm:bg-transparent sm:py-2.5 hover:bg-blue-50 rounded-lg transition-colors"
                                         >
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex flex-wrap items-center gap-2 min-w-0">
@@ -223,11 +223,12 @@ const OrderSummary = ({
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-2 shrink-0">
+                                            <div className="flex items-center justify-between gap-4 shrink-0 sm:justify-start sm:gap-2">
                                                 <div className="flex items-center bg-white border rounded-lg">
                                                     <button
                                                         onClick={() => handleDecrement(product.id, volume)}
                                                         className="min-h-11 min-w-11 flex items-center justify-center p-2 hover:bg-gray-100 rounded-l-lg border-r"
+                                                        aria-label={`Snížit množství: ${product.name}, ${getItemText(product, volume)}`}
                                                         title="Snížit množství"
                                                     >
                                                         <Minus className="w-4 h-4 text-gray-600" />
@@ -238,6 +239,7 @@ const OrderSummary = ({
                                                     <button
                                                         onClick={() => handleIncrement(product.id, volume)}
                                                         className="min-h-11 min-w-11 flex items-center justify-center p-2 hover:bg-gray-100 rounded-r-lg border-l"
+                                                        aria-label={`Zvýšit množství: ${product.name}, ${getItemText(product, volume)}`}
                                                         title="Zvýšit množství"
                                                     >
                                                         <Plus className="w-4 h-4 text-gray-600" />
@@ -247,6 +249,7 @@ const OrderSummary = ({
                                                 <button
                                                     onClick={() => handleRemoveItem(product.id, volume)}
                                                     className="min-h-11 min-w-11 flex items-center justify-center p-2 hover:bg-red-100 rounded-lg transition-colors"
+                                                    aria-label={`Odebrat položku: ${product.name}, ${getItemText(product, volume)}`}
                                                     title="Odebrat položku"
                                                 >
                                                     <Trash2 className="w-4 h-4 text-red-500" />
