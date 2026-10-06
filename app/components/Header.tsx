@@ -126,7 +126,7 @@ const Header = () => {
               )}
 
               {user && (
-                <Link href="/my-orders" className={`${desktopLinkClass('/my-orders')} hidden xl:inline-flex`}>
+                <Link data-catalog-guide="my-orders" href="/my-orders" className={`${desktopLinkClass('/my-orders')} hidden xl:inline-flex`}>
                   <Package className="h-4 w-4" />
                   Moje objednávky
                 </Link>
@@ -171,7 +171,7 @@ const Header = () => {
                         <RotateCcw className={`h-4 w-4 ${isQuickReordering ? 'animate-spin' : ''}`} />
                         {isQuickReordering ? 'Načítám...' : 'Objednat poslední'}
                       </button>
-                      <Link href="/my-orders" className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 xl:hidden">
+                      <Link data-catalog-guide="my-orders" href="/my-orders" className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 xl:hidden">
                         <Package className="h-4 w-4" />
                         Moje objednávky
                       </Link>
@@ -260,7 +260,7 @@ const Header = () => {
                     <RotateCcw className={`h-5 w-5 ${isQuickReordering ? 'animate-spin' : ''}`} />
                     {isQuickReordering ? 'Načítám...' : 'Objednat poslední'}
                   </button>
-                  <Link href="/my-orders" className={mobileLinkClass('/my-orders')} onClick={closeMobileMenu}>
+                  <Link data-catalog-guide="my-orders" href="/my-orders" className={mobileLinkClass('/my-orders')} onClick={closeMobileMenu}>
                     <Package className="h-5 w-5" />
                     Moje objednávky
                   </Link>

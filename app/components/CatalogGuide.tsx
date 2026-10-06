@@ -21,7 +21,7 @@ const signedInSteps: GuideStep[] = [
   {
     target: 'volume-button',
     title: 'Vyberte objem a množství',
-    description: 'Kliknutím na objem přidáte jeden kus. Dalším kliknutím přidáváte a červeným číslem množství snižujete.',
+    description: 'Kliknutím na objem přidáte jeden kus. Dalším kliknutím přidáváte a tlačítkem minus nebo červeným počtem kusů množství snižujete.',
   },
   {
     target: 'favorite-button',
@@ -34,13 +34,28 @@ const signedInSteps: GuideStep[] = [
     description: 'Tímto filtrem zobrazíte pouze své oblíbené produkty a objednáte je rychleji.',
   },
   {
+    target: 'advanced-filters',
+    title: 'Najděte produkt pomocí filtrů',
+    description: 'Tlačítkem Filtry otevřete výběr barvy, sladkosti a dostupnosti. Číslo u tlačítka ukazuje počet použitých filtrů. Zavření panelu filtry nevypne; zrušíte je v panelu.',
+  },
+  {
+    target: 'cart-filter',
+    title: 'Rychlá kontrola: Jen v košíku',
+    description: 'Zobrazí všechny produkty, které máte právě v košíku, bez ohledu na ostatní filtry. Množství můžete upravit přímo zde. Dalším kliknutím se vrátíte k předchozímu výběru. Číslo u tlačítka označuje počet různých produktů.',
+  },
+  {
+    target: 'my-orders',
+    title: 'Moje objednávky: další nákup rychleji',
+    description: 'V nabídce Moje objednávky najdete historii a stav objednávek, dříve nakoupené produkty i oblíbené. Objednávku můžete zopakovat nebo uložit jako šablonu, kterou lze přejmenovat či odstranit. Opakování připraví položky do košíku; před odesláním je ještě zkontrolujete v souhrnu.',
+  },
+  {
     target: 'order-summary',
     title: 'Zkontrolujte objednávku',
     description: 'V souhrnu nebo košíku upravíte množství, doplníte poznámku a objednávku odešlete.',
   },
 ];
 
-const visitorSteps = [signedInSteps[0], signedInSteps[3]];
+const visitorSteps = signedInSteps.filter(step => !['favorite-button', 'favorites-filter', 'my-orders'].includes(step.target));
 
 const isVisible = (element: Element) => {
   const rect = element.getBoundingClientRect();

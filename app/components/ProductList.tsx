@@ -616,6 +616,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                         type="button"
                         onClick={() => setAreFiltersOpen((value) => !value)}
                         aria-expanded={areFiltersOpen}
+                        data-catalog-guide="advanced-filters"
                         className={`relative flex h-9 min-w-[40px] items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium transition-colors ${areFiltersOpen || activeAdvancedFilterCount ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                         title="Filtrovat podle barvy a sladkosti"
                     >
@@ -623,7 +624,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                         <span className="hidden sm:inline">Filtry</span>
                         {activeAdvancedFilterCount > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] text-white">{activeAdvancedFilterCount}</span>}
                         </button>
-                        <button type="button" onClick={() => setOnlyCart(value => !value)} aria-pressed={onlyCart}
+                        <button type="button" onClick={() => setOnlyCart(value => !value)} aria-pressed={onlyCart} data-catalog-guide="cart-filter"
                             className={`flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium transition-colors ${onlyCart ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
                             <ShoppingCart aria-hidden="true" className="h-4 w-4" />Jen v košíku · {cartProductIds.size}
                         </button>

@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
-import { Package, ShoppingCart, Loader2, ChevronDown, Bookmark, Heart, Pencil, Trash2, History, Search, ArrowLeft, ArrowRight, CalendarDays, Layers3 } from 'lucide-react';
+import { Package, ShoppingCart, Loader2, ChevronDown, Bookmark, Heart, Pencil, Trash2, History, Search, ArrowLeft, ArrowRight, CalendarDays, Layers3, CircleHelp } from 'lucide-react';
 import Link from 'next/link';
 import { useCart, type CartItems } from '@/contexts/CartContext';
 import { usePurchasing } from '@/contexts/PurchasingContext';
@@ -525,6 +525,20 @@ const MyOrdersPage = () => {
                         <ArrowLeft aria-hidden="true" className="h-4 w-4" />Zpět do souhrnu objednávky
                     </Link>}
                 </div>
+
+                <details className="group mb-6 rounded-2xl border border-blue-100 bg-blue-50/60">
+                    <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 [&::-webkit-details-marker]:hidden">
+                        <CircleHelp aria-hidden="true" className="h-5 w-5" />
+                        Jak používat Moje objednávky
+                        <ChevronDown aria-hidden="true" className="ml-auto h-4 w-4 transition-transform group-open:rotate-180" />
+                    </summary>
+                    <div className="grid gap-4 border-t border-blue-100 p-4 text-sm leading-6 text-slate-600 sm:grid-cols-2">
+                        <div><h2 className="font-bold text-slate-900">Historie objednávek</h2><p>Prohlédněte si stav a položky odeslaných objednávek. Volbou „Objednat znovu“ připravíte dostupné položky do košíku; objednávku tím ještě neodešlete.</p></div>
+                        <div><h2 className="font-bold text-slate-900">Dříve objednané produkty</h2><p>Najděte produkty z minulých nákupů a vyberte potřebné objemy. Kliknutím přidáváte kusy, červeným počtem množství snižujete.</p></div>
+                        <div><h2 className="font-bold text-slate-900">Uložené šablony</h2><p>Objednávku z historie si uložte jako pojmenovanou šablonu pro další nákupy. Šablony můžete použít, přejmenovat nebo odstranit.</p></div>
+                        <div><h2 className="font-bold text-slate-900">Oblíbené a dokončení nákupu</h2><p>Oblíbené produkty označené srdíčkem najdete na samostatné záložce. Jakmile máte položky v košíku, pokračujte tlačítkem „Zpět do souhrnu objednávky“, zkontrolujte je a dokončete odeslání.</p></div>
+                    </div>
+                </details>
 
                 <section className="mb-6 grid gap-4 lg:grid-cols-2" aria-label="Rychlý přehled nákupů">
                     <article className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 to-slate-800 p-5 text-white shadow-sm sm:p-6">
