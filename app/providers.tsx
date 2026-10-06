@@ -16,13 +16,12 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     setIsLoading(false)
   }, [])
 
-  // Veřejné produktové stránky jsou samostatné SEO stránky. Nepotřebují
-  // autentizaci ani košík, takže při jejich návštěvě nevytváříme Supabase dotazy.
-  if (pathname === '/produkty' || pathname.startsWith('/produkty/')) {
+  // Veřejné seznamy zůstávají bez košíku; detail sdílí objednávkové kontexty.
+  if (pathname === '/produkty' || pathname.startsWith('/produkty/kategorie/')) {
     return children
   }
 
-  if (isLoading) {
+  if (isLoading && !pathname.startsWith('/produkty/')) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white px-6">
         <div className="max-w-xl text-center">

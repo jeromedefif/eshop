@@ -19,6 +19,9 @@ export default function LoginPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
+    const requestedNext = searchParams.get('next');
+    const nextPath = requestedNext && /^\/produkty\/[a-z0-9-]+(?:\?[^#]*)?$/.test(requestedNext) ? requestedNext : '/';
+
     // Detekce URL parametru verified=true a nastavení zobrazení zprávy
     useEffect(() => {
         // Ověříme, zda přicházíme z verifikačního emailu
@@ -47,13 +50,13 @@ export default function LoginPage() {
         if (user) {
             // Přidáme malé zpoždění pro zobrazení úspěšného přihlášení
             const redirectTimer = setTimeout(() => {
-                router.push('/');
+                router.push(nextPath);
             }, 1000); // 1 sekunda zpoždění pro zobrazení zprávy o úspěšném přihlášení
 
             // Uklidit časovač, pokud se komponenta odmontuje
             return () => clearTimeout(redirectTimer);
         }
-    }, [user, router]);
+    }, [user, router, nextPath]);
 
     // Funkce pro přihlášení
     const handleSubmit = async (e: React.FormEvent) => {
@@ -67,7 +70,7 @@ export default function LoginPage() {
             localStorage.setItem('lastLoginEmail', email);
 
             // Přidáme explicitní přesměrování přímo zde
-            router.push('/');
+            router.push(nextPath);
         } catch (error) {
             console.error('Sign in error:', error);
             setError(error instanceof Error ? error.message : 'Chyba při přihlašování');

@@ -9,6 +9,8 @@ export type PublicProduct = {
     is_new: boolean;
     is_featured: boolean;
     allowed_volumes: string[];
+    product_color?: string | null;
+    sweetness?: string | null;
 };
 
 export async function fetchFreshPublicProducts(): Promise<PublicProduct[]> {
@@ -54,7 +56,9 @@ export const getPublicProductById = unstable_cache(
                 in_stock: true,
                 is_new: true,
                 is_featured: true,
-                allowed_volumes: true
+                allowed_volumes: true,
+                product_color: true,
+                sweetness: true
             }
         });
 
