@@ -76,7 +76,7 @@ export default function RegisterPage() {
     const validateForm = useCallback((): string | null => {
         if (!formData.email || !formData.password || !formData.confirmPassword ||
             !formData.full_name || !formData.company || !formData.phone ||
-            !formData.company_id || !formData.billing_address || !formData.billing_city ||
+            !formData.billing_address || !formData.billing_city ||
             !formData.billing_postal_code || !formData.billing_country) {
             return 'Vyplňte prosím všechna povinná pole';
         }
@@ -371,17 +371,17 @@ export default function RegisterPage() {
                                 <div>
                                     <label htmlFor="company" className="block text-sm font-medium text-gray-900 mb-1 flex items-center">
                                         <Building className="w-4 h-4 mr-1 text-gray-600" />
-                                        Název firmy*
+                                        Název firmy / Jméno a příjmení*
                                     </label>
                                     <input type="text" id="company" name="company" value={formData.company} onChange={handleInputChange}
                                         className="mt-1 w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900"
                                         required disabled={isLoading} />
                                 </div>
                                 <div>
-                                    <label htmlFor="company_id" className="block text-sm font-medium text-gray-900 mb-1">IČO*</label>
+                                    <label htmlFor="company_id" className="block text-sm font-medium text-gray-900 mb-1">IČO (nepovinné)</label>
                                     <input type="text" id="company_id" name="company_id" value={formData.company_id} onChange={handleInputChange}
                                         className="mt-1 w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900"
-                                        required disabled={isLoading} />
+                                        disabled={isLoading} />
                                 </div>
                                 <div>
                                     <label htmlFor="vat_id" className="block text-sm font-medium text-gray-900 mb-1">DIČ</label>
@@ -545,6 +545,14 @@ export default function RegisterPage() {
                         </button>
                     </div>
                 </form>
+                <aside className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-slate-700">
+                    <p className="font-semibold text-slate-900">Potřebujete pomoci s registrací?</p>
+                    <p>Máte potíže s registrací nebo dotazy? Napište nám na{' '}
+                        <a href="mailto:fiala@vinaria.cz" className="font-semibold text-blue-700 underline underline-offset-2">fiala@vinaria.cz</a>
+                        {' '}nebo zavolejte na{' '}
+                        <a href="tel:+420734720994" className="whitespace-nowrap font-semibold text-blue-700 underline underline-offset-2">734 720 994</a>.
+                    </p>
+                </aside>
 
                 <div className="mt-6 text-center text-sm text-gray-600">
                     Již máte účet?{' '}

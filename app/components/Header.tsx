@@ -13,6 +13,7 @@ import {
   ShoppingCart,
   User,
   UserCog,
+  UserPlus,
   X
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -186,10 +187,16 @@ const Header = () => {
                   </div>
                 </div>
               ) : (
-                <Link href="/login" className={`${desktopLinkClass('/login')} hidden lg:inline-flex`}>
-                  <User className="h-5 w-5" />
-                  Přihlásit
-                </Link>
+                <>
+                  <Link href="/login" className={desktopLinkClass('/login')} aria-label="Přihlásit">
+                    <User className="h-5 w-5" />
+                    <span className="hidden lg:inline">Přihlásit</span>
+                  </Link>
+                  <Link href="/register" aria-label="Registrace" className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+                    <UserPlus aria-hidden="true" className="h-5 w-5" />
+                    <span className="hidden sm:inline">Registrace</span>
+                  </Link>
+                </>
               )}
 
               <button
@@ -280,10 +287,14 @@ const Header = () => {
                   </button>
                 </>
               ) : (
-                <Link href="/login" className={mobileLinkClass('/login')} onClick={closeMobileMenu}>
-                  <User className="h-5 w-5" />
-                  Přihlásit
-                </Link>
+                <>
+                  <Link href="/login" className={mobileLinkClass('/login')} onClick={closeMobileMenu}>
+                    <User className="h-5 w-5" />Přihlásit
+                  </Link>
+                  <Link href="/register" className={mobileLinkClass('/register')} onClick={closeMobileMenu}>
+                    <UserPlus className="h-5 w-5" />Registrace
+                  </Link>
+                </>
               )}
             </nav>
           </div>
