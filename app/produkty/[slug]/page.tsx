@@ -3,7 +3,7 @@ import ProductDetailFavorite from '@/components/ProductDetailFavorite';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, permanentRedirect } from 'next/navigation';
-import { CheckCircle2, Grape, PackageOpen, Sparkles } from 'lucide-react';
+import { CheckCircle2, Grape } from 'lucide-react';
 import { getCategoryPath, normalizeProductCategory } from '@/lib/product-config';
 import { getProductIdFromSlug, getProductPath, getProductSlug } from '@/lib/product-slug';
 import { getPublicProductById } from '@/lib/public-products';
@@ -107,7 +107,7 @@ export default async function ProductPage(props: ProductPageProps) {
 
             <Header />
 
-            <div className="mx-auto max-w-6xl px-5 py-10 sm:py-16">
+            <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
                 <nav aria-label="Drobečková navigace" className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-500">
                     <Link href="/produkty" className="hover:text-blue-700">Produkty</Link>
                     <span aria-hidden="true">/</span>
@@ -116,41 +116,28 @@ export default async function ProductPage(props: ProductPageProps) {
                     <span className="text-slate-900">{product.name}</span>
                 </nav>
 
-                <article className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_24px_70px_-40px_rgba(15,23,42,0.45)]">
-                    <div className="grid lg:grid-cols-[0.72fr_1.28fr]">
-                        <div className="flex min-h-32 lg:min-h-64 items-center justify-center bg-gradient-to-br from-blue-950 via-blue-800 to-cyan-700 p-5 lg:p-10 text-white">
-                            <div className="text-center">
-                                <div className="mx-auto flex h-12 w-12 lg:h-24 lg:w-24 items-center justify-center rounded-full border border-white/20 bg-white/10">
-                                    {category === 'Perlivé'
-                                        ? <Sparkles className="h-7 w-7 lg:h-12 lg:w-12" />
-                                        : category === 'PET'
-                                            ? <PackageOpen className="h-7 w-7 lg:h-12 lg:w-12" />
-                                            : <Grape className="h-7 w-7 lg:h-12 lg:w-12" />}
-                                </div>
-                                <p className="mt-3 text-xs lg:mt-5 lg:text-sm font-semibold uppercase tracking-[0.22em] text-blue-100">Velkoobchodní katalog</p>
-                            </div>
-                        </div>
-
-                        <div className="p-5 sm:p-10 lg:p-12">
+                <article className="mt-3 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_24px_70px_-40px_rgba(15,23,42,0.45)]">
+                    <div>
+                        <div className="p-5 sm:p-6">
                             <div className="flex flex-wrap items-center gap-2">
                                 <Link href={categoryPath} className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-800 hover:bg-blue-100">{category}</Link>
                                 {product.is_new && <span className="rounded-full bg-violet-50 px-3 py-1 text-sm font-semibold text-violet-800">Novinka</span>}
                                 {product.is_featured && <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-semibold text-orange-800">Akce</span>}
                             </div>
 
-                            <h1 className="mt-5 max-w-3xl text-3xl font-bold leading-tight tracking-tight text-slate-950 sm:text-5xl">
-                                {product.name}
+                            <h1 className="mt-3 max-w-4xl text-2xl font-bold leading-tight tracking-tight text-slate-950 sm:text-3xl">
+                                <Grape aria-hidden="true" className="mr-2 inline h-7 w-7 text-blue-700" />{product.name}
                             </h1>
                             <ProductDetailFavorite id={product.id} />
 
-                            <div className="mt-6 flex items-center gap-2 text-base font-medium">
+                            <div className="mt-3 flex items-center gap-2 text-base font-medium">
                                 <CheckCircle2 className={`h-5 w-5 ${product.in_stock ? 'text-emerald-600' : 'text-slate-400'}`} />
                                 <span className={product.in_stock ? 'text-emerald-800' : 'text-slate-600'}>
                                     {product.in_stock ? 'Aktuálně skladem' : 'Momentálně není skladem'}
                                 </span>
                             </div>
 
-                            {(product.product_color || product.sweetness) && <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
+                            {(product.product_color || product.sweetness) && <dl className="mt-3 grid grid-cols-2 gap-4 text-sm">
                                 {product.product_color && <div><dt className="text-slate-500">Barva</dt><dd className="mt-1 font-semibold">{{ white: 'Bílé', red: 'Červené', rose: 'Růžové' }[product.product_color] || product.product_color}</dd></div>}
                                 {product.sweetness && <div><dt className="text-slate-500">Cukernatost</dt><dd className="mt-1 font-semibold">{{ dry: 'Suché', semi_dry: 'Polosuché', semi_sweet: 'Polosladké', sweet: 'Sladké' }[product.sweetness] || product.sweetness}</dd></div>}
                             </dl>}
@@ -158,7 +145,7 @@ export default async function ProductPage(props: ProductPageProps) {
                                 <ProductDetailPurchase key={product.id} id={product.id} path={getProductPath(product)} />
                             </Suspense>
                             {['Víno', 'Perlivé', 'Ovocné víno', 'Burčák', 'Nápoje'].includes(category) && (
-                                <p className="mt-6 border-t border-slate-100 pt-5 text-sm leading-6 text-slate-500">
+                                <p className="mt-4 border-t border-slate-100 pt-3 text-sm leading-6 text-slate-500">
                                     Víno a nápoje plníme až podle vaší objednávky do nabízených balení — objednejte proto začátkem týdne pro pravidelný rozvoz.
                                 </p>
                             )}

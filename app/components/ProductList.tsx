@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
 import Link from 'next/link';
-import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, Layout, LayoutList, Sparkles, Amphora, Heart, SlidersHorizontal, Tag, RotateCcw, Star, CircleHelp } from 'lucide-react';
+import { ListFilter, Grape, Wine, Martini, TestTube, Box, Package, Search, X, ShoppingCart, Sparkles, Amphora, Heart, SlidersHorizontal, Tag, RotateCcw, Star, CircleHelp } from 'lucide-react';
 import { Product, ProductColor, ProductSweetness } from '@/types/database';
-import { CATEGORY_ORDER, PRODUCT_COLOR_OPTIONS, PRODUCT_SWEETNESS_OPTIONS, getAllowedVolumes, getCategoryBySlug, getCategoryDetails, normalizeProductCategory, sortCatalogProducts } from '@/lib/product-config';
+import { PRODUCT_COLOR_OPTIONS, PRODUCT_SWEETNESS_OPTIONS, getAllowedVolumes, getCategoryBySlug, getCategoryDetails, normalizeProductCategory, sortCatalogProducts } from '@/lib/product-config';
 import { getProductPath } from '@/lib/product-slug';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePurchasing } from '@/contexts/PurchasingContext';
@@ -49,7 +49,9 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
     const { favoriteProductIds, toggleFavorite } = usePurchasing();
     const [selectedCategory, setSelectedCategory] = useState("Všechny");
     const [searchQuery, setSearchQuery] = useState('');
-    const [isGrouped, setIsGrouped] = useState(false);
+    const [onlyCart, setOnlyCart] = useState(false);
+    const [catalogReturnUrl, setCatalogReturnUrl] = useState('/');
+    const cartProductIds = new Set(Object.entries(cartItems).filter(([, count]) => count > 0).map(([key]) => key.split('-')[0]));
     const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
@@ -88,6 +90,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
         setColorFilters(PRODUCT_COLOR_OPTIONS.map((option) => option.value).filter((value) => colors.includes(value)));
         setSweetnessFilters(PRODUCT_SWEETNESS_OPTIONS.map((option) => option.value).filter((value) => sweetness.includes(value)));
         setOnlyInStock(params.get('skladem') === '1');
+        setOnlyCart(params.get('kosik') === '1');
         setFiltersReady(true);
     }, []);
 
@@ -103,8 +106,10 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
         if (colorFilters.length) url.searchParams.set('barva', colorFilters.join(',')); else url.searchParams.delete('barva');
         if (sweetnessFilters.length) url.searchParams.set('sladkost', sweetnessFilters.join(',')); else url.searchParams.delete('sladkost');
         if (onlyInStock) url.searchParams.set('skladem', '1'); else url.searchParams.delete('skladem');
+        if (onlyCart) url.searchParams.set('kosik', '1'); else url.searchParams.delete('kosik');
+        setCatalogReturnUrl(`${url.pathname}${url.search}`);
         window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
-    }, [colorFilters, filtersReady, onlyInStock, searchQuery, selectedCategory, specialView, sweetnessFilters]);
+    }, [colorFilters, filtersReady, onlyCart, onlyInStock, searchQuery, selectedCategory, specialView, sweetnessFilters]);
 
     useEffect(() => {
         if (!filtersReady || guideAutoHandledRef.current) return;
@@ -141,14 +146,14 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
             setSearchQuery('');
             setSpecialView(null);
             setSelectedCategory(announcement.targetValue);
-            setIsGrouped(false);
+
         } else {
             const productIds = normalizeCatalogProductIds(announcement.targetValues?.length ? announcement.targetValues : [announcement.targetValue]);
             const availableIds = productIds.filter((id) => products.some((item) => String(item.id) === id));
             if (!availableIds.length) return;
             setSpecialView(null);
             setSelectedCategory('Všechny');
-            setIsGrouped(false);
+
             setDirectProductIds(availableIds);
             setSearchQuery('');
             const url = new URL(window.location.href);
@@ -176,7 +181,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
 
         setSpecialView(null);
         setSelectedCategory('Všechny');
-        setIsGrouped(false);
+
         setDirectProductIds(availableIds);
         setSearchQuery('');
 
@@ -276,6 +281,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
 
     const filteredProducts = sortCatalogProducts(products).filter(product => {
         if (product.is_archived) return false;
+        if (onlyCart) return cartProductIds.has(String(product.id));
         if (directProductIds.length) return directProductIdSet.has(String(product.id));
         const category = normalizeProductCategory(product.category);
         const categoryMatch = selectedCategory === "Všechny" || category === selectedCategory;
@@ -310,24 +316,6 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
         setSweetnessFilters([]);
         setOnlyInStock(false);
     };
-
-    const groupedProducts = isGrouped ?
-        filteredProducts.reduce((acc, product) => {
-            const category = normalizeProductCategory(product.category);
-            if (!acc[category]) {
-                acc[category] = [];
-            }
-            acc[category].push(product);
-            return acc;
-        }, {} as Record<string, Product[]>) : null;
-
-    const groupedProductEntries = groupedProducts
-        ? Object.entries(groupedProducts).sort(([categoryA], [categoryB]) => {
-            const indexA = CATEGORY_ORDER.indexOf(categoryA);
-            const indexB = CATEGORY_ORDER.indexOf(categoryB);
-            return (indexA === -1 ? Number.MAX_SAFE_INTEGER : indexA) - (indexB === -1 ? Number.MAX_SAFE_INTEGER : indexB);
-        })
-        : [];
 
     const handleFavorite = async (productId: string | number) => {
         try {
@@ -416,7 +404,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                     <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                             <h3 className="font-medium text-gray-900">
-                                <Link href={getProductPath(product)} className="hover:text-blue-700 hover:underline">
+                                <Link href={`${getProductPath(product)}?navrat=${encodeURIComponent(catalogReturnUrl)}`} className="hover:text-blue-700 hover:underline">
                                     {product.name}
                                 </Link>
                             </h3>
@@ -462,7 +450,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
 
                     <div className="flex-grow min-w-0 flex items-center gap-2">
                         <h3 className="font-medium text-gray-900 truncate">
-                            <Link href={getProductPath(product)} className="hover:text-blue-700 hover:underline">
+                            <Link href={`${getProductPath(product)}?navrat=${encodeURIComponent(catalogReturnUrl)}`} className="hover:text-blue-700 hover:underline">
                                 {product.name}
                             </Link>
                         </h3>
@@ -475,7 +463,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                         </span>
                         {product.is_new && <span className="px-1.5 py-0.5 rounded-full text-[11px] leading-none font-medium shrink-0 bg-violet-100 text-violet-800">Novinka</span>}
                         {product.is_featured && <span className="px-1.5 py-0.5 rounded-full text-[11px] leading-none font-medium shrink-0 bg-orange-100 text-orange-800">Akce</span>}
-                        {!isGrouped && (
+                        {(
                             <span className="text-xs text-gray-500 truncate">
                                 {normalizeProductCategory(product.category)}
                             </span>
@@ -635,29 +623,9 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                         <span className="hidden sm:inline">Filtry</span>
                         {activeAdvancedFilterCount > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] text-white">{activeAdvancedFilterCount}</span>}
                         </button>
-                        <button
-                        onClick={() => setIsGrouped(!isGrouped)}
-                        className={`
-                                flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg
-                                font-medium transition-all duration-200 text-xs
-                                ${isGrouped
-                                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}
-                                min-w-[40px] justify-center
-                            `}
-                        title={isGrouped ? "Zobrazit jako seznam" : "Seskupit podle kategorií"}
-                    >
-                        {isGrouped ? (
-                            <>
-                                <LayoutList className="h-4 w-4" />
-                                <span className="hidden sm:inline">Seznam</span>
-                            </>
-                        ) : (
-                            <>
-                                <Layout className="h-4 w-4" />
-                                <span className="hidden sm:inline">Skupiny</span>
-                            </>
-                        )}
+                        <button type="button" onClick={() => setOnlyCart(value => !value)} aria-pressed={onlyCart}
+                            className={`flex min-h-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-2 text-xs font-semibold ${onlyCart ? 'bg-blue-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+                            <ShoppingCart aria-hidden="true" className="h-4 w-4" />Jen v košíku · {cartProductIds.size}
                         </button>
                     </div>
                 </div>
@@ -807,7 +775,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                     <div className="text-center py-6">
                         <Search className="h-10 w-10 text-gray-400 mx-auto mb-2" />
                         <p className="text-gray-600 text-base">
-                            {directProductIds.length
+                            {onlyCart ? "V košíku zatím nejsou žádné produkty" : directProductIds.length
                                 ? "Produkt z odkazu již není v katalogu dostupný"
                                 : searchQuery
                                 ? "Nenalezeny žádné produkty odpovídající vašemu hledání"
@@ -822,24 +790,6 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                             </button>
                         )}
                     </div>
-                ) : isGrouped ? (
-                    // Seskupené zobrazení karet podle kategorií
-                    groupedProductEntries.map(([category, categoryProducts]) => (
-                        <div key={category} className="mb-4">
-                            <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2 px-1 py-2">
-                                {getProductIcon(category)}
-                                {category}
-                                <span className="text-xs font-normal text-gray-500">
-                                    ({categoryProducts.length})
-                                </span>
-                            </h2>
-                            <div className="space-y-3">
-                                {categoryProducts.map(product => (
-                                    renderProductCard(product)
-                                ))}
-                            </div>
-                        </div>
-                    ))
                 ) : (
                     // Kartičky bez seskupení
                     <div className="space-y-3">
@@ -856,7 +806,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                     <div className="text-center py-6">
                         <Search className="h-10 w-10 text-gray-400 mx-auto mb-2" />
                         <p className="text-gray-600 text-base">
-                            {directProductIds.length
+                            {onlyCart ? "V košíku zatím nejsou žádné produkty" : directProductIds.length
                                 ? "Produkt z odkazu již není v katalogu dostupný"
                                 : searchQuery
                                 ? "Nenalezeny žádné produkty odpovídající vašemu hledání"
@@ -870,26 +820,6 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                                 Zobrazit všechny produkty
                             </button>
                         )}
-                    </div>
-                ) : isGrouped ? (
-                    // Seskupené zobrazení podle kategorií
-                    <div className="space-y-4 bg-white rounded-lg border">
-                        {groupedProductEntries.map(([category, categoryProducts]) => (
-                            <div key={category} className="border-t first:border-t-0">
-                                <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2 px-3 py-2">
-                                    {getProductIcon(category)}
-                                    {category}
-                                    <span className="text-xs font-normal text-gray-500">
-                                        ({categoryProducts.length})
-                                    </span>
-                                </h2>
-                                <div>
-                                    {categoryProducts.map(product => (
-                                        renderProductItem(product)
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
                     </div>
                 ) : (
                     // Seznam bez seskupení
