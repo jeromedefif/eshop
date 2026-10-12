@@ -17,3 +17,6 @@ Nasazeno a aktivováno 12. 10. 2026. Produkční commit ce37638; chráněný wor
 5. Sledovat public.welcome_email_deliveries: sent znamená přijetí poskytovatelem, nikoliv potvrzení doručení do schránky. failed čeká na další pokus; review vyžaduje porovnání s Resend před jakýmkoliv dalším odesláním.
 
 Pozastavení: vypnout pouze cron úlohu beginy-welcome-emails. Tabulky ani datum aktivace nemazat.
+
+## Obrázková varianta
+Obě cesty používají app/lib/email/welcome-template.ts, včetně textové alternativy. Statické výřezy a návod jsou v public/help/ordering-v1/. Verzi cest zachovat, aby obrázky fungovaly i ve starších doručených e-mailech. Ilustrační souhrn a potvrzení jsou v návodu označené. Náhled administračního odeslání používá reminderHtml z téže šablony.

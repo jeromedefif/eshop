@@ -4,6 +4,7 @@ import { createMiddlewareClient } from '@/lib/supabase/middleware'
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const isPublicSeoRoute = pathname.startsWith('/produkty/')
+    || pathname.startsWith('/help/ordering-v1/')
     || pathname === '/robots.txt'
     || pathname === '/sitemap.xml'
 
