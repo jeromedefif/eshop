@@ -10,6 +10,8 @@ import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 import { toast } from 'react-toastify';
 
+import OrderingGuideEmail from '@/components/OrderingGuideEmail';
+
 import type { Order } from '@/types/orders';
 
 const UserDetailPage = () => {
@@ -481,6 +483,8 @@ const UserDetailPage = () => {
                     </section>
                 </div>
             </div>
+
+            <OrderingGuideEmail userId={userId} />
 
             {/* Souhrnné statistiky objednávek */}
             <div className="bg-white shadow-md rounded-lg overflow-hidden mb-6">

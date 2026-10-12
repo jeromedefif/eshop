@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { Resend } from 'resend';
 import prisma from '@/lib/prisma';
-import { welcomeHtml, welcomeSubject, welcomeText } from './welcome-template';
+import { welcomeHtml, welcomeSubject, welcomeText, reminderHtml, reminderSubject, reminderText } from './welcome-template';
 
 export async function deliverWelcomeEmails() {
   if (!process.env.RESEND_API_KEY || !process.env.FROM_EMAIL) throw new Error('E-mailová služba není nakonfigurována.');
@@ -19,7 +19,7 @@ export async function deliverWelcomeEmails() {
     WHERE status IN ('pending','failed','sending') AND first_attempt_at < now() - interval '23 hours'
   `;
   const token = randomUUID();
-  const jobs = await prisma.$queryRaw<Array<{ user_id: string; id: string; attempts: number }>>`
+  const jobs = await prisma.$queryRaw<Array<{ user_id: string; id: string; manual: boolean; attempts: number }>>`
     UPDATE public.welcome_email_deliveries SET status = 'sending', claim_token = ${token}::uuid,
       claimed_at = now(), first_attempt_at = coalesce(first_attempt_at, now()), attempts = attempts + 1
     WHERE user_id IN (
@@ -28,7 +28,7 @@ export async function deliverWelcomeEmails() {
         (status = 'sending' AND claimed_at < now() - interval '5 minutes')) AND attempts < 8
         AND EXISTS (SELECT 1 FROM public.welcome_email_settings WHERE enabled_at IS NOT NULL)
       ORDER BY next_attempt_at LIMIT 10 FOR UPDATE SKIP LOCKED
-    ) RETURNING user_id, id, attempts
+    ) RETURNING user_id, id, attempts, manual
   `;
   for (const job of jobs) {
     try {
@@ -39,7 +39,7 @@ export async function deliverWelcomeEmails() {
       if (!users[0]?.email) throw new Error('Chybí potvrzená e-mailová adresa.');
       const result = await new Resend(process.env.RESEND_API_KEY).emails.send({
         from: process.env.FROM_EMAIL, to: users[0].email, replyTo: 'fiala@vinaria.cz',
-        subject: welcomeSubject, html: welcomeHtml, text: welcomeText,
+        subject: job.manual ? reminderSubject : welcomeSubject, html: job.manual ? reminderHtml : welcomeHtml, text: job.manual ? reminderText : welcomeText,
       }, { idempotencyKey: `welcome/${job.id}` });
       if (result.error || !result.data?.id) throw new Error(result.error?.message || 'Poskytovatel nepotvrdil přijetí.');
       await prisma.$executeRaw`

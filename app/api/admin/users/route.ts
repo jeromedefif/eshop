@@ -43,7 +43,8 @@ export async function GET() {
         p.created_at,
         p.updated_at,
         u.last_sign_in_at,
-        u.email_confirmed_at
+        u.email_confirmed_at,
+        NOT EXISTS (SELECT 1 FROM public.orders o WHERE o.user_id = p.id) AS has_no_orders
       FROM public.profiles p
       LEFT JOIN auth.users u ON u.id = p.id
       ORDER BY p.created_at DESC

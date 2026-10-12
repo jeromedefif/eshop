@@ -1,6 +1,6 @@
 # Uvítací e-mail
 
-Lokální implementace, zatím bez produkční migrace, nasazení a aktivace.
+Nasazeno a aktivováno 12. 10. 2026. Produkční commit ce37638; chráněný worker při prázdné frontě odpověděl HTTP 200, processed: 0. Doručení do skutečné schránky nebylo testováno.
 
 - Nové účty od okamžiku aktivace; jen potvrzené e-mailové adresy.
 - Samostatný plán každých 5 minut. Bez závislosti na přítomnosti objednávek ve frontě.

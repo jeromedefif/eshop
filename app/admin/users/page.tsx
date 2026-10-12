@@ -26,10 +26,11 @@ const ActivationBadge = ({ user }: { user: UserProfile }) => {
 };
 
 const AdminUsersPage = () => {
-    const [users, setUsers] = useState<UserProfile[]>([]);
+    const [users, setUsers] = useState<(UserProfile & { has_no_orders?: boolean })[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [onlyWithoutOrders, setOnlyWithoutOrders] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isEmailSelectionMode, setIsEmailSelectionMode] = useState(false);
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -72,6 +73,7 @@ const AdminUsersPage = () => {
 
     // Filtrování uživatelů podle vyhledávacího dotazu
     const filteredUsers = users.filter(user => {
+        if (onlyWithoutOrders && !user.has_no_orders) return false;
         const searchTerms = searchQuery.toLowerCase().split(' ');
 
         return searchTerms.every(term =>
@@ -298,7 +300,7 @@ const AdminUsersPage = () => {
                         className="block w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg
                                  focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                     />
-                    {searchQuery && (
+                {searchQuery && (
                         <button
                             onClick={() => setSearchQuery('')}
                             className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
@@ -307,7 +309,10 @@ const AdminUsersPage = () => {
                         </button>
                     )}
                 </div>
-                {searchQuery && (
+                    <label className="my-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <input type="checkbox" checked={onlyWithoutOrders} onChange={e => setOnlyWithoutOrders(e.target.checked)} className="h-4 w-4" />Bez objednávky
+                </label>
+                {(searchQuery || onlyWithoutOrders) && (
                     <div className="mt-2 text-sm text-gray-600">
                         Nalezeno {filteredUsers.length} uživatelů
                     </div>
