@@ -4,6 +4,7 @@ import { useContext, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { CartContext } from '@/contexts/CartContext';
 import OrderForm from '@/components/OrderForm';
+import CheckoutSteps from '@/components/CheckoutSteps';
 import Link from 'next/link';
 import { ShoppingBag, ArrowLeft } from 'lucide-react';
 import CustomerPageShell from '@/components/CustomerPageShell';
@@ -43,9 +44,10 @@ const OrderSummaryPage = () => {
     const emptyCartContent = (
         <div>
             <h1 className="mb-6 text-3xl font-bold tracking-tight text-slate-950">
-                Souhrn objednávky
+                Košík
             </h1>
 
+            <CheckoutSteps current={1} reviewDisabled />
             <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm sm:p-12">
                 <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
                     <ShoppingBag className="h-8 w-8 text-slate-500" />
@@ -76,9 +78,10 @@ const OrderSummaryPage = () => {
                                 lang="cs-CZ"
                                 translate="no"
                             >
-                                Souhrn objednávky
+                                Košík
                             </h1>
 
+                            <p className="-mt-3 mb-6 text-sm text-slate-600">Zkontrolujte produkty a množství. Údaje pro doručení a odeslání objednávky potvrdíte v dalším kroku.</p>
                             <OrderForm
                                 key={user?.id || 'guest'}
                                 cartItems={cartItems}

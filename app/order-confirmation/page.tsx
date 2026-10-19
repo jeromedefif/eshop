@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, Loader2, ClipboardCheck, Package, Truck, MapPin, Building2, UserRound, MessageSquareText, Pencil, ArrowRight, ArrowLeft } from 'lucide-react';
+import { CheckCircle, Loader2, Package, Truck, Building2, Mail, ChevronDown, Pencil, ArrowRight, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { draftKey, noteKey, parseDraft, type OrderDraft } from '@/lib/orders/draft';
@@ -136,7 +136,7 @@ export default function OrderConfirmationPage() {
 
     if (!orderData || !user || orderData.userId !== user.id) return <CustomerPageShell width="5xl">
         <h1 className="mb-6 text-3xl font-bold text-slate-950">Kontrola a odeslání</h1>
-        {error ? <div role="alert"><p>{error}</p><button onClick={() => setReload(n => n + 1)} className="mt-4 text-blue-700 underline">Zkusit znovu</button><Link href="/order-summary" className="ml-4 text-blue-700 underline">Zpět k souhrnu</Link></div> : <p role="status">Načítáme údaje objednávky…</p>}
+        {error ? <div role="alert"><p>{error}</p><button onClick={() => setReload(n => n + 1)} className="mt-4 text-blue-700 underline">Zkusit znovu</button><Link href="/order-summary" className="ml-4 text-blue-700 underline">Zpět do košíku</Link></div> : <p role="status">Načítáme údaje objednávky…</p>}
     </CustomerPageShell>;
 
     const processing = orderStatus === 'processing';
@@ -147,28 +147,9 @@ export default function OrderConfirmationPage() {
     const { petPackages, gasPieces } = checkoutAccessoryTotals(orderData.items, products);
     return (
         <CustomerPageShell width="5xl">
-            <header className="mb-5 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 to-slate-800 p-4 sm:p-6 text-white shadow-sm sm:p-8">
-                <div className="flex items-start justify-between gap-5">
-                    <div>
-                        <p className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-blue-200">{completed ? 'Děkujeme za vaši objednávku' : 'Poslední krok před odesláním'}</p>
-                        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{completed ? 'Objednávka přijata' : 'Kontrola a odeslání'}</h1>
-                        <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300">{completed ? 'Všechny údaje máte přehledně na jednom místě. Stav objednávky najdete v historii.' : 'Zkontrolujte vybrané produkty a údaje pro doručení. Pak už stačí objednávku odeslat.'}</p>
-                    </div>
-                    <div className="hidden shrink-0 rounded-2xl border border-white/10 bg-white/5 p-4 sm:block">
-                        {completed ? <CheckCircle aria-hidden="true" className="h-7 w-7 text-emerald-300" /> : <ClipboardCheck aria-hidden="true" className="h-7 w-7 text-blue-300" />}
-                    </div>
-                </div>
-            </header>
+            <h1 className="mb-3 text-3xl font-bold tracking-tight text-slate-950">{completed ? 'Objednávka přijata' : 'Dokončení objednávky'}</h1>
+            <p className="mb-6 text-sm leading-6 text-slate-600">{completed ? 'Objednávku jsme přijali. Její stav najdete v části Moje objednávky.' : 'Zkontrolujte souhrn a odešlete objednávku.'}</p>
             <CheckoutSteps current={completed ? 3 : 2} onSummary={!completed && !processing && !orderData.attempted ? () => router.push('/order-summary') : undefined} />
-            {!completed && <section aria-label="Rychlý přehled objednávky" className="mb-5 rounded-2xl border border-blue-200 bg-blue-50 p-4 lg:hidden">
-                <p className="text-sm font-semibold text-blue-950">Vaše objednávka v kostce</p>
-                <dl className="mt-3 grid grid-cols-3 gap-2 text-xs text-slate-600">
-                    <div><dt>Vína a nápoje</dt><dd className="mt-1 text-base font-bold text-slate-950">{orderData.totalVolume} litrů</dd></div>
-                    <div><dt>PET</dt><dd className={`mt-1 text-base font-bold ${petPackages === 0 ? 'text-amber-800' : 'text-slate-950'}`}>{petPackages} balení</dd></div>
-                    <div><dt>Plyny</dt><dd className={`mt-1 text-base font-bold ${gasPieces === 0 ? 'text-amber-800' : 'text-slate-950'}`}>{gasPieces} ks</dd></div>
-                </dl>
-                <a href="#checkout-submit" className="mt-3 flex min-h-11 items-center justify-center rounded-xl border border-blue-200 bg-white px-3 text-sm font-semibold text-blue-800 hover:bg-blue-100">Přejít k odeslání ↓</a>
-            </section>}
             {notice && <p role="status" className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900">{notice}</p>}
             {completed && (
                 <section role="status" className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 sm:p-6">
@@ -186,90 +167,89 @@ export default function OrderConfirmationPage() {
                 </section>
             )}
 
-            <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]" aria-busy={processing}>
-                <div className="min-w-0 space-y-5">
-                    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" aria-labelledby="checkout-items">
-                        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
-                            <h2 id="checkout-items" className="flex items-center gap-3 text-base font-bold text-slate-950"><Package aria-hidden="true" className="h-5 w-5 text-blue-700" />Položky objednávky</h2>
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold tabular-nums text-slate-600">{orderData.items.length}</span>
+            <section aria-label="Přehled a odeslání objednávky" aria-busy={processing} className="overflow-hidden rounded-2xl border border-slate-200 bg-white pb-24 shadow-sm sm:pb-0">
+                <div className="bg-blue-50/60 px-5 pt-6 sm:px-8 sm:pt-7">
+                    <div className="flex items-center justify-between gap-4">
+                        <h2 className="text-xs font-bold uppercase tracking-widest text-blue-800">Vaše objednávka</h2>
+                        {!completed && <button onClick={() => void handleConfirmOrder()} disabled={processing || !ready || !validCustomer} className="hidden min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:inline-flex">
+                            {processing ? <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" /> : <ArrowRight aria-hidden="true" className="h-4 w-4" />}{processing ? 'Odesíláme…' : orderData.attempted ? 'Ověřit / zopakovat odeslání' : 'Odeslat objednávku'}
+                        </button>}
+                    </div>
+                    <dl className="grid grid-cols-2 gap-5 py-5 min-[400px]:grid-cols-[1.5fr_1fr_1fr] sm:gap-8 sm:py-6">
+                        <div className="col-span-2 min-[400px]:col-span-1"><dt className="mb-2 text-sm font-medium text-slate-600">Celkový objem vín a nápojů</dt><dd className="flex items-baseline gap-2 text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">{orderData.totalVolume}<span className="text-base font-medium tracking-normal text-slate-600 sm:text-lg">litrů</span></dd></div>
+                        <div className="border-t border-blue-100 pt-4 min-[400px]:border-l min-[400px]:border-t-0 min-[400px]:pl-4 min-[400px]:pt-0 sm:pl-8"><dt className="mb-2 text-sm font-medium text-slate-600">Celkem balení PET</dt><dd className="text-2xl font-bold tabular-nums text-slate-800 sm:text-3xl">{petPackages}<span className="ml-2 text-sm font-medium text-slate-600">balení</span></dd></div>
+                        <div className="border-t border-blue-100 pt-4 min-[400px]:border-l min-[400px]:border-t-0 min-[400px]:pl-4 min-[400px]:pt-0 sm:pl-8"><dt className="mb-2 text-sm font-medium text-slate-600">Celkem plynů</dt><dd className="text-2xl font-bold tabular-nums text-slate-800 sm:text-3xl">{gasPieces}<span className="ml-2 text-sm font-medium text-slate-600">ks</span></dd></div>
+                    </dl>
+                </div>
+                    <details key={completed ? 'received' : 'review'} open={completed} className="group border-t border-slate-200/70">
+                        <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 sm:px-8 [&::-webkit-details-marker]:hidden">
+                            <Package aria-hidden="true" className="h-5 w-5 shrink-0 text-blue-700" /><span>{completed ? 'Zobrazit přijaté položky' : 'Zobrazit objednané položky'}</span><ChevronDown aria-hidden="true" className="ml-auto h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+                        </summary>
+                        <div className="border-t border-slate-100 px-5 sm:px-8">
+                            <ul className="divide-y divide-slate-100">
+                                {orderData.items.map(item => <li key={`${item.productId}-${item.volume}`} className="flex flex-col gap-2 py-4 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4"><span className="min-w-0 break-words font-medium leading-6 text-slate-800">{item.productName}</span><span className="shrink-0 self-start rounded-lg bg-slate-100 px-2.5 py-1 font-semibold tabular-nums text-slate-700">{item.display}</span></li>)}
+                            </ul>
+                            {canEdit && <Link href="/order-summary" className="mb-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-blue-700 hover:underline"><ArrowLeft aria-hidden="true" className="h-4 w-4" />Upravit položky v košíku</Link>}
                         </div>
-                        <ul className="divide-y divide-slate-100 px-5 sm:px-6">
-                            {orderData.items.map((item) => (
-                                <li key={`${item.productId}-${item.volume}`} className="flex flex-col gap-2 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                                    <span className="min-w-0 break-words text-sm font-medium leading-6 text-slate-800">{item.productName}</span>
-                                    <span className="self-start whitespace-nowrap rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1 text-sm font-semibold tabular-nums text-blue-800">{item.display}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
+                    </details>
 
-                    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" aria-labelledby="checkout-delivery">
-                        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-slate-100 px-5 py-4 sm:px-6">
-                            <h2 id="checkout-delivery" className="flex items-center gap-3 text-base font-bold text-slate-950"><Truck aria-hidden="true" className="h-5 w-5 text-blue-700" />Doručení a fakturace</h2>
-                            {canEdit && <Link href="/my-profile?checkout=1" aria-label="Upravit kontaktní a dodací údaje" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-900"><Pencil aria-hidden="true" className="h-3.5 w-3.5" />Upravit údaje</Link>}
-                        </div>
-                        <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
-                            <div className="min-w-0 rounded-xl border border-blue-100 bg-blue-50/60 p-4 text-sm leading-6 text-slate-700">
-                                <h3 className="mb-2 flex items-center gap-2 font-bold text-blue-950"><MapPin aria-hidden="true" className="h-4 w-4 text-blue-700" />Dodací adresa</h3>
-                                {customer.shippingCompany && <p className="break-words font-semibold text-slate-900">{customer.shippingCompany}</p>}
-                                {customer.shippingContactName && <p className="break-words">{customer.shippingContactName}</p>}
+                <div className="border-t border-slate-200 px-5 py-5 sm:px-8 sm:py-6">
+                    <div className="grid gap-5 sm:grid-cols-2 sm:gap-10">
+                        <section aria-labelledby="checkout-delivery" className="min-w-0">
+                            <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3">
+                                <h2 id="checkout-delivery" className="flex items-center gap-2 text-sm font-semibold text-slate-700"><Truck aria-hidden="true" className="h-4 w-4 text-slate-400" />Doručení</h2>
+                                {canEdit && <Link href="/my-profile?checkout=1" aria-label="Upravit dodací údaje" className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-blue-700 hover:bg-blue-50"><Pencil aria-hidden="true" className="h-3.5 w-3.5" />Upravit</Link>}
+                            </div>
+                            <div className="text-sm leading-6 text-slate-600">
+                                {customer.shippingCompany && <p className="break-words font-semibold text-slate-800">{customer.shippingCompany}</p>}
                                 <p className="break-words">{customer.shippingAddress || 'Adresa není vyplněna'}</p>
                                 <p>{[customer.shippingPostalCode, customer.shippingCity].filter(Boolean).join(' ')}</p>
-                                <p className="text-slate-500">{customer.shippingCountry}</p>
+                                <p>{customer.shippingCountry}</p>
+                                <p className="mt-2 break-words">{customer.shippingContactName || customer.name}</p>
+                                <p>{customer.phone || 'Telefon neuveden'}</p>
                             </div>
-                            <div className="min-w-0 p-1 text-sm leading-6 text-slate-700 sm:p-4">
-                                <h3 className="mb-2 flex items-center gap-2 font-bold text-slate-950"><Building2 aria-hidden="true" className="h-4 w-4 text-slate-400" />Fakturační adresa</h3>
-                                {customer.company && <p className="break-words font-semibold text-slate-900">{customer.company}</p>}
-                                <p className="break-words">{customer.billingAddress || 'Adresa není vyplněna'}</p>
-                                <p>{[customer.billingPostalCode, customer.billingCity].filter(Boolean).join(' ')}</p>
-                                <p className="text-slate-500">{customer.billingCountry}</p>
-                                {(customer.companyId || customer.vatId) && <div className="mt-2 text-xs text-slate-500">{customer.companyId && <p>IČO: {customer.companyId}</p>}{customer.vatId && <p>DIČ: {customer.vatId}</p>}</div>}
-                            </div>
-                        </div>
-                        {customer.deliveryInstructions && <div className="mx-5 mb-5 border-t border-slate-100 pt-4 sm:mx-6 sm:mb-6"><h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Pokyny k doručení</h3><p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{customer.deliveryInstructions}</p></div>}
-                    </section>
-
-                    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="checkout-contact">
-                        <h2 id="checkout-contact" className="mb-4 flex items-center gap-3 text-base font-bold text-slate-950"><UserRound aria-hidden="true" className="h-5 w-5 text-blue-700" />Kontaktní údaje</h2>
-                        <dl className="grid gap-4 text-sm sm:grid-cols-2">
-                            <div><dt className="mb-1 text-xs font-medium text-slate-500">Kontaktní osoba</dt><dd className="break-words font-semibold text-slate-800">{customer.name}</dd></div>
-                            <div><dt className="mb-1 text-xs font-medium text-slate-500">Telefon</dt><dd className="font-medium text-slate-800">{customer.phone || 'Neuveden'}</dd></div>
-                            <div className="sm:col-span-2"><dt className="mb-1 text-xs font-medium text-slate-500">E-mail pro potvrzení objednávky</dt><dd className="break-all font-medium text-slate-800">{customer.email}</dd></div>
-                        </dl>
-                    </section>
-                    {customer.note && <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><h2 className="mb-3 flex items-center gap-3 text-base font-bold text-slate-950"><MessageSquareText aria-hidden="true" className="h-5 w-5 text-blue-700" />Poznámka k objednávce</h2><p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{customer.note}</p></section>}
-                </div>
-
-                <aside id="checkout-submit" tabIndex={-1} aria-label="Přehled a odeslání objednávky" className="scroll-mt-24 overflow-hidden rounded-2xl border-2 border-blue-300 bg-white shadow-lg shadow-blue-950/10 lg:sticky lg:top-24">
-                    <div className="border-b border-blue-100 bg-gradient-to-b from-blue-50 to-white p-5 sm:p-6">
-                        <h2 className="text-2xl font-bold tracking-tight text-slate-950">{completed ? 'Přijatá objednávka' : 'Vaše objednávka'}</h2>
-                        {!completed && <p className="mt-2 text-sm font-medium text-blue-800">Přehled a odeslání objednávky</p>}
-                        <div className="mt-4"><p className="text-sm text-slate-500">Celkový objem vín a nápojů</p><p className="mt-2 text-4xl font-bold tracking-tight text-slate-950">{orderData.totalVolume}<span className="ml-2 text-xl font-medium text-slate-500">litrů</span></p></div>
-                        <dl className="mt-5 space-y-3 text-sm">
-                            <div className={`flex items-center justify-between gap-3 rounded-xl border p-3 ${petPackages === 0 ? 'border-amber-200 bg-amber-50' : 'border-blue-100 bg-blue-50/60'}`}>
-                                <dt className="font-medium text-slate-700">Celkem balení PET</dt>
-                                <dd className={`shrink-0 font-bold tabular-nums ${petPackages === 0 ? 'text-amber-900' : 'text-blue-900'}`}>{petPackages} balení</dd>
-                            </div>
-                            <div className={`flex items-center justify-between gap-3 rounded-xl border p-3 ${gasPieces === 0 ? 'border-amber-200 bg-amber-50' : 'border-blue-100 bg-blue-50/60'}`}>
-                                <dt className="font-medium text-slate-700">Celkem plynů</dt>
-                                <dd className={`shrink-0 font-bold tabular-nums ${gasPieces === 0 ? 'text-amber-900' : 'text-blue-900'}`}>{gasPieces} ks</dd>
-                            </div>
-                        </dl>
+                        </section>
+                        <section aria-labelledby="checkout-contact" className="min-w-0 sm:pt-3">
+                            <h2 id="checkout-contact" className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700"><Mail aria-hidden="true" className="h-4 w-4 text-slate-400" />Potvrzení objednávky</h2>
+                            <p className="break-all text-sm leading-6 text-slate-600">{customer.email}</p>
+                            {customer.note && <div className="mt-4"><h3 className="mb-1 text-xs font-medium text-slate-500">Poznámka k objednávce</h3><p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-600">{customer.note}</p></div>}
+                        </section>
                     </div>
-                    {!completed ? <div className="p-5 sm:p-6">
+                    {customer.deliveryInstructions && <div className="mt-4"><h3 className="mb-1 text-xs font-medium text-slate-500">Pokyny k doručení</h3><p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-600">{customer.deliveryInstructions}</p></div>}
+                            <details className="group mt-4 border-t border-slate-100 pt-1">
+                                <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 [&::-webkit-details-marker]:hidden"><Building2 aria-hidden="true" className="h-4 w-4" />Fakturační údaje<ChevronDown aria-hidden="true" className="ml-auto h-4 w-4 transition-transform group-open:rotate-180" /></summary>
+                                <div className="pb-1 pt-2 text-sm leading-6 text-slate-700">
+                                    {customer.company && <p className="break-words font-semibold">{customer.company}</p>}
+                                    <p className="break-words">{customer.billingAddress || 'Adresa není vyplněna'}</p>
+                                    <p>{[customer.billingPostalCode, customer.billingCity].filter(Boolean).join(' ')}</p>
+                                    <p>{customer.billingCountry}</p>
+                                    {customer.companyId && <p className="mt-2 text-xs text-slate-500">IČO: {customer.companyId}</p>}
+                                    {customer.vatId && <p className="text-xs text-slate-500">DIČ: {customer.vatId}</p>}
+                                    {canEdit && <Link href="/my-profile?checkout=1" className="mt-2 inline-flex min-h-11 items-center font-semibold text-blue-700 hover:underline">Upravit fakturační údaje</Link>}
+                                </div>
+                            </details>
+
+                </div>
+                {!completed ? <div id="checkout-submit" tabIndex={-1} className="scroll-mt-24 border-t border-slate-200 bg-slate-50/70 px-5 py-5 sm:px-8 sm:py-6">
                         {error && <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-800">{error}</div>}
                         {!ready && <button onClick={() => setReload(n => n + 1)} className="mb-4 min-h-11 text-sm font-semibold text-blue-700 underline">Znovu načíst údaje</button>}
                         {!validCustomer && <p className="mb-4 text-sm text-red-800">Před odesláním doplňte jméno a e-mail v profilu.</p>}
                         {orderData.attempted && !processing && <p className="mb-4 text-sm leading-6 text-slate-600">Nejprve ověřte výsledek původního pokusu opakováním nebo v historii. Obsah tohoto pokusu zůstává zachovaný.</p>}
-                        <p role="status" aria-live="polite" className="mb-4 text-sm leading-6 text-slate-600">{processing ? 'Odesíláme objednávku. Vyčkejte prosím na výsledek, nejvýše 30 sekund.' : 'Je vše v pořádku? Odesláním předáte objednávku ke zpracování.'}</p>
-                        <button onClick={() => void handleConfirmOrder()} disabled={processing || !ready || !validCustomer} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                        <p role="status" aria-live="polite" className="mb-4 text-sm leading-6 text-slate-600">{processing ? 'Odesíláme objednávku. Vyčkejte prosím na výsledek, nejvýše 30 sekund.' : 'Odesláním předáte objednávku ke zpracování. Potvrzení vám zašleme e-mailem.'}</p>
+                        {error && <Link href="/my-orders" className="mt-2 inline-flex min-h-11 w-full items-center justify-center text-sm font-semibold text-blue-700 underline">Ověřit v historii</Link>}
+
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        {!orderData.attempted && <button onClick={() => router.push('/order-summary')} disabled={processing} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-2 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"><ArrowLeft aria-hidden="true" className="h-4 w-4" />Zpět do košíku</button>}
+
+                        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-4px_16px_rgba(15,23,42,0.06)] sm:static sm:ml-auto sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+                        <button onClick={() => void handleConfirmOrder()} disabled={processing || !ready || !validCustomer} className="inline-flex min-h-12 w-full sm:w-auto sm:min-w-72 items-center justify-center gap-2 rounded-xl bg-blue-700 px-6 py-3.5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
                             {processing ? <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" /> : <ArrowRight aria-hidden="true" className="h-4 w-4" />}{processing ? 'Odesíláme…' : orderData.attempted ? 'Ověřit / zopakovat odeslání' : 'Odeslat objednávku'}
                         </button>
-                        {!orderData.attempted && <button onClick={() => router.push('/order-summary')} disabled={processing} className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"><ArrowLeft aria-hidden="true" className="h-4 w-4" />Upravit souhrn</button>}
-                        {error && <Link href="/my-orders" className="mt-2 inline-flex min-h-11 w-full items-center justify-center text-sm font-semibold text-blue-700 underline">Ověřit v historii</Link>}
-                    </div> : <div className="flex items-center gap-2 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800"><CheckCircle aria-hidden="true" className="h-4 w-4" />Úspěšně odesláno</div>}
-                </aside>
-            </div>
+
+                        </div>
+                    </div>
+                </div> : <div className="flex items-center gap-2 border-t border-emerald-100 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800 sm:px-8"><CheckCircle aria-hidden="true" className="h-4 w-4" />Úspěšně odesláno</div>}
+            </section>
         </CustomerPageShell>
     );
 }

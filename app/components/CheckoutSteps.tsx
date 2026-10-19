@@ -10,7 +10,7 @@ interface CheckoutStepsProps {
 export default function CheckoutSteps({ current, onSummary, onReview, reviewDisabled }: CheckoutStepsProps) {
   return (
     <ol aria-label="Průběh objednávky" className="mb-6 grid grid-cols-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      {['Souhrn objednávky', 'Kontrola a odeslání', 'Přijato'].map((label, index) => {
+      {['Košík', 'Kontrola a odeslání', 'Objednávka přijata'].map((label, index) => {
         const active = current === index + 1;
         const done = current > index + 1;
         const action = current === 3 || active ? undefined : index === 0 ? onSummary : index === 1 ? onReview : undefined;

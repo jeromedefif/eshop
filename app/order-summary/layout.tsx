@@ -1,7 +1,7 @@
 import React from 'react';
 
 export const metadata = {
-  title: 'Souhrn objednávky | VINARIA s.r.o.',
+  title: 'Košík | VINARIA s.r.o.',
   description: 'Přehled a dokončení objednávky',
   alternates: {
     languages: {

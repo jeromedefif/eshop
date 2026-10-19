@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import OrderSummary from './OrderSummary';
 import CheckoutSteps from './CheckoutSteps';
+import CartTools from './CartTools';
 import type {
   OrderFormProps,
   OrderConfirmationData
@@ -21,6 +22,7 @@ const OrderForm = ({
   products,
   onRemoveFromCart,
   onAddToCart,
+  onClearCart,
   totalVolume,
   user,
   profile
@@ -98,7 +100,7 @@ const OrderForm = ({
   return (
       <>
       <CheckoutSteps current={1} onReview={handleSubmit} reviewDisabled={reviewDisabled} />
-      <div className="space-y-6">
+      <div className="space-y-6 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:pb-0">
           <OrderSummary
               cartItems={cartItems}
               products={products}
@@ -106,6 +108,8 @@ const OrderForm = ({
               onAddToCart={onAddToCart}
               totalVolume={totalVolume}
           />
+
+          <CartTools cartItems={cartItems} canSave={Boolean(user)} onClear={onClearCart} />
 
           {user && (
               <UsuallyOrderedRecommendations
@@ -149,12 +153,11 @@ const OrderForm = ({
                   {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-red-800">{error}</p>}
                   {!user ? <Link href="/login" className="mb-4 block font-semibold text-blue-700 underline">Přihlásit se</Link> : (!profile?.full_name || !profile?.email) && <p className="mb-4 text-slate-700">Pro pokračování doplňte jméno a e-mail. <Link href="/my-profile?checkout=1" className="font-semibold text-blue-700 underline">Upravit údaje</Link></p>}
                   <p className="mb-3 text-sm text-slate-600">Objednávka se odešle až v následujícím kroku.</p>
+                  <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-4px_16px_rgba(15,23,42,0.06)] sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
                   <button
                       onClick={handleSubmit}
                       disabled={reviewDisabled}
-                      className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg
-                               hover:bg-blue-700 transition-colors disabled:bg-gray-400
-                               disabled:cursor-not-allowed"
+                      className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-blue-700 px-6 py-3.5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                       {!user
                           ? 'Pro odeslání objednávky se prosím přihlaste'
@@ -163,6 +166,7 @@ const OrderForm = ({
                               : 'Pokračovat ke kontrole'
                       }
                   </button>
+                  </div>
               </div>
           </div>
       </div>

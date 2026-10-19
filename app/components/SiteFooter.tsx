@@ -20,6 +20,8 @@ export default function SiteFooter() {
                         <Link href="/" className="transition hover:text-white">Objednávkový katalog</Link>
                         <Link href="/produkty" className="transition hover:text-white">Veřejný katalog</Link>
                         <Link href="/login" className="transition hover:text-white">Přihlášení</Link>
+                        <Link href="/register" className="transition hover:text-white">Registrace</Link>
+                        <Link href="/forgot-password" className="transition hover:text-white">Zapomenuté heslo</Link>
                     </div>
                 </nav>
 

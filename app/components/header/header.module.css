@@ -1,0 +1,39 @@
+.header{position:sticky;top:0;z-index:50;border-bottom:1px solid #e2e8f0;background:#fff;box-shadow:0 1px 3px #0f172a05}
+.container{margin:auto;width:100%;max-width:80rem;padding:0 1rem}
+.utility{background:#172e4e;color:#dce7f8;font-size:11px;line-height:1.4}
+.utility>.container{display:flex;min-height:32px;align-items:center;justify-content:space-between;gap:16px}
+.deadline{display:flex;align-items:center;gap:8px}.deadline svg{flex-shrink:0}.deadline strong{color:#fff}
+.utilityRight{display:none;align-items:center;gap:24px}.utilityRight a:hover{text-decoration:underline}
+.main{display:flex;align-items:center;min-height:76px;gap:12px;position:relative}
+.brand{flex-shrink:0;text-decoration:none}.brand:hover{opacity:.85}
+.nav{display:none;align-self:stretch;gap:24px;margin-left:24px;align-items:stretch}
+.navLink{display:inline-flex;align-items:center;gap:8px;border-bottom:3px solid transparent;padding:0 2px;font-size:13px;font-weight:600;color:#67788e;white-space:nowrap}
+.navLink:hover{color:#28569a}.navLink[aria-current=page]{border-bottom-color:#3566ae;color:#214e93}
+.actions{display:flex;align-items:center;gap:4px;margin-left:auto;min-width:0}
+.quiet{display:inline-flex;min-height:44px;min-width:44px;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;padding:8px;background:transparent;color:#5e6f86;font-size:12px;font-weight:600}
+.quiet:hover,.quiet[aria-expanded=true]{background:#f1f5f9;color:#214e93}.actionLabel,.compactLabel,.chevron{display:none}
+.avatar{display:flex;width:28px;height:28px;align-items:center;justify-content:center;border-radius:50%;background:#edf2f8;color:#284870;font-size:10px;font-weight:700}
+.orderButton{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:46px;margin-left:2px;border:1px solid #2858a8;border-radius:10px;background:#2d5faf;padding:9px 11px;color:white;text-align:left;box-shadow:0 3px 7px #2b589e20}
+.orderButton:hover{background:#244f95}.orderButton:disabled{cursor:wait;opacity:.65}.orderButton[aria-current=page]{box-shadow:0 0 0 2px white,0 0 0 4px #8babdc}
+.orderButtonEmpty{background:#f0f4fb;border-color:#d7e2f3;color:#375f99;box-shadow:none}.orderButtonEmpty:hover{background:#e7effa}
+.orderTitle{display:none;font-size:12px;font-weight:700;line-height:1.4}.orderMobile{display:block;font-size:11px;font-weight:700;line-height:1.4;white-space:nowrap}
+.orderSmall{display:none;font-size:10px;line-height:1.5;color:#e0ebff;margin-top:3px;white-space:nowrap}.orderButtonEmpty .orderSmall{color:#6e85a7}.orderArrow{display:none}
+.mobileNav{display:flex;min-height:46px;gap:22px;border-top:1px solid #f1f5f9;align-items:stretch}
+.mobileNav .navLink{font-size:12px;border-bottom-width:2px;min-height:46px}.mobileHelp{margin-left:auto;align-self:center}
+.dropdown{position:relative}.menu{position:absolute;top:calc(100% + 9px);right:0;width:min(300px,calc(100vw - 24px));padding:10px;border:1px solid #d7e0ec;border-radius:13px;background:white;box-shadow:0 15px 45px #152d4d24;color:#334155;z-index:60}
+.menuTitle{padding:7px 10px 10px;border-bottom:1px solid #edf0f5;margin-bottom:5px;font-size:12px;font-weight:700;overflow-wrap:anywhere}
+.menuItem{display:flex;min-height:44px;width:100%;align-items:center;gap:10px;border-radius:8px;padding:10px;font-size:13px;text-align:left;color:#526982}.menuItem:hover{background:#f1f5f9;color:#234b88}.menuItem:disabled{opacity:.5;cursor:wait}
+.helpText{padding:4px 10px 12px;font-size:12px;line-height:1.65;color:#718096}.helpDesktop{display:none}.register{display:inline-flex;min-height:44px;align-items:center;justify-content:center;gap:8px;border-radius:9px;background:#2d5faf;padding:10px 12px;font-size:12px;font-weight:700;color:white}.register:hover{background:#244f95}.guestLabel{display:none}
+.publicNav{display:none;align-items:center;gap:24px;margin-left:24px;font-size:13px;color:#61738b}.publicNav a:hover,.publicNav a[aria-current=page]{color:#214e93}.divider{margin:5px 8px;border-top:1px solid #edf0f5}
+/* Only positioning adapts to the measured header. Catalog markup and appearance stay intact. */
+:global(body):has(.header) :global(.sticky.top-16){top:var(--beginy-header-height,108px)}
+:global(body):has(.header) :global(#checkout-submit){scroll-margin-top:calc(var(--beginy-header-height,108px) + 16px)}
+@media(min-width:640px){.container{padding:0 1.5rem}.guestLabel{display:inline}.orderButton{padding:10px 14px;min-height:52px}.orderMobile{font-size:12px}}
+@media(min-width:1024px){.main{min-height:84px;gap:22px}.utilityRight{display:flex}.nav{display:flex}.mobileNav{display:none}.helpDesktop{display:block}.orderTitle{display:block}.orderMobile{display:none}.orderSmall{display:block}.orderArrow{display:block}.orderButton{margin-left:8px}.publicNav{display:flex}.compactLabel{display:inline}.chevron{display:block}:global(body):has(.header) :global(#checkout-submit.lg\:sticky){top:calc(var(--beginy-header-height,116px) + 16px)}}
+@media(min-width:1280px){.actionLabel{display:inline}.main{gap:28px}}
+@media(max-width:359px){.main{gap:4px}.actions{gap:0}.brand>span:first-child{font-size:16px}.orderButton{gap:6px;padding:8px}.orderMobile{font-size:10px}.quiet{padding:6px}.register{padding:8px;font-size:11px}.guestLabel{display:none}}
+
+@media(max-width:1023px){.main .dropdown{position:static}.main .menu{top:calc(100% - 2px);right:0;width:min(300px,calc(100vw - 32px))}.main .brand{margin-right:auto}}
+
+.orderMobileTotal{display:block;font-size:10px;line-height:1.4;white-space:nowrap;font-weight:400;margin-top:2px;opacity:.9}
+@media(min-width:1024px){.orderMobileTotal{display:none}}

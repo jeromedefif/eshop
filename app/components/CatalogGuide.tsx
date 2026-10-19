@@ -46,12 +46,12 @@ const signedInSteps: GuideStep[] = [
   {
     target: 'my-orders',
     title: 'Moje objednávky: další nákup rychleji',
-    description: 'V nabídce Moje objednávky najdete historii a stav objednávek, dříve nakoupené produkty i oblíbené. Objednávku můžete zopakovat nebo uložit jako šablonu, kterou lze přejmenovat či odstranit. Opakování připraví položky do košíku; před odesláním je ještě zkontrolujete v souhrnu.',
+    description: 'V nabídce Moje objednávky najdete historii a stav objednávek, dříve nakoupené produkty i oblíbené. Objednávku můžete zopakovat nebo uložit jako šablonu, kterou lze přejmenovat či odstranit. Opakování připraví položky do košíku; před odesláním je ještě zkontrolujete v košíku.',
   },
   {
     target: 'order-summary',
-    title: 'Zkontrolujte objednávku',
-    description: 'V souhrnu nebo košíku upravíte množství, doplníte poznámku a objednávku odešlete.',
+    title: 'Otevřete košík',
+    description: 'V košíku upravíte množství a doplníte poznámku. Tlačítkem „Pokračovat ke kontrole“ přejdete k údajům pro doručení. Objednávku odešlete až v závěrečném kroku.',
   },
 ];
 

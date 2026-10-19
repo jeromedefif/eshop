@@ -522,7 +522,7 @@ const MyOrdersPage = () => {
                         <p className="mt-2 text-sm text-slate-600">Historie, dříve objednané produkty, uložené šablony a oblíbené na jednom místě.</p>
                     </div>
                     {cartQuantity > 0 && <Link href="/order-summary" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-800">
-                        <ArrowLeft aria-hidden="true" className="h-4 w-4" />Zpět do souhrnu objednávky
+                        <ArrowLeft aria-hidden="true" className="h-4 w-4" />Zpět do košíku
                     </Link>}
                 </div>
 
@@ -536,7 +536,7 @@ const MyOrdersPage = () => {
                         <div><h2 className="font-bold text-slate-900">Historie objednávek</h2><p>Prohlédněte si stav a položky odeslaných objednávek. Volbou „Objednat znovu“ připravíte dostupné položky do košíku; objednávku tím ještě neodešlete.</p></div>
                         <div><h2 className="font-bold text-slate-900">Dříve objednané produkty</h2><p>Najděte produkty z minulých nákupů a vyberte potřebné objemy. Kliknutím přidáváte kusy, červeným počtem množství snižujete.</p></div>
                         <div><h2 className="font-bold text-slate-900">Uložené šablony</h2><p>Objednávku z historie si uložte jako pojmenovanou šablonu pro další nákupy. Šablony můžete použít, přejmenovat nebo odstranit.</p></div>
-                        <div><h2 className="font-bold text-slate-900">Oblíbené a dokončení nákupu</h2><p>Oblíbené produkty označené srdíčkem najdete na samostatné záložce. Jakmile máte položky v košíku, pokračujte tlačítkem „Zpět do souhrnu objednávky“, zkontrolujte je a dokončete odeslání.</p></div>
+                        <div><h2 className="font-bold text-slate-900">Oblíbené a dokončení nákupu</h2><p>Oblíbené produkty označené srdíčkem najdete na samostatné záložce. Jakmile máte položky v košíku, pokračujte tlačítkem „Zpět do košíku“, zkontrolujte je a dokončete odeslání.</p></div>
                     </div>
                 </details>
 
