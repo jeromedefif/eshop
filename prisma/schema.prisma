@@ -281,3 +281,13 @@ model EmailDelivery {
   @@map("email_deliveries")
   @@schema("public")
 }
+
+model HeaderNoticeSettings {
+  id         Boolean  @id @default(true)
+  messages   Json
+  revision   String   @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("header_notice_settings")
+  @@schema("public")
+}

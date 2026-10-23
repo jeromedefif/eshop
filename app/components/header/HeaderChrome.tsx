@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState, useId, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Clock3, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import styles from './header.module.css';
+import HeaderNotices from './HeaderNotices';
 
 export function HeaderBrand({ href = '/' }: { href?: string }) {
     return <Link href={href} className={styles.brand} aria-label="VINARIA s.r.o. – Beginy.cz">
@@ -14,7 +15,7 @@ export function HeaderBrand({ href = '/' }: { href?: string }) {
 }
 export function HeaderUtility() {
     return <div className={styles.utility}><div className={styles.container}>
-        <span className={styles.deadline}><Clock3 aria-hidden="true" size={13} /><span>Objednávky pro rozvozy nejpozději: <strong>v úterý do 13:00</strong></span></span>
+        <HeaderNotices />
         <div className={styles.utilityRight}><span>Plníme podle vaší objednávky</span><a href="tel:+420734720994">Váš obchodník: Ing. Roman Fiala · 734 720 994</a></div>
     </div></div>;
 }

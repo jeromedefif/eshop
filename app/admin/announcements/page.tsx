@@ -5,6 +5,7 @@ import { AlertTriangle, CalendarClock, Info, Loader2, Megaphone, Pencil, Plus, R
 import { toast } from 'react-toastify';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
 import ProductMultiSelect from '@/components/ProductMultiSelect';
+import HeaderNoticeEditor from '@/components/header/HeaderNoticeEditor';
 import type { AdminAnnouncement, AnnouncementTargetType, AnnouncementVariant } from '@/types/announcements';
 
 type ProductOption = { id: string; name: string; category: string };
@@ -53,6 +54,7 @@ const variantStyles: Record<AnnouncementVariant, string> = {
 };
 
 function AdminAnnouncementsPage() {
+  const [panel, setPanel] = useState<'catalog' | 'header'>('catalog');
   const [announcements, setAnnouncements] = useState<AdminAnnouncement[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -181,13 +183,19 @@ function AdminAnnouncementsPage() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-950"><Megaphone className="h-6 w-6 text-blue-600" /> Oznámení</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Časově řízené informace, které zákazníci uvidí nad katalogem.</p>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Správa upozornění nad katalogem a zpráv v horním proužku portálu.</p>
         </div>
-        <button type="button" onClick={() => void load()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 font-semibold text-slate-700 hover:bg-slate-50">
+        {panel === 'catalog' && <button type="button" onClick={() => void load()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 font-semibold text-slate-700 hover:bg-slate-50">
           <RefreshCw className="h-4 w-4" /> Obnovit
-        </button>
+        </button>}
       </div>
 
+      <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Umístění oznámení">
+        <button type="button" aria-pressed={panel === 'catalog'} onClick={() => setPanel('catalog')} className={`min-h-11 rounded-xl px-4 text-sm font-semibold ${panel === 'catalog' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>Upozornění nad katalogem</button>
+        <button type="button" aria-pressed={panel === 'header'} onClick={() => setPanel('header')} className={`min-h-11 rounded-xl px-4 text-sm font-semibold ${panel === 'header' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>Proužek nad hlavičkou</button>
+      </div>
+      <div hidden={panel !== 'header'}><HeaderNoticeEditor /></div>
+      <div hidden={panel !== 'catalog'}>
       <form onSubmit={submit} className="mb-8 rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:p-6">
         <div className="mb-5 flex items-center justify-between gap-3">
           <div>
@@ -222,6 +230,7 @@ function AdminAnnouncementsPage() {
         <h2 className="mb-4 text-lg font-bold text-slate-950">Všechna oznámení</h2>
         {loading ? <div className="flex min-h-40 items-center justify-center text-slate-600"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Načítání…</div> : announcements.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">Zatím nebylo vytvořeno žádné oznámení.</div> : <div className="grid gap-4 xl:grid-cols-2">{announcements.map((announcement) => <AnnouncementCard key={announcement.id} announcement={announcement} onEdit={edit} onToggle={() => void toggleActive(announcement)} onRemove={() => void remove(announcement)} />)}</div>}
       </section>
+      </div>
     </div>
   );
 }
