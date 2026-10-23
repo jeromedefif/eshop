@@ -21,7 +21,7 @@ export default function AuthPageShell({
     active = 'login'
 }: AuthPageShellProps) {
     return (
-        <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top_left,_#eff6ff_0,_#f8fafc_38%,_#f1f5f9_100%)] text-slate-900">
+        <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top_left,_#f7e8ed_0,_#f8f5ef_38%,_#f3f0e9_100%)] text-slate-900">
             <PublicHeader active={active} />
             <main className="flex-1 px-4 py-8 sm:py-12">
                 <div className={`mx-auto w-full ${widthClasses[width]}`}>

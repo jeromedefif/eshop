@@ -25,7 +25,7 @@ export default function HeaderVariant({ legacy, modern }: { legacy: ReactNode; m
             try { window.localStorage.setItem(storageKey, useModern ? 'legacy' : 'modern'); }
             catch { return; }
             window.dispatchEvent(new Event(changeEvent));
-        }} className="fixed bottom-3 right-3 z-40 rounded-lg border border-slate-300 bg-white/95 px-3 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50" title="Pouze místní náhled. Přepnutí nemění košík ani účet.">
+        }} className="fixed bottom-24 right-3 z-40 sm:bottom-3 rounded-lg border border-slate-300 bg-white/95 px-3 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50" title="Pouze místní náhled. Přepnutí nemění košík ani účet.">
             Lokální náhled · {useModern ? 'Původní hlavička' : 'Nová hlavička'}
         </button>}
     </>;

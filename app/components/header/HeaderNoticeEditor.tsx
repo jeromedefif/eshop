@@ -93,7 +93,7 @@ export default function HeaderNoticeEditor() {
       </fieldset>
       <div className="mt-6 border-t border-slate-100 pt-5">
         <h3 className="mb-3 text-sm font-semibold text-slate-800">Náhled aktuálně platných zpráv</h3>
-        <div className="rounded-xl bg-[#172e4e] px-4 text-[11px] text-white"><HeaderNoticeCarousel messages={messages} /></div>
+        <div className="rounded-xl bg-[linear-gradient(105deg,#511526,#8e1437)] px-4 text-[11px] text-white"><HeaderNoticeCarousel messages={messages} /></div>
         {!activeHeaderNotices(messages).length && <p className="mt-2 text-sm text-slate-500">Aktuálně nebude zobrazená žádná zpráva.</p>}
         {messages.filter(message => message.enabled).length > 1 && <p className="mt-2 text-xs text-slate-500">Zprávu můžete přepnout tečkami. Při najetí myší nebo ovládání klávesnicí se střídání pozastaví.</p>}
       </div>

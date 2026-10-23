@@ -249,21 +249,21 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
 
         switch(normalizedCategory) {
             case 'Víno':
-                return <Grape className={`h-5 w-5 ${color}`} />;
+                return <Grape data-category-icon="true" className={`h-5 w-5 ${color}`} />;
             case 'Perlivé':
-                return <Sparkles className={`h-5 w-5 ${color}`} />;
+                return <Sparkles data-category-icon="true" className={`h-5 w-5 ${color}`} />;
             case 'Ovocné víno':
-                return <Wine className={`h-5 w-5 ${color}`} />;
+                return <Wine data-category-icon="true" className={`h-5 w-5 ${color}`} />;
             case 'Burčák':
-                return <Amphora className={`h-5 w-5 ${color}`} />;
+                return <Amphora data-category-icon="true" className={`h-5 w-5 ${color}`} />;
             case 'Nápoje':
-                return <Martini className={`h-5 w-5 ${color}`} />;
+                return <Martini data-category-icon="true" className={`h-5 w-5 ${color}`} />;
             case 'Plyny':
-                return <TestTube className={`h-5 w-5 ${color}`} />;
+                return <TestTube data-category-icon="true" className={`h-5 w-5 ${color}`} />;
             case 'PET':
-                return <Box className={`h-5 w-5 ${color}`} />;
+                return <Box data-category-icon="true" className={`h-5 w-5 ${color}`} />;
             default:
-                return <Package className={`h-5 w-5 ${color}`} />;
+                return <Package data-category-icon="true" className={`h-5 w-5 ${color}`} />;
         }
     };
 
@@ -602,6 +602,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                                     title={cat.id}
                                 >
                                     {React.cloneElement(cat.icon, {
+                                        'data-category-icon': 'true',
                                         className: `h-5 w-5 ${colorClass}`
                                     })}
                                     {/* Zobrazíme popisek pouze na větších obrazovkách */}

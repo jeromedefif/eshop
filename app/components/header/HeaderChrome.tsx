@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useId, type ReactNode } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
 import styles from './header.module.css';
@@ -9,8 +10,8 @@ import HeaderNotices from './HeaderNotices';
 
 export function HeaderBrand({ href = '/' }: { href?: string }) {
     return <Link href={href} className={styles.brand} aria-label="VINARIA s.r.o. – Beginy.cz">
-        <span className="block text-lg font-bold leading-tight tracking-tight text-slate-950 sm:text-xl">VINARIA s.r.o.</span>
-        <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-blue-700 sm:text-xs">Beginy.cz</span>
+        <Image src="/brand/logo-vinaria.png" alt="" width={56} height={56} sizes="(max-width: 359px) 36px, (max-width: 1023px) 42px, 56px" className={styles.brandLogo} />
+        <span><span className={styles.brandName}>VINARIA s.r.o.</span><span className={styles.brandSubtitle}>Beginy.cz · Objednávky online</span></span>
     </Link>;
 }
 export function HeaderUtility() {

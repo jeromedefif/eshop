@@ -33,7 +33,7 @@ export function PublicCategoryIcon({ category, className = 'h-6 w-6' }: { catego
     const normalized = normalizeProductCategory(category);
     const theme = CATEGORY_THEME[normalized] || DEFAULT_THEME;
     const Icon = theme.icon;
-    return <Icon className={`${className} ${theme.iconClass}`} aria-hidden="true" />;
+    return <Icon data-category-icon="true" className={`${className} ${theme.iconClass}`} aria-hidden="true" />;
 }
 
 export function PublicProductCard({ product }: { product: PublicProduct }) {

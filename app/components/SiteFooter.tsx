@@ -1,52 +1,43 @@
 import Link from 'next/link';
-import { ExternalLink, Mail, Phone } from 'lucide-react';
+import Image from 'next/image';
+import { Mail, Phone } from 'lucide-react';
 import { SITE_CONTAINER_CLASS } from '@/lib/layout-classes';
+import styles from './SiteFooter.module.css';
 
 export default function SiteFooter() {
     return (
-        <footer className="border-t border-slate-200 bg-slate-950 text-slate-300">
-            <div className={`${SITE_CONTAINER_CLASS} grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr]`}>
+        <footer className={styles.footer}>
+            <Image src="/brand/logo-vinaria.png" alt="" aria-hidden="true" width={520} height={520} sizes="520px" className={styles.watermark} />
+            <div className={`${SITE_CONTAINER_CLASS} ${styles.grid}`}>
                 <div>
-                    <p className="text-lg font-bold tracking-tight text-white">VINARIA s.r.o.</p>
-                    <p className="mt-1 text-sm font-semibold text-blue-300">Beginy.cz</p>
-                    <p className="mt-4 max-w-md text-sm leading-6 text-slate-400">
-                        Velkoobchodní objednávkový systém pro vína, nápoje a související sortiment.
-                    </p>
+                    <div className={styles.brand}>
+                        <Image src="/brand/logo-vinaria.png" alt="" width={62} height={62} sizes="62px" />
+                        <div><p>VINARIA s.r.o.</p><span>Váš partner pro vína a nápoje.</span></div>
+                    </div>
+                    <p className={styles.description}>Velkoobchodní objednávkový portál.<br />Víno a nápoje plníme podle vašich objednávek, v objemech, které potřebujete.</p>
                 </div>
-
                 <nav aria-label="Navigace v patičce">
-                    <p className="text-sm font-bold uppercase tracking-wider text-white">Katalogy</p>
-                    <div className="mt-4 flex flex-col items-start gap-3 text-sm">
-                        <Link href="/" className="transition hover:text-white">Objednávkový katalog</Link>
-                        <Link href="/produkty" className="transition hover:text-white">Veřejný katalog</Link>
-                        <Link href="/login" className="transition hover:text-white">Přihlášení</Link>
-                        <Link href="/register" className="transition hover:text-white">Registrace</Link>
-                        <Link href="/forgot-password" className="transition hover:text-white">Zapomenuté heslo</Link>
+                    <h2>Vše na jednom místě</h2>
+                    <div className={styles.links}>
+                        <Link href="/">Objednávkový katalog</Link>
+                        <Link href="/login">Přihlášení</Link>
+                        <Link href="/produkty">Veřejný katalog</Link>
+                        <Link href="/register">Registrace</Link>
+                        <a href="/help/ordering-v1/guide.html">Jak objednávat</a>
+                        <Link href="/forgot-password">Zapomenuté heslo</Link>
                     </div>
                 </nav>
-
                 <div>
-                    <p className="text-sm font-bold uppercase tracking-wider text-white">Kontakt</p>
-                    <div className="mt-4 flex flex-col items-start gap-3 text-sm">
-                        <a href="mailto:fiala@vinaria.cz" className="inline-flex items-center gap-2 transition hover:text-white">
-                            <Mail className="h-4 w-4" />
-                            fiala@vinaria.cz
-                        </a>
-                        <a href="tel:+420734720994" className="inline-flex items-center gap-2 transition hover:text-white">
-                            <Phone className="h-4 w-4" />
-                            +420 734 720 994
-                        </a>
-                        <a href="https://vinaria.cz/" className="inline-flex items-center gap-2 transition hover:text-white">
-                            vinaria.cz
-                            <ExternalLink className="h-3.5 w-3.5" />
-                        </a>
-                    </div>
+                    <h2>Váš obchodník</h2>
+                    <p className={styles.person}>Ing. Roman Fiala<span>Pomohu vám s výběrem i objednávkou.</span></p>
+                    <a href="tel:+420734720994" className={styles.contact}><Phone aria-hidden="true" size={16} />+420 734 720 994</a>
+                    <a href="mailto:fiala@vinaria.cz" className={styles.contact}><Mail aria-hidden="true" size={16} />fiala@vinaria.cz</a>
                 </div>
             </div>
-
-            <div className="border-t border-slate-800">
-                <div className={`${SITE_CONTAINER_CLASS} py-4 text-xs text-slate-500`}>
-                    © {new Date().getFullYear()} VINARIA s.r.o. Všechna práva vyhrazena.
+            <div className={styles.bottom}>
+                <div className={SITE_CONTAINER_CLASS}>
+                    <span>© {new Date().getFullYear()} VINARIA s.r.o. Všechna práva vyhrazena.</span>
+                    <span>Beginy.cz <span className={styles.separator}>/</span> <a href="https://vinaria.cz/">www.vinaria.cz</a></span>
                 </div>
             </div>
         </footer>

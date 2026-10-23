@@ -89,22 +89,22 @@ const OrderSummary = ({
 
         switch(category) {
             case 'Víno':
-                return <Grape className={`h-5 w-5 ${icon}`} />;
+                return <Grape data-category-icon="true" className={`h-5 w-5 ${icon}`} />;
             case 'Perlivé':
-                return <Sparkles className={`h-5 w-5 ${icon}`} />;
+                return <Sparkles data-category-icon="true" className={`h-5 w-5 ${icon}`} />;
             case 'Ovocné víno':
-                return <Wine className={`h-5 w-5 ${icon}`} />;
+                return <Wine data-category-icon="true" className={`h-5 w-5 ${icon}`} />;
             case 'Burčák':
-                return <Amphora className={`h-5 w-5 ${icon}`} />;
+                return <Amphora data-category-icon="true" className={`h-5 w-5 ${icon}`} />;
             case 'Nápoje':
-                return <Martini className={`h-5 w-5 ${icon}`} />;
+                return <Martini data-category-icon="true" className={`h-5 w-5 ${icon}`} />;
             case 'Dusík':
             case 'Plyny':
-                return <TestTube className={`h-5 w-5 ${icon}`} />;
+                return <TestTube data-category-icon="true" className={`h-5 w-5 ${icon}`} />;
             case 'PET':
-                return <Box className={`h-5 w-5 ${icon}`} />;
+                return <Box data-category-icon="true" className={`h-5 w-5 ${icon}`} />;
             default:
-                return <Package className={`h-5 w-5 ${icon}`} />;
+                return <Package data-category-icon="true" className={`h-5 w-5 ${icon}`} />;
         }
     };
 
