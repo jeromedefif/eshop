@@ -8,6 +8,7 @@ import { getProductPath } from '@/lib/product-slug';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePurchasing } from '@/contexts/PurchasingContext';
 import { toast } from 'react-toastify';
+import QuickOrder from '@/components/QuickOrder';
 import CustomerAnnouncements from '@/components/CustomerAnnouncements';
 import type { CustomerAnnouncement } from '@/types/announcements';
 import { normalizeCatalogProductIds, setCatalogProductIds } from '@/lib/catalog-product-links';
@@ -832,6 +833,8 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                     </div>
                 )}
             </div>
+            {onlyCart && <QuickOrder key={user?.id || 'guest'} />}
+
         </div>
     );
 };

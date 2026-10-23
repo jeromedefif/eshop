@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { draftKey, noteKey, parseDraft, type OrderDraft } from '@/lib/orders/draft';
 import { checkoutAccessoryTotals } from '@/lib/orders/checkout-totals';
+import { CheckoutSubmissionError, submitCheckoutDraft } from '@/lib/orders/submit-checkout';
 import { sameCustomer } from '@/lib/orders/customer';
 import type { OrderStatus, OrderCustomer } from '@/types/orders';
 import CustomerPageShell from '@/components/CustomerPageShell';
@@ -79,47 +80,21 @@ export default function OrderConfirmationPage() {
         submitting.current = true;
         setError('');
         setOrderStatus('processing');
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 30000);
-        let attempted = orderData;
-        let orderId: string;
-        let savedCustomer: OrderCustomer | undefined;
+        let completed: OrderDraft;
         try {
-            attempted = { ...orderData, attempted: true };
-            // Persist before sending so refresh/retry always uses the same key.
-            sessionStorage.setItem(draftKey(user.id), JSON.stringify(attempted));
-            setOrderData(attempted);
-            const response = await fetch('/api/checkout', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: controller.signal,
-                body: JSON.stringify({ userId: user.id, requestKey: attempted.requestKey, items: attempted.items, note: attempted.customer.note || '', expectedCustomer: attempted.customer }),
-            });
-            const result = await response.json();
-            if (owner.current !== user.id) return;
-            if (!response.ok) {
-                if (result.code === 'CUSTOMER_CHANGED') {
-                    const updated = { ...attempted, attempted: false, customer: { ...result.customer, note: attempted.customer.note } };
-                    sessionStorage.setItem(draftKey(user.id), JSON.stringify(updated));
-                    setOrderData(updated);
-                } else if (response.status === 400) {
-                    const rejected = { ...attempted, attempted: false };
-                    sessionStorage.setItem(draftKey(user.id), JSON.stringify(rejected));
-                    setOrderData(rejected);
-                }
-                throw new Error(result.error || 'Odeslání se nepodařilo ověřit. Opakujte stejný pokus nebo zkontrolujte historii objednávek.');
-            }
-            if (typeof result.orderId !== 'string' || !result.orderId) throw new Error('Server nevrátil číslo objednávky. Opakujte stejný pokus pro ověření výsledku.');
-            orderId = result.orderId;
-            savedCustomer = result.customer;
+            setOrderData({ ...orderData, attempted: true });
+            completed = await submitCheckoutDraft(orderData, sessionStorage, () => owner.current === user.id);
         } catch (e) {
             if (owner.current === user.id) {
+                if (e instanceof CheckoutSubmissionError) setOrderData(e.draft);
                 setOrderStatus('error');
-                setError(e instanceof Error && e.name !== 'AbortError' && !(e instanceof TypeError) ? e.message : 'Odpověď serveru nepřišla včas. Objednávka již mohla být přijata. Opakujte stejný pokus pro ověření; nevznikne druhá objednávka.');
+                setError(e instanceof Error ? e.message : 'Odeslání se nepodařilo ověřit.');
             }
             return;
-        } finally { clearTimeout(timer); submitting.current = false; }
+        } finally { submitting.current = false; }
+        if (owner.current !== user.id) return;
 
         // Once the server confirms the order, cleanup must never turn success into failure.
-        const completed = { ...attempted, customer: savedCustomer || attempted.customer, completedOrderId: orderId };
         setOrderData(completed);
         setOrderStatus('completed');
         setNotice('');
@@ -127,10 +102,10 @@ export default function OrderConfirmationPage() {
             sessionStorage.setItem(draftKey(user.id), JSON.stringify(completed));
             sessionStorage.removeItem(noteKey(user.id));
         } catch { /* Retained request key still protects retries. */ }
-        try { clearOrderedItems(attempted.items); } catch { setNotice('Objednávka je přijata. Košík se nepodařilo vyčistit; další objednávku ověřte v historii.'); }
+        try { clearOrderedItems(completed.items); } catch { setNotice('Objednávka je přijata. Košík se nepodařilo vyčistit; další objednávku ověřte v historii.'); }
         try {
             completeAnalyticsJourney();
-            void trackAnalyticsEvent(ANALYTICS_EVENTS.orderSubmitted, { itemCount: attempted.items.reduce((sum, item) => sum + item.quantity, 0), oncePerJourney: true }).catch(() => {});
+            void trackAnalyticsEvent(ANALYTICS_EVENTS.orderSubmitted, { itemCount: completed.items.reduce((sum, item) => sum + item.quantity, 0), oncePerJourney: true }).catch(() => {});
         } catch { /* Telemetry cannot affect the receipt. */ }
     };
 

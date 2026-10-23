@@ -1,6 +1,6 @@
 'use client';
 
-import { draftKey, noteKey, parseDraft, sameDraftContents } from '@/lib/orders/draft';
+import { draftKey, noteKey, parseDraft } from '@/lib/orders/draft';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import OrderSummary from './OrderSummary';
@@ -12,9 +12,8 @@ import type {
 } from '@/types/orders';
 import Link from 'next/link';
 import { History, Plus } from 'lucide-react';
-import { sortOrderItems } from '@/lib/order-item-sorting';
+import { orderDataFromCart, prepareOrderDraft } from '@/lib/orders/prepare-draft';
 import { customerFromProfile } from '@/lib/orders/customer';
-import { normalizeProductCategory } from '@/lib/product-config';
 import UsuallyOrderedRecommendations from './UsuallyOrderedRecommendations';
 
 const OrderForm = ({
@@ -54,11 +53,7 @@ const OrderForm = ({
       setError('');
       try {
           const prior = parseDraft(sessionStorage.getItem(draftKey(user.id)), user.id);
-          if (!prior?.attempted || prior.completedOrderId) {
-              const orderData = getOrderSummary();
-              const requestKey = prior && !prior.completedOrderId && sameDraftContents(prior, orderData) ? prior.requestKey : crypto.randomUUID();
-              sessionStorage.setItem(draftKey(user.id), JSON.stringify({ ...orderData, userId: user.id, requestKey, createdAt: Date.now() }));
-          }
+          if (!prior?.attempted || prior.completedOrderId) prepareOrderDraft(sessionStorage, user.id, getOrderSummary());
           router.push('/order-confirmation');
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Koncept objednávky se nepodařilo uložit.');
@@ -66,35 +61,7 @@ const OrderForm = ({
   };
 
   const getOrderSummary = (): OrderConfirmationData => {
-      const lines = Object.entries(cartItems).map(([key, quantity]) => {
-          const [id, volume] = key.split('-');
-          const product = products.find(p => String(p.id) === id);
-          if (!product) throw new Error('Některá položka již není v katalogu. Obnovte katalog a upravte košík.');
-          return { product, volume, quantity };
-      });
-      const items = sortOrderItems(lines).map(({ product, volume, quantity }) => {
-          const category = normalizeProductCategory(product.category);
-          const display = category === 'PET'
-              ? `${quantity}× balení`
-              : category === 'Plyny'
-                  ? `${quantity}× ${volume === 'maly' ? 'malý' : 'velký'}`
-                  : `${volume}L × ${quantity}`;
-
-          return {
-              productId: Number(product.id),
-              productName: product.name,
-              productCategory: category,
-              volume: volume as string | number,
-              quantity,
-              display
-          };
-      });
-
-      return {
-          items,
-          totalVolume,
-          customer: { ...customerFromProfile(profile!), note }
-      };
+      return orderDataFromCart(cartItems, products, { ...customerFromProfile(profile!), note });
   };
 
   return (
