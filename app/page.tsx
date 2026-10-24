@@ -49,7 +49,7 @@ export default function Home() {
        <div className="min-h-screen bg-gray-50 flex flex-col">
            <Header />
 
-           <main className={`${SITE_CONTAINER_CLASS} flex-1 py-6`}>
+           <main className={`${SITE_CONTAINER_CLASS} flex-1 pb-6 pt-3`}>
                {productsError && <p role="alert" className="mb-4 rounded-lg bg-amber-50 p-4 text-amber-900">{productsError}</p>}
                {(
                    <ProductList

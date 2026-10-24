@@ -9,6 +9,7 @@ import { getProductIdFromSlug, getProductPath, getProductSlug } from '@/lib/prod
 import { getPublicProductById } from '@/lib/public-products';
 import SiteFooter from '@/components/SiteFooter';
 import Header from '@/components/Header';
+import { ProductTop10Badge } from '@/components/Top10Badge';
 import ProductDetailPurchase from '@/components/ProductDetailPurchase';
 
 export const revalidate = 3600;
@@ -123,6 +124,7 @@ export default async function ProductPage(props: ProductPageProps) {
                                 <Link href={categoryPath} className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-800 hover:bg-blue-100">{category}</Link>
                                 {product.is_new && <span className="rounded-full bg-violet-50 px-3 py-1 text-sm font-semibold text-violet-800">Novinka</span>}
                                 {product.is_featured && <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-semibold text-orange-800">Akce</span>}
+                                <ProductTop10Badge id={product.id} eligible={product.in_stock} />
                             </div>
 
                             <h1 className="mt-3 max-w-4xl text-2xl font-bold leading-tight tracking-tight text-slate-950 sm:text-3xl">

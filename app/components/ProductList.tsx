@@ -12,6 +12,9 @@ import QuickOrder from '@/components/QuickOrder';
 import CustomerAnnouncements from '@/components/CustomerAnnouncements';
 import type { CustomerAnnouncement } from '@/types/announcements';
 import { normalizeCatalogProductIds, setCatalogProductIds } from '@/lib/catalog-product-links';
+import { Top10Badge } from '@/components/Top10Badge';
+import { useDailyTop10 } from '@/hooks/useDailyTop10';
+import { Top10Invitation, Top10Context, Top10Rank } from '@/components/Top10Panel';
 import CatalogGuide, { CATALOG_GUIDE_VERSION } from '@/components/CatalogGuide';
 
 type ProductListProps = {
@@ -51,6 +54,8 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
     const [selectedCategory, setSelectedCategory] = useState("Všechny");
     const [searchQuery, setSearchQuery] = useState('');
     const [onlyCart, setOnlyCart] = useState(false);
+    const [top10View, setTop10View] = useState(false);
+    const [top10Search, setTop10Search] = useState('');
     const [catalogReturnUrl, setCatalogReturnUrl] = useState('/');
     const cartProductIds = new Set(Object.entries(cartItems).filter(([, count]) => count > 0).map(([key]) => key.split('-')[0]));
     const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
@@ -65,6 +70,15 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
     const [onlyInStock, setOnlyInStock] = useState(false);
     const [areFiltersOpen, setAreFiltersOpen] = useState(false);
     const [filtersReady, setFiltersReady] = useState(false);
+    const top10 = useDailyTop10(filtersReady);
+    const top10Ranks = new Map((top10.data?.productIds || []).map((id, index) => [id, index + 1]));
+    const previousTop10View = useRef(false);
+    useEffect(() => {
+        if (!filtersReady || previousTop10View.current === top10View) return;
+        previousTop10View.current = top10View;
+        const target = document.getElementById(top10View ? 'catalog-title' : 'catalog-top10-trigger') || document.getElementById('catalog-title');
+        target?.focus({ preventScroll: true });
+    }, [filtersReady, top10View]);
     const guideAutoHandledRef = useRef(false);
     const directProductIdSet = useMemo(() => new Set(directProductIds), [directProductIds]);
 
@@ -92,6 +106,8 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
         setSweetnessFilters(PRODUCT_SWEETNESS_OPTIONS.map((option) => option.value).filter((value) => sweetness.includes(value)));
         setOnlyInStock(params.get('skladem') === '1');
         setOnlyCart(params.get('kosik') === '1');
+        setTop10View(params.get('top') === '1');
+        setTop10Search(params.get('topHledat') || '');
         setFiltersReady(true);
     }, []);
 
@@ -107,10 +123,12 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
         if (colorFilters.length) url.searchParams.set('barva', colorFilters.join(',')); else url.searchParams.delete('barva');
         if (sweetnessFilters.length) url.searchParams.set('sladkost', sweetnessFilters.join(',')); else url.searchParams.delete('sladkost');
         if (onlyInStock) url.searchParams.set('skladem', '1'); else url.searchParams.delete('skladem');
+        if (top10View) url.searchParams.set('top', '1'); else url.searchParams.delete('top');
+        if (top10View && top10Search) url.searchParams.set('topHledat', top10Search); else url.searchParams.delete('topHledat');
         if (onlyCart) url.searchParams.set('kosik', '1'); else url.searchParams.delete('kosik');
         setCatalogReturnUrl(`${url.pathname}${url.search}`);
         window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
-    }, [colorFilters, filtersReady, onlyCart, onlyInStock, searchQuery, selectedCategory, specialView, sweetnessFilters]);
+    }, [colorFilters, filtersReady, onlyCart, onlyInStock, searchQuery, selectedCategory, specialView, sweetnessFilters, top10View, top10Search]);
 
     useEffect(() => {
         if (!filtersReady || guideAutoHandledRef.current) return;
@@ -140,6 +158,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
     };
 
     const handleAnnouncementTarget = (announcement: CustomerAnnouncement) => {
+        setTop10View(false);
         if (!announcement.targetType || !announcement.targetValue) return;
 
         if (announcement.targetType === 'category') {
@@ -282,6 +301,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
 
     const filteredProducts = sortCatalogProducts(products).filter(product => {
         if (product.is_archived) return false;
+        if (top10View) return product.in_stock && top10Ranks.has(String(product.id)) && product.name.toLowerCase().includes(top10Search.trim().toLowerCase());
         if (onlyCart) return cartProductIds.has(String(product.id));
         if (directProductIds.length) return directProductIdSet.has(String(product.id));
         const category = normalizeProductCategory(product.category);
@@ -295,12 +315,13 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
         const colorMatch = colorFilters.length === 0 || (product.product_color && colorFilters.includes(product.product_color));
         const sweetnessMatch = sweetnessFilters.length === 0 || (product.sweetness && sweetnessFilters.includes(product.sweetness));
         return categoryMatch && searchMatch && specialViewMatch && colorMatch && sweetnessMatch && (!onlyInStock || product.in_stock);
-    });
+    }).sort((a, b) => top10View ? (top10Ranks.get(String(a.id)) || 99) - (top10Ranks.get(String(b.id)) || 99) : 0);
 
     const activeAdvancedFilterCount = colorFilters.length + sweetnessFilters.length + Number(onlyInStock);
     const hasCatalogFilters = specialView !== null || activeAdvancedFilterCount > 0;
 
     const toggleSpecialView = (value: 'favorites' | 'new' | 'featured') => {
+        setTop10View(false);
         if (directProductIds.length) clearDirectProducts(false);
         setSelectedCategory('Všechny');
         setSpecialView((current) => current === value ? null : value);
@@ -399,6 +420,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                 }`}
             >
                 <div className="flex items-start gap-2 mb-2">
+                    {top10View && <Top10Rank rank={top10Ranks.get(String(product.id))!} />}
                     <div className="mt-0.5">
                         {getProductIcon(product.category)}
                     </div>
@@ -422,6 +444,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                             <span className="text-xs text-gray-500">{normalizeProductCategory(product.category)}</span>
                             {product.is_new && <span className="px-1.5 py-0.5 rounded-full text-[11px] leading-none font-medium bg-violet-100 text-violet-800">Novinka</span>}
                             {product.is_featured && <span className="px-1.5 py-0.5 rounded-full text-[11px] leading-none font-medium bg-orange-100 text-orange-800">Akce</span>}
+                            {product.in_stock && top10Ranks.has(String(product.id)) && <Top10Badge />}
                         </div>
                     </div>
                 </div>
@@ -445,6 +468,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                             directProductIdSet.has(String(product.id)) ? 'bg-blue-50 ring-2 ring-inset ring-blue-200' : ''
                         }`}>
                 <div className="flex items-center flex-grow min-w-0 gap-2">
+                    {top10View && <Top10Rank rank={top10Ranks.get(String(product.id))!} />}
                     <div className="opacity-75">
                         {getProductIcon(product.category)}
                     </div>
@@ -464,6 +488,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                         </span>
                         {product.is_new && <span className="px-1.5 py-0.5 rounded-full text-[11px] leading-none font-medium shrink-0 bg-violet-100 text-violet-800">Novinka</span>}
                         {product.is_featured && <span className="px-1.5 py-0.5 rounded-full text-[11px] leading-none font-medium shrink-0 bg-orange-100 text-orange-800">Akce</span>}
+                        {product.in_stock && top10Ranks.has(String(product.id)) && <Top10Badge />}
                         {(
                             <span className="text-xs text-gray-500 truncate">
                                 {normalizeProductCategory(product.category)}
@@ -483,10 +508,11 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
     return (
         <div className="w-full">
             <CustomerAnnouncements onSelectTarget={handleAnnouncementTarget} />
+            {!top10View && !onlyCart && <Top10Invitation onOpen={() => { setTop10Search(''); setTop10View(true); }} />}
             {/* Sticky header section */}
             <div className="sticky top-16 bg-white z-40 pb-3 pt-3 shadow-sm">
-                <div className="flex items-center justify-between gap-3 mb-3">
-                    <h1 className="text-lg font-bold text-gray-900">Katalog vín a nápojů</h1>
+                {!top10View && <div className="flex items-center justify-between gap-3 mb-3">
+                    <h1 id="catalog-title" tabIndex={-1} className="text-lg font-bold text-gray-900">Katalog vín a nápojů</h1>
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
@@ -504,8 +530,9 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                             Chci cenovou nabídku
                         </button>
                     </div>
-                </div>
+                </div>}
 
+                {top10View && <Top10Context onBack={() => setTop10View(false)} loading={top10.loading} error={top10.error} onRetry={top10.retry} />}
                 {/* Search bar */}
                 <div className="mb-3">
                     <div className="relative">
@@ -515,8 +542,9 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                         />
                         <input
                             type="text"
-                            value={searchQuery}
+                            value={top10View ? top10Search : searchQuery}
                             onChange={(e) => {
+                                if (top10View) { setTop10Search(e.target.value); return; }
                                 if (directProductIds.length) clearDirectProducts(false);
                                 setSearchQuery(e.target.value);
                             }}
@@ -524,21 +552,21 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                             className="block h-10 w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-4 text-base sm:text-sm text-gray-900
                                          focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
                         />
-                        {(searchQuery || directProductIds.length > 0) && (
+                        {((top10View ? top10Search : searchQuery) || (!top10View && directProductIds.length > 0)) && (
                             <button
-                                onClick={() => directProductIds.length ? clearDirectProducts() : setSearchQuery('')}
+                                onClick={() => top10View ? setTop10Search('') : directProductIds.length ? clearDirectProducts() : setSearchQuery('')}
                                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
                             >
                                 <X className="h-4 w-4" />
                             </button>
                         )}
                     </div>
-                    {(searchQuery || hasCatalogFilters) && (
+                    {(!top10View && (searchQuery || hasCatalogFilters)) && (
                         <div className="mt-1 text-xs text-gray-600">
                             Nalezeno {filteredProducts.length} produktů
                         </div>
                     )}
-                    {directProductIds.length > 0 && filteredProducts.length > 0 && (
+                    {!top10View && directProductIds.length > 0 && filteredProducts.length > 0 && (
                         <div className="mt-2 flex items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
                             <span>{directProductIds.length === 1 ? 'Zobrazen produkt z přímého odkazu.' : `Zobrazeny produkty z přímého odkazu (${directProductIds.length}).`}</span>
                             <button type="button" onClick={() => clearDirectProducts()} className="font-semibold hover:underline">
@@ -559,19 +587,19 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                                     toggleSpecialView('favorites');
                                 }}
                                 data-catalog-guide="favorites-filter"
-                                aria-pressed={specialView === 'favorites'}
-                                className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${specialView === 'favorites' ? 'bg-rose-100 text-rose-700' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                                aria-pressed={!top10View && specialView === 'favorites'}
+                                className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${!top10View && specialView === 'favorites' ? 'bg-rose-100 text-rose-700' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
                                 title="Oblíbené"
                             >
-                                <Heart className={`h-5 w-5 ${specialView === 'favorites' ? 'fill-current' : ''}`} />
+                                <Heart className={`h-5 w-5 ${!top10View && specialView === 'favorites' ? 'fill-current' : ''}`} />
                                 <span className="hidden text-xs font-medium sm:inline">Oblíbené</span>
                             </button>
                         )}
                         <button
                             type="button"
                             onClick={() => toggleSpecialView('new')}
-                            aria-pressed={specialView === 'new'}
-                            className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${specialView === 'new' ? 'bg-violet-100 text-violet-800' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                            aria-pressed={!top10View && specialView === 'new'}
+                            className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${!top10View && specialView === 'new' ? 'bg-violet-100 text-violet-800' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
                         >
                             <Star className="h-5 w-5" />
                             <span className="text-xs font-medium">Novinky</span>
@@ -579,8 +607,8 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                         <button
                             type="button"
                             onClick={() => toggleSpecialView('featured')}
-                            aria-pressed={specialView === 'featured'}
-                            className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${specialView === 'featured' ? 'bg-orange-100 text-orange-800' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
+                            aria-pressed={!top10View && specialView === 'featured'}
+                            className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${!top10View && specialView === 'featured' ? 'bg-orange-100 text-orange-800' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
                         >
                             <Tag className="h-5 w-5" />
                             <span className="text-xs font-medium">Akce</span>
@@ -592,11 +620,12 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                                     key={cat.id}
                                     onClick={() => {
                                         if (directProductIds.length) clearDirectProducts();
+                                        setTop10View(false);
                                         setSpecialView(null);
                                         setSelectedCategory(cat.id);
                                     }}
                                     className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors ${
-                                        specialView === null && selectedCategory === cat.id
+                                        !top10View && specialView === null && selectedCategory === cat.id
                                             ? 'bg-blue-100 text-blue-700'
                                             : 'bg-white text-gray-700 hover:bg-gray-100'
                                     } whitespace-nowrap`}
@@ -616,23 +645,23 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                     <div className="ml-2 flex shrink-0 items-center gap-1">
                         <button
                         type="button"
-                        onClick={() => setAreFiltersOpen((value) => !value)}
-                        aria-expanded={areFiltersOpen}
+                        onClick={() => { setTop10View(false); setAreFiltersOpen((value) => !value); }}
+                        aria-expanded={!top10View && areFiltersOpen}
                         data-catalog-guide="advanced-filters"
-                        className={`relative flex h-9 min-w-[40px] items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium transition-colors ${areFiltersOpen || activeAdvancedFilterCount ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                        className={`relative flex h-9 min-w-[40px] items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium transition-colors ${!top10View && (areFiltersOpen || activeAdvancedFilterCount) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                         title="Filtrovat podle barvy a sladkosti"
                     >
                         <SlidersHorizontal className="h-4 w-4" />
                         <span className="hidden sm:inline">Filtry</span>
-                        {activeAdvancedFilterCount > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] text-white">{activeAdvancedFilterCount}</span>}
+                        {!top10View && activeAdvancedFilterCount > 0 && <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] text-white">{activeAdvancedFilterCount}</span>}
                         </button>
-                        <button type="button" onClick={() => setOnlyCart(value => !value)} aria-pressed={onlyCart} data-catalog-guide="cart-filter"
-                            className={`flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium transition-colors ${onlyCart ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+                        <button type="button" onClick={() => { setTop10View(false); setOnlyCart(value => top10View ? true : !value); }} aria-pressed={!top10View && onlyCart} data-catalog-guide="cart-filter"
+                            className={`flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium transition-colors ${!top10View && onlyCart ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
                             <ShoppingCart aria-hidden="true" className="h-4 w-4" />Jen v košíku · {cartProductIds.size}
                         </button>
                     </div>
                 </div>
-                {areFiltersOpen && (
+                {areFiltersOpen && !top10View && (
                     <div className="mt-3 rounded-xl border border-gray-200 bg-slate-50 p-3 shadow-sm">
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1.35fr_auto] lg:items-end">
                             <fieldset>
@@ -778,15 +807,15 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                     <div className="text-center py-6">
                         <Search className="h-10 w-10 text-gray-400 mx-auto mb-2" />
                         <p className="text-gray-600 text-base">
-                            {onlyCart ? "V košíku zatím nejsou žádné produkty" : directProductIds.length
+                            {top10View ? (top10.loading ? "Načítáme TOP 10…" : top10.error ? "Vyberte jinou kategorii nebo zkuste načíst žebříček znovu." : "Žádné produkty v TOP 10 neodpovídají vašemu hledání.") : onlyCart ? "V košíku zatím nejsou žádné produkty" : directProductIds.length
                                 ? "Produkt z odkazu již není v katalogu dostupný"
                                 : searchQuery
                                 ? "Nenalezeny žádné produkty odpovídající vašemu hledání"
                                 : "V této kategorii nejsou žádné produkty"}
                         </p>
-                        {(searchQuery || directProductIds.length > 0) && (
+                        {((top10View ? top10Search : searchQuery) || (!top10View && directProductIds.length > 0)) && (
                             <button
-                                onClick={() => directProductIds.length ? clearDirectProducts() : setSearchQuery('')}
+                                onClick={() => top10View ? setTop10Search('') : directProductIds.length ? clearDirectProducts() : setSearchQuery('')}
                                 className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
                             >
                                 Zobrazit všechny produkty
@@ -809,15 +838,15 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                     <div className="text-center py-6">
                         <Search className="h-10 w-10 text-gray-400 mx-auto mb-2" />
                         <p className="text-gray-600 text-base">
-                            {onlyCart ? "V košíku zatím nejsou žádné produkty" : directProductIds.length
+                            {top10View ? (top10.loading ? "Načítáme TOP 10…" : top10.error ? "Vyberte jinou kategorii nebo zkuste načíst žebříček znovu." : "Žádné produkty v TOP 10 neodpovídají vašemu hledání.") : onlyCart ? "V košíku zatím nejsou žádné produkty" : directProductIds.length
                                 ? "Produkt z odkazu již není v katalogu dostupný"
                                 : searchQuery
                                 ? "Nenalezeny žádné produkty odpovídající vašemu hledání"
                                 : "V této kategorii nejsou žádné produkty"}
                         </p>
-                        {(searchQuery || directProductIds.length > 0) && (
+                        {((top10View ? top10Search : searchQuery) || (!top10View && directProductIds.length > 0)) && (
                             <button
-                                onClick={() => directProductIds.length ? clearDirectProducts() : setSearchQuery('')}
+                                onClick={() => top10View ? setTop10Search('') : directProductIds.length ? clearDirectProducts() : setSearchQuery('')}
                                 className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
                             >
                                 Zobrazit všechny produkty
@@ -833,7 +862,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                     </div>
                 )}
             </div>
-            {onlyCart && <QuickOrder key={user?.id || 'guest'} />}
+            {onlyCart && !top10View && <QuickOrder key={user?.id || 'guest'} />}
 
         </div>
     );
