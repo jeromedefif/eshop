@@ -11,7 +11,7 @@
 .actions{display:flex;align-items:center;gap:4px;margin-left:auto;min-width:0}
 .quiet{display:inline-flex;min-height:44px;min-width:44px;align-items:center;justify-content:center;gap:7px;border:0;border-radius:9px;padding:8px;background:transparent;color:#6f6570;font-size:12px;font-weight:600}
 .quiet:hover,.quiet[aria-expanded=true]{background:#f7e8ed;color:#8e1437}.actionLabel,.compactLabel,.chevron{display:none}
-.avatar{display:flex;width:28px;height:28px;align-items:center;justify-content:center;border-radius:50%;background:#f4e5e9;color:#8e1437;font-size:10px;font-weight:700}
+.avatar{display:flex;width:28px;height:28px;align-items:center;justify-content:center;border-radius:50%;background:#dcfce7;color:#166534;font-size:10px;font-weight:700}
 .orderButton{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:46px;margin-left:2px;border:1px solid #8e1437;border-radius:10px;background:#8e1437;padding:9px 11px;color:white;text-align:left;box-shadow:0 3px 7px #8e14371a}
 .orderButton:hover{background:#76112e}.orderButton:disabled{cursor:wait;opacity:.65}.orderButton[aria-current=page]{box-shadow:0 0 0 2px white,0 0 0 4px #c48699}
 .orderButtonEmpty{background:#8e1437;border-color:#8e1437;color:#ffffff;box-shadow:none}.orderButtonEmpty:hover{background:#76112e}
