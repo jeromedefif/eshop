@@ -1,16 +1,17 @@
 'use client';
 
+import { getOrderStatusColor } from '@/lib/orders/status-appearance';
+
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { format } from 'date-fns';
-import { cs } from 'date-fns/locale';
-import { ArrowLeft, Loader2, Trash2, Grape, Martini, Wine, FlaskConical, Package, Sparkles, Amphora, Copy, MessageSquare, LockKeyhole, Mail, Phone, Building2, CalendarDays, MapPin, ReceiptText, Truck } from 'lucide-react';
+import { ArrowLeft, Loader2, Trash2, Grape, Martini, Wine, FlaskConical, Package, Sparkles, Amphora, Copy, MessageSquare, LockKeyhole, Mail, Phone, Building2, CalendarDays, MapPin, ReceiptText, Truck, ChevronDown, CheckCircle2, Clock3, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { withAdminAuth } from '@/components/auth/withAdminAuth';
 import { toast } from 'react-toastify';
 import { normalizeOrderCategory, sortOrderItems, STANDARD_ORDER_CATEGORIES } from '@/lib/order-item-sorting';
 import type { Order, OrderItem } from '@/types/orders';
 import OrderEmailComposer from '@/components/OrderEmailComposer';
+import { checkoutAccessoryTotals } from '@/lib/orders/checkout-totals';
 import { fetchWithRetry } from '@/lib/fetch-with-retry';
 
 const OrderDetailPage = () => {
@@ -156,15 +157,6 @@ const OrderDetailPage = () => {
             toast.error(error instanceof Error ? error.message : 'Nepodařilo se smazat objednávku');
             setIsDeleting(false);
             setShowDeleteConfirm(false);
-        }
-    };
-
-    const getStatusColor = (currentStatus: string) => {
-        switch (currentStatus) {
-            case 'pending': return 'bg-yellow-100 text-yellow-800';
-            case 'confirmed': return 'bg-blue-100 text-blue-800';
-            case 'cancelled': return 'bg-red-100 text-red-800';
-            default: return 'bg-gray-100 text-gray-800';
         }
     };
 
@@ -321,8 +313,17 @@ const OrderDetailPage = () => {
         );
     }
 
+    const StatusIcon = status === 'confirmed' ? CheckCircle2 : status === 'cancelled' ? XCircle : Clock3;
     const isInternalNoteDirty = internalNote.trim() !== savedInternalNote.trim();
     const shortOrderId = order.id.slice(0, 8).toUpperCase();
+    const { petPackages, gasPieces } = checkoutAccessoryTotals((order.order_items || []).map(item => ({
+        productId: item.product_id, productName: item.product?.name || '', productCategory: item.product?.category,
+        volume: item.volume, quantity: item.quantity, display: '',
+    })));
+    const createdAt = new Date(order.created_at);
+    const createdDate = new Intl.DateTimeFormat('cs-CZ', { timeZone: 'Europe/Prague', day: 'numeric', month: 'numeric', year: 'numeric' }).format(createdAt);
+    const createdTime = new Intl.DateTimeFormat('cs-CZ', { timeZone: 'Europe/Prague', hour: '2-digit', minute: '2-digit' }).format(createdAt);
+
     const billingAddress = [
         order.billing_address,
         [order.billing_postal_code, order.billing_city].filter(Boolean).join(' '),
@@ -350,7 +351,7 @@ const OrderDetailPage = () => {
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                 <div className="p-4 sm:p-5">
                     {/* Kompaktní souhrn a kontakt zákazníka */}
-                    <div className="mb-4 grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 lg:grid-cols-[minmax(260px,1.25fr)_minmax(220px,1fr)_minmax(260px,1fr)]">
+                    <div className="mb-4 grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.2fr)_minmax(0,.9fr)]">
                         <div className="min-w-0">
                             <div className="flex items-center gap-2">
                                 <p className="truncate text-lg font-bold text-slate-950">{order.customer_name}</p>
@@ -379,74 +380,55 @@ const OrderDetailPage = () => {
                             </button>
                         </div>
 
-                        <div className="border-t border-slate-200 pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
-                            <div className="flex items-center gap-2 text-sm text-slate-500">
-                                <CalendarDays className="h-4 w-4" /> Datum vytvoření
-                            </div>
-                            <p className="mt-1 font-semibold text-slate-900">{format(new Date(order.created_at), 'PPP', { locale: cs })}</p>
-                            <button type="button" onClick={handleCopyOrderId} className="mt-2 inline-flex items-center gap-2 rounded-md bg-white px-2.5 py-1.5 font-mono text-xs font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100" title={order.id}>
-                                #{shortOrderId} <Copy className="h-3.5 w-3.5" />
-                            </button>
-                        </div>
+
 
                         <div className="border-t border-slate-200 pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
                             <div className="flex items-end justify-between gap-3">
                                 <div>
-                                    <p className="text-sm text-slate-500">Celkový objem</p>
-                                    <p className="text-2xl font-bold text-blue-700">{order.total_volume} L</p>
+                                    <p className="text-sm text-slate-500">Celkový objem vín a nápojů</p>
+                                    <p className="mt-1 text-3xl font-bold tabular-nums text-blue-700">{order.total_volume} <span className="text-base font-medium text-slate-600">litrů</span></p>
                                 </div>
                                 {isUpdating && <Loader2 className="h-5 w-5 animate-spin text-blue-600" />}
                             </div>
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(status)}`}>{getStatusText(status)}</span>
-                                <select
-                                    value={status}
-                                    onChange={(e) => handleStatusChange(e.target.value)}
-                                    className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                    disabled={isUpdating}
-                                >
-                                    <option value="pending">Čeká na potvrzení</option>
-                                    <option value="confirmed">Potvrzeno</option>
-                                    <option value="cancelled">Zrušeno</option>
-                                </select>
+                            <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-slate-200 pt-3">
+                                <div><dt className="text-xs font-medium text-slate-500">Celkem plynů</dt><dd className="mt-1 text-xl font-bold tabular-nums text-slate-900">{gasPieces} <span className="text-sm font-medium text-slate-500">ks</span></dd></div>
+                                <div><dt className="text-xs font-medium text-slate-500">Celkem balení PET</dt><dd className="mt-1 text-xl font-bold tabular-nums text-slate-900">{petPackages} <span className="text-sm font-medium text-slate-500">balení</span></dd></div>
+                            </dl>
+                            <div className="mt-4">
+                                <label htmlFor="order-status" className="mb-1.5 block text-xs font-semibold text-slate-500">Stav objednávky</label>
+                                <div className={`relative rounded-xl border border-slate-200 shadow-sm transition focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 hover:border-slate-300 ${getOrderStatusColor(status)}`}>
+                                    <span className="pointer-events-none absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg bg-white/70"><StatusIcon aria-hidden="true" className="h-4 w-4" /></span>
+                                    <select
+                                        id="order-status"
+                                        value={status}
+                                        onChange={(e) => handleStatusChange(e.target.value)}
+                                        className="min-h-12 w-full appearance-none rounded-xl border-0 bg-transparent py-3 pl-12 pr-10 text-sm font-semibold text-inherit focus:outline-none disabled:cursor-wait disabled:opacity-60"
+                                        disabled={isUpdating}
+                                    >
+                                        <option className="bg-white text-slate-900" value="pending">Čeká na potvrzení</option>
+                                        <option className="bg-white text-slate-900" value="confirmed">Potvrzeno</option>
+                                        <option className="bg-white text-slate-900" value="cancelled">Zrušeno</option>
+                                    </select>
+                                    <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-60" />
+                                </div>
                             </div>
+                        </div>
+                        <div className="min-w-0 border-t border-slate-200 pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
+                            <div className="flex items-center gap-2 text-sm text-slate-500">
+                                <CalendarDays className="h-4 w-4" /> Datum vytvoření
+                            </div>
+                            <p className="mt-1 font-semibold text-slate-900">{createdDate}<span className="mx-1.5 font-normal text-slate-400">·</span>{createdTime}</p>
+                            <p className="mt-4 text-sm text-slate-500">Číslo objednávky</p>
+                            <button type="button" onClick={handleCopyOrderId} className="mt-2 inline-flex items-center gap-2 rounded-md bg-white px-2.5 py-1.5 font-mono text-xs font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100" title={order.id}>
+                                #{shortOrderId} <Copy className="h-3.5 w-3.5" />
+                            </button>
                         </div>
                     </div>
 
                     {order.note?.trim() && (
-                        <div className="mb-4 flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
-                            <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                            <p className="whitespace-pre-wrap"><span className="font-semibold text-slate-900">Poznámka zákazníka:</span> {order.note}</p>
-                        </div>
-                    )}
-
-                    {hasAddressSnapshot && (
-                        <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-3 md:grid-cols-2">
-                            {billingAddress.length > 0 && (
-                                <div className="flex items-start gap-3 rounded-lg bg-slate-50 p-3">
-                                    <ReceiptText className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
-                                    <div className="min-w-0 text-sm text-slate-700">
-                                        <p className="mb-1 font-semibold text-slate-950">Fakturační adresa</p>
-                                        {billingAddress.map((line: string) => <p key={line}>{line}</p>)}
-                                    </div>
-                                </div>
-                            )}
-                            {shippingAddress.length > 0 && (
-                                <div className="flex items-start gap-3 rounded-lg bg-blue-50 p-3">
-                                    <Truck className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                                    <div className="min-w-0 text-sm text-slate-700">
-                                        <p className="mb-1 font-semibold text-slate-950">Dodací adresa</p>
-                                        {order.shipping_company && <p className="font-medium">{order.shipping_company}</p>}
-                                        {order.shipping_contact_name && <p>{order.shipping_contact_name}</p>}
-                                        {shippingAddress.map((line: string) => <p key={line}>{line}</p>)}
-                                        {order.delivery_instructions && (
-                                            <p className="mt-2 border-t border-blue-100 pt-2 text-slate-600">
-                                                <MapPin className="mr-1 inline h-3.5 w-3.5" />{order.delivery_instructions}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
+                        <div className="mb-4 flex items-start gap-3 rounded-xl border border-orange-200 border-l-4 border-l-orange-400 bg-orange-50 px-4 py-3 text-sm leading-6 text-orange-950">
+                            <MessageSquare aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-orange-600" />
+                            <p className="whitespace-pre-wrap break-words"><span className="font-bold text-orange-950">Poznámka zákazníka:</span> {order.note}</p>
                         </div>
                     )}
 
@@ -508,6 +490,36 @@ const OrderDetailPage = () => {
                             })}
                         </div>
                     </div>
+
+                    {hasAddressSnapshot && (
+                        <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-3 md:grid-cols-2">
+                            {billingAddress.length > 0 && (
+                                <div className="flex items-start gap-3 rounded-lg bg-slate-50 p-3">
+                                    <ReceiptText className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
+                                    <div className="min-w-0 text-sm text-slate-700">
+                                        <p className="mb-1 font-semibold text-slate-950">Fakturační adresa</p>
+                                        {billingAddress.map((line: string) => <p key={line}>{line}</p>)}
+                                    </div>
+                                </div>
+                            )}
+                            {shippingAddress.length > 0 && (
+                                <div className="flex items-start gap-3 rounded-lg bg-blue-50 p-3">
+                                    <Truck className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                                    <div className="min-w-0 text-sm text-slate-700">
+                                        <p className="mb-1 font-semibold text-slate-950">Dodací adresa</p>
+                                        {order.shipping_company && <p className="font-medium">{order.shipping_company}</p>}
+                                        {order.shipping_contact_name && <p>{order.shipping_contact_name}</p>}
+                                        {shippingAddress.map((line: string) => <p key={line}>{line}</p>)}
+                                        {order.delivery_instructions && (
+                                            <p className="mt-2 border-t border-blue-100 pt-2 text-slate-600">
+                                                <MapPin className="mr-1 inline h-3.5 w-3.5" />{order.delivery_instructions}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Interní poznámka je určená výhradně pro administraci. */}
                     <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
