@@ -15,7 +15,7 @@ import { normalizeCatalogProductIds, setCatalogProductIds } from '@/lib/catalog-
 import { Top10Badge } from '@/components/Top10Badge';
 import { useDailyTop10 } from '@/hooks/useDailyTop10';
 import { Top10Context, Top10Rank } from '@/components/Top10Panel';
-import { interpretCatalogRequest } from '@/lib/catalog/selection-advisor';
+import { interpretCatalogRequest, normalizeCatalogSearch } from '@/lib/catalog/selection-advisor';
 import CatalogGuide, { CATALOG_GUIDE_VERSION } from '@/components/CatalogGuide';
 
 type ProductListProps = {
@@ -72,9 +72,9 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
     const [advisorQuery, setAdvisorQuery] = useState('');
     const [advisorExampleIndex, setAdvisorExampleIndex] = useState(0);
     const [advisorInputFocused, setAdvisorInputFocused] = useState(false);
-    const [advisorResult, setAdvisorResult] = useState<ReturnType<typeof interpretCatalogRequest> | null>(null);
+    const [advisorError, setAdvisorError] = useState('');
     const [advisorFlags, setAdvisorFlags] = useState<string[]>([]);
-    const advisorButton = useRef<HTMLButtonElement>(null);
+    const searchInput = useRef<HTMLInputElement>(null);
     const [onlyCart, setOnlyCart] = useState(false);
     const [top10View, setTop10View] = useState(false);
     const [top10Search, setTop10Search] = useState('');
@@ -331,6 +331,8 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
         return cartItems[key] || 0;
     };
 
+    const showWineFilters = !['Plyny', 'Burčák', 'PET'].includes(selectedCategory);
+    const searchTerms = normalizeCatalogSearch(searchQuery).trim().split(/\s+/).filter(Boolean);
     const filteredProducts = sortCatalogProducts(products).filter(product => {
         if (product.is_archived) return false;
         if (top10View) return product.in_stock && top10Ranks.has(String(product.id)) && product.name.toLowerCase().includes(top10Search.trim().toLowerCase());
@@ -338,14 +340,14 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
         if (directProductIds.length) return directProductIdSet.has(String(product.id));
         const category = normalizeProductCategory(product.category);
         const categoryMatch = selectedCategory === "Všechny" || category === selectedCategory;
-        const searchMatch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          category.toLowerCase().includes(searchQuery.toLowerCase());
+        const searchMatch = searchTerms.length === 0 || searchTerms.every(term =>
+            normalizeCatalogSearch(product.name).includes(term) || normalizeCatalogSearch(category).includes(term));
         const specialViewMatch = specialView === null
             || (specialView === 'favorites' && favoriteProductIds.has(String(product.id)))
             || (specialView === 'new' && product.is_new)
             || (specialView === 'featured' && product.is_featured);
-        const colorMatch = colorFilters.length === 0 || (product.product_color && colorFilters.includes(product.product_color));
-        const sweetnessMatch = sweetnessFilters.length === 0 || (product.sweetness && sweetnessFilters.includes(product.sweetness));
+        const colorMatch = !showWineFilters || colorFilters.length === 0 || (product.product_color && colorFilters.includes(product.product_color));
+        const sweetnessMatch = !showWineFilters || sweetnessFilters.length === 0 || (product.sweetness && sweetnessFilters.includes(product.sweetness));
         const advisorMatch = (!advisorFlags.includes('new') || product.is_new)
             && (!advisorFlags.includes('featured') || product.is_featured)
             && (!advisorFlags.includes('out') || !product.in_stock)
@@ -353,7 +355,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
         return advisorMatch && categoryMatch && searchMatch && specialViewMatch && colorMatch && sweetnessMatch && (!onlyInStock || product.in_stock);
     }).sort((a, b) => (top10View || advisorFlags.includes('top10')) ? (top10Ranks.get(String(a.id)) || 99) - (top10Ranks.get(String(b.id)) || 99) : 0);
 
-    const activeAdvancedFilterCount = colorFilters.length + sweetnessFilters.length + Number(onlyInStock);
+    const activeAdvancedFilterCount = (showWineFilters ? colorFilters.length + sweetnessFilters.length : 0) + Number(onlyInStock);
     const hasCatalogFilters = advisorFlags.length > 0 || specialView !== null || activeAdvancedFilterCount > 0;
 
     const toggleSpecialView = (value: 'favorites' | 'new' | 'featured') => {
@@ -383,6 +385,47 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
             toast.error(error instanceof Error ? error.message : 'Oblíbenou položku se nepodařilo změnit.');
         }
     };
+
+    const applyAdvisorQuery = () => {
+        const result = interpretCatalogRequest(advisorQuery);
+        if (result.kind !== 'filters') {
+            setAdvisorError(result.kind === 'clarify'
+                ? 'Zkuste zadat jednu kategorii a upřesnit výběr.'
+                : 'Zadejte název produktu nebo požadované vlastnosti.');
+            return;
+        }
+        setAdvisorError('');
+        clearDirectProducts(false);
+        setOnlyCart(false);
+        setOnlyInStock(result.inStock);
+        setAdvisorFlags([
+            ...(result.newOnly ? ['new'] : []),
+            ...(result.featuredOnly ? ['featured'] : []),
+            ...(result.topOnly ? ['top10'] : []),
+            ...(result.outOfStock ? ['out'] : []),
+        ]);
+        setSpecialView(null);
+        setSearchQuery(result.name);
+        setSelectedCategory(result.category);
+        setColorFilters(result.colors);
+        setSweetnessFilters(result.sweetness);
+    };
+
+    const advisorConditions = [
+        ...(searchQuery ? [{ label: searchQuery, remove: () => setSearchQuery('') }] : []),
+        ...(selectedCategory !== 'Všechny' ? [{ label: selectedCategory, remove: () => setSelectedCategory('Všechny') }] : []),
+        ...PRODUCT_COLOR_OPTIONS.filter(({ value }) => showWineFilters && colorFilters.includes(value)).map(({ value, label }) => ({
+            label, remove: () => setColorFilters(filters => filters.filter(filter => filter !== value)),
+        })),
+        ...PRODUCT_SWEETNESS_OPTIONS.filter(({ value }) => showWineFilters && sweetnessFilters.includes(value)).map(({ value, label }) => ({
+            label, remove: () => setSweetnessFilters(filters => filters.filter(filter => filter !== value)),
+        })),
+        ...(onlyInStock ? [{ label: 'Skladem', remove: () => setOnlyInStock(false) }] : []),
+        ...advisorFlags.map(flag => ({
+            label: ({ new: 'Novinky', featured: 'Akce', top10: 'TOP 10', out: 'Není skladem' })[flag] ?? flag,
+            remove: () => setAdvisorFlags(flags => flags.filter(item => item !== flag)),
+        })),
+    ];
 
     const favoriteButton = (product: Product) => {
         if (!user) return null;
@@ -547,8 +590,40 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
             <CustomerAnnouncements onSelectTarget={handleAnnouncementTarget} />
             {/* Sticky header section */}
             <div className="sticky top-16 bg-white z-40 pb-3 pt-3 shadow-sm">
-                {!top10View && <div className="flex items-center justify-between gap-3 mb-3">
-                    <h1 id="catalog-title" tabIndex={-1} className="text-lg font-bold text-gray-900">Katalog vín a nápojů</h1>
+                {!top10View && <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <h1 id="catalog-title" tabIndex={-1} className="text-lg font-bold text-gray-900">Katalog vín a nápojů</h1>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {!onlyCart && (
+                                <button
+                                    id="catalog-top10-trigger"
+                                    type="button"
+                                    className={catalogShortcutClass}
+                                    onClick={() => {
+                                        setTop10Search('');
+                                        setTop10View(true);
+                                    }}
+                                >
+                                    <Trophy aria-hidden="true" className="h-4 w-4" />
+                                    TOP 10
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                aria-pressed={advisorOpen}
+                                aria-controls="catalog-search"
+                                className={catalogShortcutClass + (advisorOpen ? ' bg-[#f5e9ed] ring-1 ring-[#861537]' : '')}
+                                onClick={() => {
+                                    setAdvisorOpen(!advisorOpen);
+                                    setAdvisorError('');
+                                    searchInput.current?.focus();
+                                }}
+                            >
+                                <Sparkles aria-hidden="true" className="h-4 w-4" />
+                                Poradit s výběrem
+                            </button>
+                        </div>
+                    </div>
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
@@ -571,154 +646,81 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                 {top10View && <Top10Context onBack={() => setTop10View(false)} loading={top10.loading} error={top10.error} onRetry={top10.retry} />}
                 {/* Search bar */}
                 <div className="mb-3">
-                    <div className="relative">
-                        <Search
-                            aria-hidden="true"
-                            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-                        />
-                        <input
-                            type="text"
-                            value={top10View ? top10Search : searchQuery}
-                            onChange={(e) => {
-                                if (top10View) { setTop10Search(e.target.value); return; }
-                                if (directProductIds.length) clearDirectProducts(false);
-                                setSearchQuery(e.target.value);
-                            }}
-                            placeholder="Vyhledat produkt..."
-                            className="block h-10 w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-4 text-base sm:text-sm text-gray-900
-                                         focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                        />
-                        {((top10View ? top10Search : searchQuery) || (!top10View && directProductIds.length > 0)) && (
-                            <button
-                                onClick={() => top10View ? setTop10Search('') : directProductIds.length ? clearDirectProducts() : setSearchQuery('')}
-                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
-                        )}
-                    </div>
-                    {!top10View && (
-                        <div className="mt-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                                {!onlyCart && (
-                                    <button
-                                        id="catalog-top10-trigger"
-                                        type="button"
-                                        className={catalogShortcutClass}
-                                        onClick={() => {
-                                            setTop10Search('');
-                                            setTop10View(true);
-                                        }}
-                                    >
-                                        <Trophy aria-hidden="true" className="h-4 w-4" />
-                                        TOP 10
-                                    </button>
-                                )}
-                                <button
-                                    ref={advisorButton}
-                                    type="button"
-                                    aria-expanded={advisorOpen}
-                                    aria-controls={advisorOpen ? 'catalog-advisor' : undefined}
-                                    className={catalogShortcutClass}
-                                    onClick={() => setAdvisorOpen(!advisorOpen)}
-                                >
-                                    <Sparkles aria-hidden="true" className="h-4 w-4" />
-                                    Poradit s výběrem
+                    <form id="catalog-search" className="flex gap-2" onSubmit={event => {
+                        event.preventDefault();
+                        if (advisorOpen && !top10View) applyAdvisorQuery();
+                    }}>
+                        <div className="relative min-w-0 flex-1">
+                            <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                            <input
+                                ref={searchInput}
+                                type="text"
+                                aria-label={!top10View && advisorOpen ? 'Co hledáte?' : 'Vyhledat produkt'}
+                                value={top10View ? top10Search : advisorOpen ? advisorQuery : searchQuery}
+                                onFocus={() => setAdvisorInputFocused(true)}
+                                onBlur={() => setAdvisorInputFocused(false)}
+                                onChange={event => {
+                                    const value = event.target.value;
+                                    if (top10View) { setTop10Search(value); return; }
+                                    if (advisorOpen) {
+                                        setAdvisorQuery(value);
+                                        setAdvisorError('');
+                                        return;
+                                    }
+                                    if (directProductIds.length) clearDirectProducts(false);
+                                    setSearchQuery(value);
+                                }}
+                                placeholder={!top10View && advisorOpen ? "Např. " + advisorExamples[advisorExampleIndex] : "Vyhledat produkt..."}
+                                maxLength={!top10View && advisorOpen ? 160 : undefined}
+                                className="block h-10 w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-9 text-base text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 sm:text-sm"
+                            />
+                            {(top10View ? top10Search : advisorOpen ? advisorQuery : searchQuery || directProductIds.length > 0) && (
+                                <button type="button" aria-label="Vymazat hledání" onClick={() => {
+                                    if (top10View) setTop10Search('');
+                                    else if (advisorOpen) {
+                                        setAdvisorQuery('');
+                                        setAdvisorError('');
+                                    } else if (directProductIds.length) clearDirectProducts();
+                                    else setSearchQuery('');
+                                    searchInput.current?.focus();
+                                }} className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500">
+                                    <X aria-hidden="true" className="h-4 w-4" />
                                 </button>
-                            </div>
-                            {advisorOpen && (
-                                <form
-                                    id="catalog-advisor"
-                                    className="mt-2 rounded-xl border border-[#dec4cc] bg-[#fdf8f9] p-4"
-                                    onSubmit={(event) => {
-                                        event.preventDefault();
-                                        setAdvisorResult(interpretCatalogRequest(advisorQuery));
-                                    }}
-                                >
-                                    <label htmlFor="catalog-advisor-query" className="block text-sm font-semibold">Co hledáte?</label>
-                                    <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                                        <input
-                                            id="catalog-advisor-query"
-                                            className="min-h-10 min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-base"
-                                            placeholder={`Např. ${advisorExamples[advisorExampleIndex]}`}
-                                            onFocus={() => setAdvisorInputFocused(true)}
-                                            onBlur={() => setAdvisorInputFocused(false)}
-                                            value={advisorQuery}
-                                            maxLength={160}
-                                            required
-                                            onChange={(event) => {
-                                                setAdvisorQuery(event.target.value);
-                                                setAdvisorResult(null);
-                                            }}
-                                        />
-                                        <button type="submit" className="min-h-10 rounded-lg bg-[#861537] px-4 text-sm font-semibold text-white">Navrhnout filtry</button>
-                                    </div>
-                                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                                        <span className="text-xs font-medium text-gray-600">Zkuste třeba</span>
-                                        {advisorExamples.slice(0, 3).map(example => (
-                                            <button
-                                                key={example}
-                                                type="button"
-                                                className="min-h-8 rounded-full border border-[#dec4cc] bg-white px-3 text-xs font-medium text-[#861537] hover:bg-[#f5e9ed]"
-                                                onClick={() => {
-                                                    setAdvisorQuery(example);
-                                                    setAdvisorResult(interpretCatalogRequest(example));
-                                                }}
-                                            >
-                                                {example}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    <div className="mt-2 text-sm text-gray-700" aria-live="polite">
-                                        {advisorResult?.kind === 'clarify' && 'Zkuste zadat jednu kategorii a požadovanou barvu nebo sladkost.'}
-                                        {advisorResult?.kind === 'unknown' && 'Zkuste zadat kategorii, barvu nebo sladkost, například novinky skladem nebo nejprodávanější vína.'}
-                                        {advisorResult?.kind === 'filters' && (
-                                            <p>Rozpoznané filtry: {[
-                                                advisorResult.newOnly && 'Novinky',
-                                                advisorResult.featuredOnly && 'Akce',
-                                                advisorResult.inStock && 'Skladem',
-                                                advisorResult.outOfStock && 'Není skladem',
-                                                advisorResult.topOnly && 'TOP 10',
-                                                advisorResult.category === 'Všechny' ? null : advisorResult.category,
-                                                ...PRODUCT_COLOR_OPTIONS.filter(({ value }) => advisorResult.colors.includes(value)).map(({ label }) => label),
-                                                ...PRODUCT_SWEETNESS_OPTIONS.filter(({ value }) => advisorResult.sweetness.includes(value)).map(({ label }) => label),
-                                            ].filter(Boolean).join(' · ')}</p>
-                                        )}
-                                    </div>
-                                    {advisorResult?.kind === 'filters' && (
-                                        <button
-                                            type="button"
-                                            className="mt-2 min-h-10 rounded-lg border border-[#dec4cc] px-3 text-sm font-semibold text-[#861537] hover:bg-[#f5e9ed]"
-                                            onClick={() => {
-                                                clearDirectProducts(false);
-                                                setOnlyCart(false);
-                                                setOnlyInStock(advisorResult.inStock);
-                                                setAdvisorFlags([
-                                                    ...(advisorResult.newOnly ? ['new'] : []),
-                                                    ...(advisorResult.featuredOnly ? ['featured'] : []),
-                                                    ...(advisorResult.topOnly ? ['top10'] : []),
-                                                    ...(advisorResult.outOfStock ? ['out'] : []),
-                                                ]);
-                                                setSpecialView(null);
-                                                setSearchQuery('');
-                                                setSelectedCategory(advisorResult.category);
-                                                setColorFilters(advisorResult.colors);
-                                                setSweetnessFilters(advisorResult.sweetness);
-                                                setAdvisorOpen(false);
-                                                advisorButton.current?.focus();
-                                            }}
-                                        >
-                                            Zobrazit v katalogu
-                                        </button>
-                                    )}
-                                </form>
                             )}
                         </div>
+                        {!top10View && advisorOpen && (
+                            <button type="submit" className="rounded-lg bg-[#861537] px-3 text-sm font-semibold text-white">Vyhledat</button>
+                        )}
+                    </form>
+                    {!top10View && advisorOpen && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-medium text-gray-600">Zkuste třeba</span>
+                            {advisorExamples.slice(0, 3).map(example => (
+                                <button key={example} type="button"
+                                    className="min-h-8 rounded-full border border-[#dec4cc] bg-white px-3 text-xs font-medium text-[#861537] hover:bg-[#f5e9ed]"
+                                    onClick={() => {
+                                        setAdvisorQuery(example);
+                                        setAdvisorError('');
+                                        searchInput.current?.focus();
+                                    }}
+                                >{example}</button>
+                            ))}
+                            <button type="button" className="text-xs font-semibold text-[#861537] underline" onClick={() => {
+                                setAdvisorOpen(false);
+                                setAdvisorError('');
+                                searchInput.current?.focus();
+                            }}>Zpět na běžné hledání</button>
+                        </div>
                     )}
-                    {!top10View && !onlyCart && !directProductIds.length && advisorFlags.length > 0 && (
+                    {!top10View && advisorOpen && advisorError && <p role="status" className="mt-2 text-sm text-gray-700">{advisorError}</p>}
+                    {!top10View && !onlyCart && !directProductIds.length && (advisorOpen || advisorFlags.length > 0) && advisorConditions.length > 0 && (
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-                            <span>{advisorFlags.map(flag => ({ new: 'Novinky', featured: 'Akce', top10: 'TOP 10', out: 'Není skladem' })[flag]).join(' · ')}</span>
-                            <button type="button" onClick={() => setAdvisorFlags([])} className="font-semibold text-[#861537] underline">Zrušit doplňkové filtry</button>
+                            {advisorConditions.map(({ label, remove }, index) => (
+                                <button key={index} type="button" onClick={remove} aria-label={'Odebrat podmínku ' + label}
+                                    className="inline-flex min-h-8 items-center gap-1 rounded-full bg-[#f5e9ed] px-3 text-[#861537]">
+                                    {label}<X aria-hidden="true" className="h-3 w-3" />
+                                </button>
+                            ))}
                             {advisorFlags.includes('top10') && top10.loading && <span role="status">Načítáme TOP 10…</span>}
                             {advisorFlags.includes('top10') && top10.error && (
                                 <button type="button" onClick={top10.retry} className="underline">TOP 10 se nepodařilo načíst. Zkusit znovu</button>
@@ -827,20 +829,22 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                 </div>
                 {areFiltersOpen && !top10View && (
                     <div className="mt-3 rounded-xl border border-gray-200 bg-slate-50 p-3 shadow-sm">
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1.35fr_auto] lg:items-end">
-                            <fieldset>
-                                <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Barva</legend>
-                                <div className="flex flex-wrap gap-2">
-                                    {PRODUCT_COLOR_OPTIONS.map((option) => <FilterChip key={option.value} active={colorFilters.includes(option.value)} onClick={() => toggleFilterValue(option.value, setColorFilters)}>{option.label}</FilterChip>)}
-                                </div>
-                            </fieldset>
-                            <fieldset>
-                                <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Sladkost</legend>
-                                <div className="flex flex-wrap gap-2">
-                                    {PRODUCT_SWEETNESS_OPTIONS.map((option) => <FilterChip key={option.value} active={sweetnessFilters.includes(option.value)} onClick={() => toggleFilterValue(option.value, setSweetnessFilters)}>{option.label}</FilterChip>)}
-                                </div>
-                            </fieldset>
-                            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                        <div className={showWineFilters ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1.35fr_auto] lg:items-end" : undefined}>
+                            {showWineFilters && <>
+                                <fieldset>
+                                    <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Barva</legend>
+                                    <div className="flex flex-wrap gap-2">
+                                        {PRODUCT_COLOR_OPTIONS.map((option) => <FilterChip key={option.value} active={colorFilters.includes(option.value)} onClick={() => toggleFilterValue(option.value, setColorFilters)}>{option.label}</FilterChip>)}
+                                    </div>
+                                </fieldset>
+                                <fieldset>
+                                    <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Sladkost</legend>
+                                    <div className="flex flex-wrap gap-2">
+                                        {PRODUCT_SWEETNESS_OPTIONS.map((option) => <FilterChip key={option.value} active={sweetnessFilters.includes(option.value)} onClick={() => toggleFilterValue(option.value, setSweetnessFilters)}>{option.label}</FilterChip>)}
+                                    </div>
+                                </fieldset>
+                            </>}
+                            <div className={`flex flex-wrap items-center gap-2 ${showWineFilters ? "lg:justify-end" : ""}`}>
                                 <FilterChip active={onlyInStock} onClick={() => {
                                     if (directProductIds.length) clearDirectProducts(false);
                                     setOnlyInStock((value) => !value);
@@ -848,7 +852,7 @@ const ProductList = ({ onAddToCart, onRemoveFromCart, cartItems, products, initi
                                 {hasCatalogFilters && <button type="button" onClick={resetCatalogFilters} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-200 hover:text-gray-900"><RotateCcw className="h-3.5 w-3.5" />Zrušit filtry</button>}
                             </div>
                         </div>
-                        <p className="mt-3 text-[11px] text-gray-500">Barvu a sladkost lze filtrovat u vín, perlivých, nápojů, ovocných vín a burčáku.</p>
+                        {showWineFilters && <p className="mt-3 text-[11px] text-gray-500">V kategoriích Plyny, Burčák a PET se barva a sladkost nepoužijí.</p>}
                     </div>
                 )}
             </div>
