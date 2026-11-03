@@ -9,7 +9,16 @@ import styles from './header.module.css';
 import HeaderNotices from './HeaderNotices';
 
 export function HeaderBrand({ href = '/' }: { href?: string }) {
-    return <Link href={href} className={styles.brand} aria-label="VINARIA s.r.o. – Beginy.cz">
+    return <Link
+        href={href}
+        className={styles.brand}
+        aria-label="VINARIA s.r.o. – celý katalog"
+        onNavigate={event => {
+            // A fresh page resets the catalog's client-side filters on the same route.
+            event.preventDefault();
+            window.location.assign(href);
+        }}
+    >
         <Image src="/brand/logo-vinaria.png" alt="" width={56} height={56} sizes="(max-width: 359px) 36px, (max-width: 1023px) 42px, 56px" className={styles.brandLogo} />
         <span><span className={styles.brandName}>VINARIA s.r.o.</span><span className={styles.brandSubtitle}>Beginy.cz · Objednávky online</span></span>
     </Link>;
